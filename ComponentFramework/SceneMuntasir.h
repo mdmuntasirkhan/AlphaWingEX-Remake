@@ -5,6 +5,7 @@
 #include "Vector.h"
 #include <Matrix.h>
 #include "Sound.h"
+#include "Player.h"
 #include <vector>
 
 using namespace MATH;
@@ -18,53 +19,47 @@ class Texture;
 
 class SceneMuntasir : public Scene {
 private:
-	Body* playerShip;
+	// Player Class
+	Player* player;
+
 	Shader* shader;
-	Mesh* AlphaWingMesh;
 	Matrix4 projectionMatrix;
 	Matrix4 viewMatrix;
-	Matrix4 playerModelMatrix;
 	bool drawInWireMode;
 
-	Vec3 playerPos;
-	float playerSpeed;
-
+	// Bullets
 	std::vector<Vec3> bulletPositions;
 	float bulletSpeed;
 	Mesh* bulletMesh;
 
+	// Bot01
 	Mesh* Bot01Mesh;
 	std::vector<Vec3> Bot01Positions;
 	float Bot01Speed;
 	float spawnTimer;
 	float spawnInterval;
 
-	int lives;
-	float health;
-	float maxHealth;
-
+	// Asteroids
 	Mesh* asteroidMesh;
 	std::vector<Vec3> asteroidPositions;
 	float asteroidSpeed;
 	float asteroidSpawnTimer;
 	float asteroidSpawnInterval;
 
+	// Game state
 	bool gameOver;
-
 	int score;
-	Sound* sfxExplosion;
 
-	Vec3 lightPos;
-
+	// Audio
+	SDL_AudioStream* audioPlayer;
 	SDL_AudioStream* sfxPlayer;  // separate stream just for sound effects
 	Sound* sfxLaser;
+	Sound* sfxExplosion;
+	Sound* audioTest;
 
 	float musicVolume;
 	float sfxVolume;
 	bool musicPaused;
-
-	SDL_AudioStream* audioPlayer;
-	Sound* audioTest;
 
 public:
 	explicit SceneMuntasir();
@@ -75,8 +70,6 @@ public:
 	virtual void Update(const float deltaTime) override;
 	virtual void Render() const override;
 	virtual void HandleEvents(const SDL_Event& sdlEvent) override;
-
-
 
 	// ImGui
 	virtual void DrawGui() override;

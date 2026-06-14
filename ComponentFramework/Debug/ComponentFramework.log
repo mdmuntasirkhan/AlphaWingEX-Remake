@@ -1,6 +1,17 @@
 ﻿  Body.cpp
   Warning: Vec4 cross(const Vec4& a, const Vec4& b) read my comments
   This questionable: Vec4 inverse(const Vec4& v)
+  Bullet.cpp
+  Warning: Vec4 cross(const Vec4& a, const Vec4& b) read my comments
+  This questionable: Vec4 inverse(const Vec4& v)
+C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Bullet.cpp(66,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Bullet.cpp(78,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Bullet.cpp(115,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Bullet.cpp(123,20): warning C4018: '<': signed/unsigned mismatch
+  Camera.cpp
+  Warning: Vec4 cross(const Vec4& a, const Vec4& b) read my comments
+  This questionable: Vec4 inverse(const Vec4& v)
+  Debug.cpp
   imgui.cpp
   imgui_demo.cpp
   imgui_draw.cpp
@@ -13,17 +24,19 @@ C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\tiny_obj_loader.h
   (compiling source file 'Mesh.cpp')
   
   Player.cpp
+  Warning: Vec4 cross(const Vec4& a, const Vec4& b) read my comments
+  This questionable: Vec4 inverse(const Vec4& v)
   SceneManager.cpp
   Main.cpp
   SceneMuntasir.cpp
   Warning: Vec4 cross(const Vec4& a, const Vec4& b) read my comments
   This questionable: Vec4 inverse(const Vec4& v)
-C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\SceneMuntasir.cpp(247,20): warning C4018: '<': signed/unsigned mismatch
-C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\SceneMuntasir.cpp(267,20): warning C4018: '<': signed/unsigned mismatch
-C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\SceneMuntasir.cpp(292,20): warning C4018: '<': signed/unsigned mismatch
-C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\SceneMuntasir.cpp(411,20): warning C4018: '<': signed/unsigned mismatch
-C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\SceneMuntasir.cpp(418,20): warning C4018: '<': signed/unsigned mismatch
-C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\SceneMuntasir.cpp(426,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\SceneMuntasir.cpp(221,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\SceneMuntasir.cpp(241,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\SceneMuntasir.cpp(263,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\SceneMuntasir.cpp(350,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\SceneMuntasir.cpp(359,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\SceneMuntasir.cpp(368,23): warning C4018: '<': signed/unsigned mismatch
   SceneSTG.cpp
   Warning: Vec4 cross(const Vec4& a, const Vec4& b) read my comments
   This questionable: Vec4 inverse(const Vec4& v)
@@ -32,6 +45,8 @@ C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\SceneMuntasir.cpp
   This questionable: Vec4 inverse(const Vec4& v)
   Shader.cpp
   Sound.cpp
+  Generating Code...
+  Compiling...
   SoundManager.cpp
   Texture.cpp
   Timer.cpp
@@ -39,11 +54,8 @@ C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Timer.cpp(10,26):
 C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Timer.cpp(11,29): warning C4244: '=': conversion from 'Uint64' to 'unsigned int', possible loss of data
 C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Timer.cpp(16,29): warning C4244: '=': conversion from 'Uint64' to 'unsigned int', possible loss of data
 C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Timer.cpp(28,25): warning C4244: 'initializing': conversion from 'Uint64' to 'unsigned int', possible loss of data
-  Generating Code...
-  Compiling...
   Window.cpp
 C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Window.cpp(27,14): warning C4804: '<': unsafe use of type 'bool' in operation
 C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Window.cpp(32,14): warning C4804: '<': unsafe use of type 'bool' in operation
   Generating Code...
-  LINK : C:\Users\mdmun\Documents\AlphaWingEX-Remake\Debug\ComponentFramework.exe not found or not built by the last incremental link; performing full link
   ComponentFramework.vcxproj -> C:\Users\mdmun\Documents\AlphaWingEX-Remake\Debug\ComponentFramework.exe
