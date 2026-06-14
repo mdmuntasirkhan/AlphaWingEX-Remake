@@ -1,0 +1,10 @@
+﻿  SceneMuntasir.cpp
+  Warning: Vec4 cross(const Vec4& a, const Vec4& b) read my comments
+  This questionable: Vec4 inverse(const Vec4& v)
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\SceneMuntasir.cpp(247,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\SceneMuntasir.cpp(267,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\SceneMuntasir.cpp(292,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\SceneMuntasir.cpp(411,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\SceneMuntasir.cpp(418,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\SceneMuntasir.cpp(426,20): warning C4018: '<': signed/unsigned mismatch
+  ComponentFramework.vcxproj -> C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\Debug\ComponentFramework.exe

@@ -1,0 +1,25 @@
+Sun Jun 14 13:07:39 2026
+[INFO]: Starting the SceneManager
+[INFO]: OpenGL version: 4.6.0 NVIDIA 595.71
+[INFO]: Graphics card vendor NVIDIA Corporation
+[INFO]: Graphics card name NVIDIA GeForce RTX 3080 Laptop GPU/PCIe/SSE2
+[INFO]: GLSL Version 4.60 NVIDIA
+[INFO]: Created SceneJA: 
+[INFO]: Loading assets SceneJA: 
+[INFO]: Uniforms:
+"modelMatrix" loc:2
+"projectionMatrix" loc:0
+"viewMatrix" loc:1
+
+[INFO]: Deleting assets SceneJA: 
+[INFO]: Deleted SceneJA: 
+[INFO]: Created SceneMuntasir: 
+[INFO]: Loading assets SceneMuntasir: 
+[INFO]: Uniforms:
+"modelMatrix" loc:2
+"projectionMatrix" loc:0
+"viewMatrix" loc:1
+
+[INFO]: Deleting the SceneManager
+[INFO]: Deleting assets SceneMuntasir: 
+[INFO]: Deleted SceneMuntasir: 

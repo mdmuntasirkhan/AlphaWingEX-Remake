@@ -1,0 +1,44 @@
+﻿  Body.cpp
+  Warning: Vec4 cross(const Vec4& a, const Vec4& b) read my comments
+  This questionable: Vec4 inverse(const Vec4& v)
+  Debug.cpp
+  Mesh.cpp
+  SceneManager.cpp
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\Mesh.cpp(105,28): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\Mesh.cpp(111,29): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\SceneManager.cpp(78,4): warning C5051: attribute [[fallthrough]] requires at least '/std:c++17'; ignored
+  Main.cpp
+  SceneSTG.cpp
+  Warning: Vec4 cross(const Vec4& a, const Vec4& b) read my comments
+  This questionable: Vec4 inverse(const Vec4& v)
+  Shader.cpp
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\Shader.cpp(93,33): warning C4267: '=': conversion from 'size_t' to 'GLsizei', possible loss of data
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\Shader.cpp(108,33): warning C4267: '=': conversion from 'size_t' to 'GLsizei', possible loss of data
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\Shader.cpp(137,34): warning C4267: '=': conversion from 'size_t' to 'GLsizei', possible loss of data
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\Shader.cpp(152,34): warning C4267: '=': conversion from 'size_t' to 'GLsizei', possible loss of data
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\Shader.cpp(187,34): warning C4267: '=': conversion from 'size_t' to 'GLsizei', possible loss of data
+  Sound.cpp
+  Texture.cpp
+  Timer.cpp
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\Timer.cpp(10,26): warning C4244: '=': conversion from 'Uint64' to 'unsigned int', possible loss of data
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\Timer.cpp(11,29): warning C4244: '=': conversion from 'Uint64' to 'unsigned int', possible loss of data
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\Timer.cpp(16,29): warning C4244: '=': conversion from 'Uint64' to 'unsigned int', possible loss of data
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\Timer.cpp(28,25): warning C4244: 'initializing': conversion from 'Uint64' to 'unsigned int', possible loss of data
+  Window.cpp
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\Window.cpp(10,14): warning C4804: '<': unsafe use of type 'bool' in operation
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\ComponentFramework\Window.cpp(15,14): warning C4804: '<': unsafe use of type 'bool' in operation
+  Generating Code...
+Mesh.obj : error LNK2019: unresolved external symbol __imp_glDrawArrays referenced in function "public: void __cdecl Mesh::Render(unsigned int)const " (?Render@Mesh@@QEBAXI@Z)
+SceneSTG.obj : error LNK2019: unresolved external symbol __imp_glClear referenced in function "public: virtual void __cdecl SceneSTG::Render(void)const " (?Render@SceneSTG@@UEBAXXZ)
+SceneSTG.obj : error LNK2019: unresolved external symbol __imp_glClearColor referenced in function "public: virtual void __cdecl SceneSTG::Render(void)const " (?Render@SceneSTG@@UEBAXXZ)
+SceneSTG.obj : error LNK2019: unresolved external symbol __imp_glEnable referenced in function "public: virtual void __cdecl SceneSTG::Render(void)const " (?Render@SceneSTG@@UEBAXXZ)
+SceneSTG.obj : error LNK2019: unresolved external symbol __imp_glPolygonMode referenced in function "public: virtual void __cdecl SceneSTG::Render(void)const " (?Render@SceneSTG@@UEBAXXZ)
+Texture.obj : error LNK2019: unresolved external symbol __imp_glBindTexture referenced in function "public: bool __cdecl Texture::LoadImage(char const *)" (?LoadImage@Texture@@QEAA_NPEBD@Z)
+Texture.obj : error LNK2019: unresolved external symbol __imp_glDeleteTextures referenced in function "public: __cdecl Texture::~Texture(void)" (??1Texture@@QEAA@XZ)
+Texture.obj : error LNK2019: unresolved external symbol __imp_glGenTextures referenced in function "public: bool __cdecl Texture::LoadImage(char const *)" (?LoadImage@Texture@@QEAA_NPEBD@Z)
+Texture.obj : error LNK2019: unresolved external symbol __imp_glTexImage2D referenced in function "public: bool __cdecl Texture::LoadImage(char const *)" (?LoadImage@Texture@@QEAA_NPEBD@Z)
+Texture.obj : error LNK2019: unresolved external symbol __imp_glTexParameteri referenced in function "public: bool __cdecl Texture::LoadImage(char const *)" (?LoadImage@Texture@@QEAA_NPEBD@Z)
+Window.obj : error LNK2019: unresolved external symbol __imp_glGetIntegerv referenced in function "private: void __cdecl Window::getInstalledOpenGLInfo(int *,int *)" (?getInstalledOpenGLInfo@Window@@AEAAXPEAH0@Z)
+Window.obj : error LNK2019: unresolved external symbol __imp_glGetString referenced in function "private: void __cdecl Window::getInstalledOpenGLInfo(int *,int *)" (?getInstalledOpenGLInfo@Window@@AEAAXPEAH0@Z)
+Window.obj : error LNK2019: unresolved external symbol __imp_glViewport referenced in function "public: bool __cdecl Window::OnCreate(class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> >,int,int)" (?OnCreate@Window@@QEAA_NV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@HH@Z)
+C:\Users\mdmun\Documents\SummerProject_AlphaWingEX\SummerPratice\x64\Debug\ComponentFramework.exe : fatal error LNK1120: 13 unresolved externals
