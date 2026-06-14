@@ -46,7 +46,8 @@ How to run this on your PC?
 
 - Download and install Visual Studio on windows (other OS!, you are on your own for now)
 - Setup GameDev library (find the GameDev.7z inside, extract it directly to your C drive "C:\GameDev")
-- Clone/Download, Open ComponentFramework.sln in VS and run, "F3" for the testing scene
+- Clone/Download, Open ComponentFramework.sln in VS and run in x86, "F3" for the testing scene
+- Enjoy
 
 ---
 
@@ -54,3 +55,7 @@ How to play?
 
 - W A S D for movement
 - Spacebar/M1 to shoot
+
+
+Sincierly,
+Muntasir
