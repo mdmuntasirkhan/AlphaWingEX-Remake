@@ -1,10 +1,6 @@
 ﻿  Body.cpp
   Warning: Vec4 cross(const Vec4& a, const Vec4& b) read my comments
   This questionable: Vec4 inverse(const Vec4& v)
-  Camera.cpp
-  Warning: Vec4 cross(const Vec4& a, const Vec4& b) read my comments
-  This questionable: Vec4 inverse(const Vec4& v)
-  Debug.cpp
   imgui.cpp
   imgui_demo.cpp
   imgui_draw.cpp
@@ -16,6 +12,7 @@
 C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\tiny_obj_loader.h(1665,27): warning C4018: '<': signed/unsigned mismatch
   (compiling source file 'Mesh.cpp')
   
+  Player.cpp
   SceneManager.cpp
   Main.cpp
   SceneMuntasir.cpp
@@ -37,13 +34,13 @@ C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\SceneMuntasir.cpp
   Sound.cpp
   SoundManager.cpp
   Texture.cpp
-  Generating Code...
-  Compiling...
   Timer.cpp
 C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Timer.cpp(10,26): warning C4244: '=': conversion from 'Uint64' to 'unsigned int', possible loss of data
 C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Timer.cpp(11,29): warning C4244: '=': conversion from 'Uint64' to 'unsigned int', possible loss of data
 C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Timer.cpp(16,29): warning C4244: '=': conversion from 'Uint64' to 'unsigned int', possible loss of data
 C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Timer.cpp(28,25): warning C4244: 'initializing': conversion from 'Uint64' to 'unsigned int', possible loss of data
+  Generating Code...
+  Compiling...
   Window.cpp
 C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Window.cpp(27,14): warning C4804: '<': unsafe use of type 'bool' in operation
 C:\Users\mdmun\Documents\AlphaWingEX-Remake\ComponentFramework\Window.cpp(32,14): warning C4804: '<': unsafe use of type 'bool' in operation
