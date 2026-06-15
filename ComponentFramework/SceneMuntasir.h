@@ -8,6 +8,8 @@
 #include "Player.h"
 #include <vector>
 
+#include "Environment.h"
+
 using namespace MATH;
 
 /// Forward declarations 
@@ -60,6 +62,13 @@ private:
 	float musicVolume;
 	float sfxVolume;
 	bool musicPaused;
+
+	// Explosion cooldown
+	float explosionCooldown;
+	float explosionCooldownTimer;
+
+	// Environment
+	Environment* environment;
 
 public:
 	explicit SceneMuntasir();

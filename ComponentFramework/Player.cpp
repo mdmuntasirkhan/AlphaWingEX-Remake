@@ -135,7 +135,7 @@ void Player::Render(Shader* shader,
 		glDepthMask(GL_FALSE);
 
 		Matrix4 shieldMatrix = MMath::translate(pos) *
-							   MMath::scale(1.0f, 1.0f, 1.0f);
+							   MMath::scale(0.5f, 0.5f, 0.5f);
 		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"),
 							   1, GL_FALSE, shieldMatrix);
 		glUniform1f(shader->GetUniformID("alphaValue"), 0.3f);	// 30% visible

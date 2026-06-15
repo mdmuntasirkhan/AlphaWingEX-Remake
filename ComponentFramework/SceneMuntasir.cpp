@@ -37,7 +37,10 @@ SceneMuntasir::SceneMuntasir() :
     audioTest{ nullptr },
     musicVolume{ 0.5f },
     sfxVolume{ 1.0f },
-    musicPaused{ false } {
+    musicPaused{ false },
+    explosionCooldown{ 0.2f },
+    explosionCooldownTimer{ 0.0f },
+    environment{ nullptr } {
     Debug::Info("Created SceneMuntasir: ", __FILE__, __LINE__);
 }
 
@@ -75,6 +78,12 @@ bool SceneMuntasir::OnCreate() {
     Bot01Mesh = new Mesh("meshes/Temp_AlphaWing_Enemy_Bot01.obj");
     if (Bot01Mesh->OnCreate() == false) {
         std::cout << "Enemy mesh not found!\n";
+        return false;
+    }
+
+    // Environment
+    environment = new Environment();
+    if (environment->OnCreate(1920.0f, 1080.0f) == false) {
         return false;
     }
 
@@ -155,6 +164,11 @@ void SceneMuntasir::OnDestroy() {
     delete Bot01Mesh;
     Bot01Positions.clear();
 
+    // Environment
+    environment->OnDestroy();
+    delete environment;
+    environment = nullptr;
+
     // Shader
     shader->OnDestroy();
     delete shader;
@@ -206,6 +220,11 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
 void SceneMuntasir::Update(const float deltaTime) {
     static float totalTime = 0.0f;
     totalTime += deltaTime;
+
+    // Explosion cooldown timer
+    if (explosionCooldownTimer > 0.0f) {
+        explosionCooldownTimer -= deltaTime;
+    }
 
     if (gameOver) return;
 
@@ -271,6 +290,9 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
+    // Environment
+    environment->Update(deltaTime);
+
     // Collision - bullet hits Bot01
     for (int b = bulletPositions.size() - 1; b >= 0; b--) {
         for (int e = Bot01Positions.size() - 1; e >= 0; e--) {
@@ -281,7 +303,10 @@ void SceneMuntasir::Update(const float deltaTime) {
                 bulletPositions.erase(bulletPositions.begin() + b);
                 Bot01Positions.erase(Bot01Positions.begin() + e);
                 score += 100;
-                sfxExplosion->Play(sfxPlayer);
+                if (explosionCooldownTimer <= 0.0f) {
+                    sfxExplosion->Play(sfxPlayer);
+                    explosionCooldownTimer = explosionCooldown;
+                }
                 break;
             }
         }
@@ -297,7 +322,10 @@ void SceneMuntasir::Update(const float deltaTime) {
                 bulletPositions.erase(bulletPositions.begin() + b);
                 asteroidPositions.erase(asteroidPositions.begin() + a);
                 score += 50;
-                sfxExplosion->Play(sfxPlayer);
+                if (explosionCooldownTimer <= 0.0f) {
+                    sfxExplosion->Play(sfxPlayer);
+                    explosionCooldownTimer = explosionCooldown;
+                }
                 break;
             }
         }
@@ -311,7 +339,10 @@ void SceneMuntasir::Update(const float deltaTime) {
         if (distance < 1.0f) {
             asteroidPositions.erase(asteroidPositions.begin() + a);
             player->TakeDamage(25.0f);
-            sfxExplosion->Play(sfxPlayer);
+            if (explosionCooldownTimer <= 0.0f) {
+                sfxExplosion->Play(sfxPlayer);
+                explosionCooldownTimer = explosionCooldown;
+            }
         }
     }
 
@@ -323,7 +354,10 @@ void SceneMuntasir::Update(const float deltaTime) {
         if (distance < 1.0f) {
             Bot01Positions.erase(Bot01Positions.begin() + e);
             player->TakeDamage(40.0f);
-            sfxExplosion->Play(sfxPlayer);
+            if (explosionCooldownTimer <= 0.0f) {
+                sfxExplosion->Play(sfxPlayer);
+                explosionCooldownTimer = explosionCooldown;
+            }
         }
     }
 }
@@ -373,6 +407,9 @@ void SceneMuntasir::Render() const {
             1, GL_FALSE, enemyMatrix);
         Bot01Mesh->Render();
     }
+
+    // Environment
+    environment->Render();
 
     glUseProgram(0);
 }
