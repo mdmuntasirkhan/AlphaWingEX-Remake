@@ -1,9 +1,25 @@
-.vs/
-x64/
+# Build outputs - NOT needed
 Debug/
+ComponentFramework/Debug/
 Release/
+x64/
+*.exe
+*.pdb
+*.idb
+*.ilk
+*.tlog
+*.recipe
+*.FileListAbsolute.txt
+*.lastbuildstate
+*.CppClean.log
+
+# Visual Studio temp files - NOT needed
+.vs/
+*.suo
 *.user
 *.ipch
-*.suo
-*.db
-*.backup*
+
+# Logs - NOT needed
+*.log
+GameEngineLog.txt
+imgui.ini
