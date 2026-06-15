@@ -26,8 +26,8 @@ SceneMuntasir::SceneMuntasir() :
     sfxLaser{ nullptr },
     sfxExplosion{ nullptr },
     audioTest{ nullptr },
-    musicVolume{ 0.5f },
-    sfxVolume{ 1.0f },
+    musicVolume{ 0.3f },
+    sfxVolume{ 0.3f },
     musicPaused{ false } {
     Debug::Info("Created SceneMuntasir: ", __FILE__, __LINE__);
 }

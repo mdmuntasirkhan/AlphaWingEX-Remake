@@ -47,7 +47,7 @@ bool Player::OnCreate(const char* meshFile) {
 
 	pos = Vec3(0.0f, 0.0f, -10.0f);
 	modelMatrix = MMath::translate(pos) *
-				  MMath::scale(0.3f, 0.3f, 0.3f);
+				  MMath::scale(0.5f, 0.5f, 0.5f);
 	return true;
 }
 
@@ -140,12 +140,12 @@ void Player::Update(float deltaTime) {
 void Player::Render(Shader* shader,
 					const Matrix4& projectionMatrix,
 					const Matrix4& viewMatrix) const {
-	glUniformMatrix4fv(shader->GetUniformID("projectionMatrix"),
-					1, GL_FALSE, projectionMatrix);
-	glUniformMatrix4fv(shader->GetUniformID("viewMatrix"),
-					1, GL_FALSE, viewMatrix);
-	glUniformMatrix4fv(shader->GetUniformID("modelMatrix"),
-					1, GL_FALSE, modelMatrix);
+
+	// Send matrices to shader
+	glUniformMatrix4fv(shader->GetUniformID("projectionMatrix"), 1, GL_FALSE, projectionMatrix);
+	glUniformMatrix4fv(shader->GetUniformID("viewMatrix"), 1, GL_FALSE, viewMatrix);
+	glUniformMatrix4fv(shader->GetUniformID("modelMatrix"),	1, GL_FALSE, modelMatrix);
+
 	// Alpha Wing Mesh
 	mesh->Render();
 
@@ -156,17 +156,23 @@ void Player::Render(Shader* shader,
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glDepthMask(GL_FALSE);
 
+		glUniform1f(shader->GetUniformID("emissive"), 1.0f);  // skip lighting
+		glUniform4f(shader->GetUniformID("color"), 0.0f, 0.9f, 1.0f, 0.25f);
+
 		Matrix4 shieldMatrix = MMath::translate(pos) *
-							   MMath::scale(0.5f, 0.5f, 0.5f);
+							   MMath::scale(0.3f, 0.3f, 0.3f);
+
 		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"),
 							   1, GL_FALSE, shieldMatrix);
-		glUniform1f(shader->GetUniformID("alphaValue"), 0.3f);	// 30% visible
+		
+		//glUniform1f(shader->GetUniformID("alphaValue"), 0.2f);	// 20% visible
 
 		// Shield Mesh
 		shieldMesh->Render();
 
 		// Reset alpha back to 1.0 for everything else
-		glUniform1f(shader->GetUniformID("alphaValue"), 1.0f);
+		//glUniform1f(shader->GetUniformID("alphaValue"), 1.0f);
+		glUniform1f(shader->GetUniformID("emissive"), 0.0f);
 
 		// Turn OFF transparancy
 		glDisable(GL_BLEND);

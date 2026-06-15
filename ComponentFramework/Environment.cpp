@@ -5,8 +5,8 @@
 Environment::Environment() :
     currentType{ EnvironmentType::SPACE },
     starCount{ 150 },
-    screenWidth{ 1280.0f },
-    screenHeight{ 720.0f },
+    screenWidth{ 1920.0f },
+    screenHeight{ 1080.0f },
     waterJitterTimer{ 0.0f } {
 }
 
