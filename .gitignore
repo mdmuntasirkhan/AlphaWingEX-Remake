@@ -1,25 +1,8 @@
-# Build outputs - NOT needed
-Debug/
-ComponentFramework/Debug/
-Release/
-x64/
-*.exe
-*.pdb
-*.idb
-*.ilk
-*.tlog
-*.recipe
-*.FileListAbsolute.txt
-*.lastbuildstate
-*.CppClean.log
-
-# Visual Studio temp files - NOT needed
-.vs/
-*.suo
-*.user
-*.ipch
-
 # Logs - NOT needed
 *.log
 GameEngineLog.txt
 imgui.ini
+
+# Build outputs - but KEEP dll files
+Debug/*
+!Debug/*.dll
