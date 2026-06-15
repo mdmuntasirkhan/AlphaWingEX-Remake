@@ -303,6 +303,7 @@ void SceneMuntasir::Render() const {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    // Wireframe
     if (drawInWireMode) {
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     }
@@ -312,13 +313,20 @@ void SceneMuntasir::Render() const {
 
     glUseProgram(shader->GetProgram());
 
-    // Player renders itself
+    // Light and camera position (sent to frag shader)
+    glUniform3f(shader->GetUniformID("lightPos"), 0.0f, 5.0f, 10.0f);
+    glUniform3f(shader->GetUniformID("viewPos"), 0.0f, 0.0f, 10.0f);
+
+    // Player color CYAN
+    glUniform4f(shader->GetUniformID("color"), 0.0f, 1.0f, 1.0f, 1.0f);
     player->Render(shader, projectionMatrix, viewMatrix);
 
-    // Bullets and missiles
+    // Bullets color YELLOW
+    glUniform4f(shader->GetUniformID("color"), 1.0f, 1.0f, 0.0f, 1.0f);
     bullet->Render(shader, projectionMatrix, viewMatrix);
 
-    // Enemies and asteroids
+    // Enemies color ORANGE
+    glUniform4f(shader->GetUniformID("color"), 1.0f, 0.3f, 0.0f, 1.0f);
     enemy->Render(shader, projectionMatrix, viewMatrix);
 
     glUseProgram(0);
