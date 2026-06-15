@@ -136,3 +136,11 @@ void Enemy::RemoveAsteroid(int index) {
 void Enemy::RemoveBot01(int index) {
 	bot01Positions.erase(bot01Positions.begin() + index);
 }
+
+void Enemy::Reset() {
+	asteroidPositions.clear();
+	bot01Positions.clear();
+	asteroidSpawnTimer = 0.0f;
+	bot01SpawnTimer = 0.0f;
+	totalTime = 0.0f;
+}

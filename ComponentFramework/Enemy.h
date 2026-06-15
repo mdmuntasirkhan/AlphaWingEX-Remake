@@ -58,5 +58,8 @@ public:
 	void RemoveAsteroid(int index);
 	void RemoveBot01(int index);
 
+	// Reset
+	void Reset();
+
 };
 #endif // !ENEMY_H

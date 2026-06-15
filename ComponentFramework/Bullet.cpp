@@ -117,6 +117,7 @@ void Bullet::Render(Shader* shader,
 			MMath::scale(0.2f, 0.2f, 0.2f);
 		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"),
 			1, GL_FALSE, bulletMatrix);
+		mesh->Render();
 	}
 
 	// Draw Missiles
