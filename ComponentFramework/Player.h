@@ -24,6 +24,12 @@ private:
 	float maxHealth;
 	int lives;
 
+	// Attributes
+	Vec3 velocity;
+	float thrustPower;
+	float friction;
+	float maxSpeed;
+
 	// Shield
 	Mesh* shieldMesh;
 	bool shieldActive;

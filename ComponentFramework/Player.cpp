@@ -32,6 +32,12 @@ bool Player::OnCreate(const char* meshFile) {
 		return false;
 	}
 
+	// Attributes
+	velocity = Vec3(0.0f, 0.0f, 0.0f);
+	thrustPower = 15.0f;
+	friction = 8.0f;
+	maxSpeed = 10.0f;
+
 	// Shield Mesh
 	shieldMesh = new Mesh("meshes/Temp_AlphaWing_Shield.obj");
 	if (shieldMesh->OnCreate() == false) {
@@ -63,22 +69,6 @@ void Player::OnDestroy() {
 void Player::HandleEvents(const SDL_Event& sdlEvent) {
 	if (sdlEvent.type == SDL_EVENT_KEY_DOWN) {
 		switch (sdlEvent.key.scancode) {
-		case SDL_SCANCODE_W:
-			pos.y += speed * 0.1f;
-			if (pos.y > 4.5f) pos.y = 4.5f;
-			break;
-		case SDL_SCANCODE_S:
-			pos.y -= speed * 0.1f;
-			if (pos.y < -4.5f) pos.y = -4.5f;
-			break;
-		case SDL_SCANCODE_A:
-			pos.x -= speed * 0.1f;
-			if (pos.x < -8.0f) pos.x = -8.0f;
-			break;
-		case SDL_SCANCODE_D:
-			pos.x += speed * 0.1f;
-			if (pos.x > 8.0f) pos.x = 8.0f;
-			break;
 		case SDL_SCANCODE_E:
 			ActivateShield();
 			break;
@@ -90,6 +80,38 @@ void Player::HandleEvents(const SDL_Event& sdlEvent) {
 
 void Player::Update(float deltaTime) {
 
+	// Movement Logic read keyboard everyframe
+	const bool* keys = SDL_GetKeyboardState(nullptr);
+
+	Vec3 inputDir(0.0f, 0.0f, 0.0f);
+	if (keys[SDL_SCANCODE_W]) inputDir.y += 1.0f;
+	if (keys[SDL_SCANCODE_S]) inputDir.y -= 1.0f;
+	if (keys[SDL_SCANCODE_A]) inputDir.x -= 1.0f;
+	if (keys[SDL_SCANCODE_D]) inputDir.x += 1.0f;
+
+	// Push the ship (function)
+	velocity += inputDir * thrustPower * deltaTime;
+
+	// Friction
+	velocity -= velocity * friction * deltaTime;
+
+	// Speed cap and Normalized
+	float speed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+	if (speed > maxSpeed) {
+		velocity = velocity * (maxSpeed / speed);
+	}
+
+	// Move the position
+	pos += velocity * deltaTime;
+
+	// Screen Boundary
+	if (pos.x < -8.0f) { pos.x = -8.0f; velocity.x = 0.0f; }
+	if (pos.x >  8.0f) { pos.x =  8.0f; velocity.x = 0.0f; }
+	if (pos.y < -4.5f) { pos.y = -4.5f; velocity.y = 0.0f; }
+	if (pos.y >  4.5f) { pos.y =  4.5f; velocity.y = 0.0f; }
+
+
+	// Shield
 	modelMatrix = MMath::translate(pos) *
 				  MMath::scale(0.3f, 0.3f, 0.3f);
 
