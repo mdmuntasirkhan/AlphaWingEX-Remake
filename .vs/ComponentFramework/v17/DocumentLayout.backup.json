@@ -7,12 +7,12 @@
       "RelativeMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|solutionrelative:ComponentFramework\\SceneMuntasir.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Player.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|solutionrelative:ComponentFramework\\Player.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Player.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|solutionrelative:ComponentFramework\\Player.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Player.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|solutionrelative:ComponentFramework\\Player.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\SceneMuntasir.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
@@ -58,8 +58,7 @@
               "RelativeToolTip": "ComponentFramework\\Environment.h",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAACIAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2026-06-15T22:50:25.077Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-15T22:50:25.077Z"
             },
             {
               "$type": "Document",
@@ -71,8 +70,7 @@
               "RelativeToolTip": "ComponentFramework\\Environment.cpp",
               "ViewState": "AgIAADYAAAAAAAAAAAAAAAgAAAAWAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-06-15T22:50:12.78Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-15T22:50:12.78Z"
             },
             {
               "$type": "Document",
@@ -84,8 +82,7 @@
               "RelativeToolTip": "ComponentFramework\\SceneMuntasir.h",
               "ViewState": "AgIAAAwAAAAAAAAAAAAAAAkAAAATAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2026-06-15T22:32:21.002Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-15T22:32:21.002Z"
             },
             {
               "$type": "Document",
@@ -95,7 +92,7 @@
               "RelativeDocumentMoniker": "ComponentFramework\\SceneMuntasir.cpp",
               "ToolTip": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\SceneMuntasir.cpp*",
               "RelativeToolTip": "ComponentFramework\\SceneMuntasir.cpp*",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAB0AAAASAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAAYAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2026-06-15T22:23:17.94Z",
               "EditorCaption": ""
@@ -110,8 +107,7 @@
               "RelativeToolTip": "ComponentFramework\\shaders\\defaultVert.glsl",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
-              "WhenOpened": "2026-06-15T22:21:25.421Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-15T22:21:25.421Z"
             },
             {
               "$type": "Document",
@@ -123,25 +119,24 @@
               "RelativeToolTip": "ComponentFramework\\shaders\\defaultFrag.glsl",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAXAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
-              "WhenOpened": "2026-06-15T22:21:22.169Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-15T22:21:22.169Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 1,
               "Title": "Player.cpp",
               "DocumentMoniker": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Player.cpp",
               "RelativeDocumentMoniker": "ComponentFramework\\Player.cpp",
               "ToolTip": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Player.cpp",
               "RelativeToolTip": "ComponentFramework\\Player.cpp",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAJ8AAAA2AAAAAAAAAA==",
+              "ViewState": "AgIAACcAAAAAAAAAAAAAAJ8AAAA2AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2026-06-15T20:43:27.72Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "Player.h",
               "DocumentMoniker": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Player.h",
               "RelativeDocumentMoniker": "ComponentFramework\\Player.h",
@@ -149,8 +144,7 @@
               "RelativeToolTip": "ComponentFramework\\Player.h",
               "ViewState": "AgIAAAYAAAAAAAAAAAAcwBUAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2026-06-15T20:39:55.659Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-15T20:39:55.659Z"
             }
           ]
         }

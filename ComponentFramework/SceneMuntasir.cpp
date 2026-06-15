@@ -19,7 +19,7 @@ SceneMuntasir::SceneMuntasir() :
     drawInWireMode{ false },
     gameOver{ false },
     score{ 0 },
-    explosionCooldown{ 0.2f },
+    explosionCooldown{ 2.0f },
     explosionCooldownTimer{ 0.0f },
     audioPlayer{ nullptr },
     sfxPlayer{ nullptr },
@@ -115,7 +115,7 @@ bool SceneMuntasir::OnCreate() {
     sfxLaser = new Sound("audio/sfx/LaserShoot.wav");
     sfxLaser->OnCreate();
 
-    sfxExplosion = new Sound("audio/sfx/Explosion01.wav");
+    sfxExplosion = new Sound("audio/sfx/Explosion03.wav");
     sfxExplosion->OnCreate();
 
     SDL_Log("Music queued bytes: %d", SDL_GetAudioStreamQueued(audioPlayer));
