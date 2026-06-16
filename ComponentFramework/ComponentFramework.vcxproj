@@ -197,8 +197,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="imgui.ini" />
-    <None Include="shaders\defaultFrag.glsl" />
-    <None Include="shaders\defaultVert.glsl" />
+    <None Include="shaders\alphaWingFrag.glsl" />
+    <None Include="shaders\alphaWingVert.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

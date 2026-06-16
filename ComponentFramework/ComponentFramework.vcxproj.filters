@@ -216,10 +216,10 @@
     </Text>
   </ItemGroup>
   <ItemGroup>
-    <None Include="shaders\defaultFrag.glsl">
+    <None Include="shaders\alphaWingFrag.glsl">
       <Filter>Resource Files\Default</Filter>
     </None>
-    <None Include="shaders\defaultVert.glsl">
+    <None Include="shaders\alphaWingVert.glsl">
       <Filter>Resource Files\Default</Filter>
     </None>
     <None Include="imgui.ini">

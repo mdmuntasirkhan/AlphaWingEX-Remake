@@ -72,7 +72,7 @@ bool SceneMuntasir::OnCreate() {
     }
 
     // Shader
-    shader = new Shader("shaders/defaultVert.glsl", "shaders/defaultFrag.glsl");
+    shader = new Shader("shaders/alphaWingVert.glsl", "shaders/alphaWingFrag.glsl");
     if (shader->OnCreate() == false) {
         std::cout << "Shader failed!\n";
         return false;
