@@ -58,8 +58,7 @@
               "RelativeToolTip": "ComponentFramework\\Environment.h",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAB0AAAASAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2026-06-15T22:50:25.077Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-15T22:50:25.077Z"
             },
             {
               "$type": "Document",
@@ -71,8 +70,7 @@
               "RelativeToolTip": "ComponentFramework\\Environment.cpp",
               "ViewState": "AgIAACQAAAAAAAAAAAAcwEEAAAA9AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-06-15T22:50:12.78Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-15T22:50:12.78Z"
             },
             {
               "$type": "Document",
@@ -84,8 +82,7 @@
               "RelativeToolTip": "ComponentFramework\\SceneMuntasir.h",
               "ViewState": "AgIAADsAAAAAAAAAAAAcwBoAAAAaAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2026-06-15T22:32:21.002Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-15T22:32:21.002Z"
             },
             {
               "$type": "Document",
@@ -97,8 +94,7 @@
               "RelativeToolTip": "ComponentFramework\\SceneMuntasir.cpp",
               "ViewState": "AgIAACsBAAAAAAAAAAAAAKABAAA2AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-06-15T22:23:17.94Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-15T22:23:17.94Z"
             },
             {
               "$type": "Document",
@@ -123,8 +119,7 @@
               "RelativeToolTip": "ComponentFramework\\Player.h",
               "ViewState": "AgIAADYAAAAAAAAAAAAcwCUAAAAWAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2026-06-15T20:39:55.659Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-15T20:39:55.659Z"
             },
             {
               "$type": "Document",
@@ -136,8 +131,7 @@
               "RelativeToolTip": "ComponentFramework\\shaders\\defaultVert.glsl",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAAAnAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
-              "WhenOpened": "2026-06-15T22:21:25.421Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-15T22:21:25.421Z"
             },
             {
               "$type": "Document",
@@ -149,8 +143,7 @@
               "RelativeToolTip": "ComponentFramework\\shaders\\defaultFrag.glsl",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAAxAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
-              "WhenOpened": "2026-06-15T22:21:22.169Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-15T22:21:22.169Z"
             }
           ]
         }
