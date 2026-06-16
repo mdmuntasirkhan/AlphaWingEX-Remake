@@ -193,11 +193,11 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
             if (!ImGui::GetIO().WantCaptureMouse) {
                 if (enemy->GetBot01Positions().size() > 0) {
                     bullet->SpawnHoming(player->GetPosition(),
-                        &enemy->GetBot01Positions()[0]);
+                        MissileTargetType::BOT01, 0);
                 }
                 else if (enemy->GetAsteroidPositions().size() > 0) {
                     bullet->SpawnHoming(player->GetPosition(),
-                        &enemy->GetAsteroidPositions()[0]);
+                        MissileTargetType::ASTEROID, 0);
                 }
             }
         }
@@ -220,7 +220,7 @@ void SceneMuntasir::Update(const float deltaTime) {
     // Update all classes
     player->Update(deltaTime);
     enemy->Update(deltaTime);
-    bullet->Update(deltaTime);
+    bullet->Update(deltaTime, enemy->GetAsteroidPositions(), enemy->GetBot01Positions());
     environment->Update(deltaTime);
 
     // Check game over
@@ -255,6 +255,44 @@ void SceneMuntasir::Update(const float deltaTime) {
             float distance = sqrt(dx * dx + dy * dy);
             if (distance < 1.0f) {
                 bullet->RemoveAt(b);
+                enemy->RemoveAsteroid(a);
+                score += 50;
+                if (explosionCooldownTimer <= 0.0f) {
+                    sfxExplosion->Play(sfxPlayer);
+                    explosionCooldownTimer = explosionCooldown;
+                }
+                break;
+            }
+        }
+    }
+
+    // Collision - missile hits Bot01
+    for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
+        for (int e = enemy->GetBot01Positions().size() - 1; e >= 0; e--) {
+            float dx = bullet->GetMissilePositions()[m].x - enemy->GetBot01Positions()[e].x;
+            float dy = bullet->GetMissilePositions()[m].y - enemy->GetBot01Positions()[e].y;
+            float distance = sqrt(dx * dx + dy * dy);
+            if (distance < 1.0f) {
+                bullet->RemoveMissileAt(m);
+                enemy->RemoveBot01(e);
+                score += 100;
+                if (explosionCooldownTimer <= 0.0f) {
+                    sfxExplosion->Play(sfxPlayer);
+                    explosionCooldownTimer = explosionCooldown;
+                }
+                break;
+            }
+        }
+    }
+
+    // Collision - missile hits asteroid
+    for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
+        for (int a = enemy->GetAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = bullet->GetMissilePositions()[m].x - enemy->GetAsteroidPositions()[a].x;
+            float dy = bullet->GetMissilePositions()[m].y - enemy->GetAsteroidPositions()[a].y;
+            float distance = sqrt(dx * dx + dy * dy);
+            if (distance < 1.0f) {
+                bullet->RemoveMissileAt(m);
                 enemy->RemoveAsteroid(a);
                 score += 50;
                 if (explosionCooldownTimer <= 0.0f) {

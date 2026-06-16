@@ -7,6 +7,14 @@
       "RelativeMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|solutionrelative:ComponentFramework\\SceneMuntasir.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
+      "AbsoluteMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Bullet.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|solutionrelative:ComponentFramework\\Bullet.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Body.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|solutionrelative:ComponentFramework\\Body.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Player.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|solutionrelative:ComponentFramework\\Player.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
@@ -42,7 +50,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 4,
+          "SelectedChildIndex": 6,
           "Children": [
             {
               "$type": "Bookmark",
@@ -50,7 +58,33 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 2,
+              "Title": "Body.cpp",
+              "DocumentMoniker": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Body.cpp",
+              "RelativeDocumentMoniker": "ComponentFramework\\Body.cpp",
+              "ToolTip": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Body.cpp",
+              "RelativeToolTip": "ComponentFramework\\Body.cpp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2026-06-16T15:22:59.21Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Bullet.cpp",
+              "DocumentMoniker": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Bullet.cpp",
+              "RelativeDocumentMoniker": "ComponentFramework\\Bullet.cpp",
+              "ToolTip": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Bullet.cpp",
+              "RelativeToolTip": "ComponentFramework\\Bullet.cpp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2026-06-16T15:22:58.373Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
               "Title": "Environment.h",
               "DocumentMoniker": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Environment.h",
               "RelativeDocumentMoniker": "ComponentFramework\\Environment.h",
@@ -62,7 +96,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 8,
               "Title": "Environment.cpp",
               "DocumentMoniker": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Environment.cpp",
               "RelativeDocumentMoniker": "ComponentFramework\\Environment.cpp",
@@ -74,7 +108,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 4,
               "Title": "SceneMuntasir.h",
               "DocumentMoniker": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\SceneMuntasir.h",
               "RelativeDocumentMoniker": "ComponentFramework\\SceneMuntasir.h",
@@ -92,14 +126,14 @@
               "RelativeDocumentMoniker": "ComponentFramework\\SceneMuntasir.cpp",
               "ToolTip": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\SceneMuntasir.cpp",
               "RelativeToolTip": "ComponentFramework\\SceneMuntasir.cpp",
-              "ViewState": "AgIAACsBAAAAAAAAAAAAAKABAAA2AAAAAAAAAA==",
+              "ViewState": "AgIAAD8BAAAAAAAAAAAAAMYBAAA2AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2026-06-15T22:23:17.94Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 3,
               "Title": "Player.cpp",
               "DocumentMoniker": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Player.cpp",
               "RelativeDocumentMoniker": "ComponentFramework\\Player.cpp",
@@ -107,12 +141,11 @@
               "RelativeToolTip": "ComponentFramework\\Player.cpp",
               "ViewState": "AgIAAIwAAAAAAAAAAAAcwJoAAAAVAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-06-15T20:43:27.72Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-15T20:43:27.72Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 7,
               "Title": "Player.h",
               "DocumentMoniker": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Player.h",
               "RelativeDocumentMoniker": "ComponentFramework\\Player.h",
@@ -124,7 +157,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 5,
               "Title": "defaultVert.glsl",
               "DocumentMoniker": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\shaders\\defaultVert.glsl",
               "RelativeDocumentMoniker": "ComponentFramework\\shaders\\defaultVert.glsl",
@@ -136,7 +169,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 6,
               "Title": "defaultFrag.glsl",
               "DocumentMoniker": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\shaders\\defaultFrag.glsl",
               "RelativeDocumentMoniker": "ComponentFramework\\shaders\\defaultFrag.glsl",
