@@ -3,12 +3,12 @@
   "WorkspaceRootPath": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Player.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|solutionrelative:ComponentFramework\\Player.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\SceneMuntasir.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|solutionrelative:ComponentFramework\\SceneMuntasir.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Player.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|solutionrelative:ComponentFramework\\Player.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{614C2865-E38B-423B-8A72-E9D57BC43A73}|ComponentFramework\\ComponentFramework.vcxproj|C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\SceneMuntasir.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
@@ -42,7 +42,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 5,
+          "SelectedChildIndex": 4,
           "Children": [
             {
               "$type": "Bookmark",
@@ -86,7 +86,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 0,
               "Title": "SceneMuntasir.cpp",
               "DocumentMoniker": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\SceneMuntasir.cpp",
               "RelativeDocumentMoniker": "ComponentFramework\\SceneMuntasir.cpp",
@@ -94,11 +94,12 @@
               "RelativeToolTip": "ComponentFramework\\SceneMuntasir.cpp",
               "ViewState": "AgIAACsBAAAAAAAAAAAAAKABAAA2AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-06-15T22:23:17.94Z"
+              "WhenOpened": "2026-06-15T22:23:17.94Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "Player.cpp",
               "DocumentMoniker": "C:\\Users\\mdmun\\Documents\\GitHub\\AlphaWingEX-Remake\\ComponentFramework\\Player.cpp",
               "RelativeDocumentMoniker": "ComponentFramework\\Player.cpp",
