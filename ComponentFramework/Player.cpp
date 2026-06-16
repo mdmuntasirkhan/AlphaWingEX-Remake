@@ -24,7 +24,12 @@ Player::Player() :  mesh { nullptr },
 					shieldSweepPeriod { 1.2f },
 					shieldYRadius { 2.5f },
 					shieldZRadius { 3.0f },
-					shieldGlowRadius { 1.4f }
+					shieldGlowRadius { 1.4f },
+					rollAngle        { 0.0f },
+					rollVelocity     { 0.0f },
+					rollStiffness    { 100.0f },
+					rollDamping      { 16.0f },
+					maxRollAngle     { 5.0f }
 {
 	// leave Empty
 }
@@ -112,7 +117,12 @@ void Player::Update(float deltaTime) {
 	if (pos.y >  4.5f) { pos.y =  4.5f; velocity.y = 0.0f; }
 
 
+	float targetRoll = inputDir.y * maxRollAngle;
+	rollVelocity += (-rollStiffness * (rollAngle - targetRoll) - rollDamping * rollVelocity) * deltaTime;
+	rollAngle    += rollVelocity * deltaTime;
+
 	modelMatrix = MMath::translate(pos) *
+				  MMath::rotate(rollAngle, Vec3(0.0f, 0.0f, 1.0f)) *
 				  MMath::scale(0.3f, 0.3f, 0.3f);
 
 	// Shield active countdown
@@ -163,6 +173,7 @@ void Player::Render(Shader* shader,
 		glUniform4f(shader->GetUniformID("color"), 0.0f, 0.9f, 1.0f, 1.0f);
 
 		Matrix4 shieldMatrix = MMath::translate(pos) *
+							   MMath::rotate(rollAngle, Vec3(0.0f, 0.0f, 1.0f)) *
 							   MMath::scale(0.3f, 0.3f, 0.3f);
 
 		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"),

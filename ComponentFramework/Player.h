@@ -45,6 +45,12 @@ private:
 	float shieldZRadius;
 	float shieldGlowRadius;
 
+	float rollAngle;
+	float rollVelocity;
+	float rollStiffness;
+	float rollDamping;
+	float maxRollAngle;
+
 public:
 	Player();
 	~Player();
