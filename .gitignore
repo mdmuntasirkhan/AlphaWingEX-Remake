@@ -6,3 +6,6 @@ imgui.ini
 # Build outputs - but KEEP dll files
 Debug/*
 !Debug/*.dll
+
+# Visual Studio 2015/2017 cache/options directory
+.vs/
