@@ -99,44 +99,41 @@ void Enemy::Update(float deltaTime) {
 	}
 
 	// Move bot left
-	for (int i = 0; i < bot01Positions.size(); i++) {
+	for (int i = 0; i < (int)bot01Positions.size(); i++) {
 		bot01Positions[i].x -= bot01Speed * deltaTime;
 	}
 
 	// Remove Bot01 off the screen
-	for (int i = bot01Positions.size() - 1; i >= 0; i--) {
+	for (int i = (int)bot01Positions.size() - 1; i >= 0; i--) {
 		if (bot01Positions[i].x < -15.0f) {
 			bot01Positions.erase(bot01Positions.begin() + i);
 		}
 	}
 }
 
-void Enemy::RenderAsteroids(Shader* shader,
+void Enemy::Render(Shader* shader,
 	const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const {
 	glUniformMatrix4fv(shader->GetUniformID("projectionMatrix"), 1, GL_FALSE, projectionMatrix);
 	glUniformMatrix4fv(shader->GetUniformID("viewMatrix"), 1, GL_FALSE, viewMatrix);
+
+	// Large asteroids — ORANGE
+	glUniform4f(shader->GetUniformID("color"), 1.0f, 0.3f, 0.0f, 1.0f);
 	for (int i = 0; i < (int)asteroidPositions.size(); i++) {
 		Matrix4 m = MMath::translate(asteroidPositions[i]) * MMath::scale(0.4f, 0.4f, 0.4f);
 		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
 		asteroidMesh->Render();
 	}
-}
 
-void Enemy::RenderSmallAsteroids(Shader* shader,
-	const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const {
-	glUniformMatrix4fv(shader->GetUniformID("projectionMatrix"), 1, GL_FALSE, projectionMatrix);
-	glUniformMatrix4fv(shader->GetUniformID("viewMatrix"), 1, GL_FALSE, viewMatrix);
+	// Small asteroids — GREY
+	glUniform4f(shader->GetUniformID("color"), 0.6f, 0.6f, 0.6f, 1.0f);
 	for (int i = 0; i < (int)smallAsteroidPositions.size(); i++) {
 		Matrix4 m = MMath::translate(smallAsteroidPositions[i]) * MMath::scale(0.2f, 0.2f, 0.2f);
 		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
 		asteroidMesh->Render();
 	}
-}
 
-void Enemy::RenderBot01(Shader* shader,
-	const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const {
-	glUniformMatrix4fv(shader->GetUniformID("projectionMatrix"), 1, GL_FALSE, projectionMatrix);
-	glUniformMatrix4fv(shader->GetUniformID("viewMatrix"), 1, GL_FALSE, viewMatrix);
+	// Bot01 — RED
+	glUniform4f(shader->GetUniformID("color"), 1.0f, 0.1f, 0.1f, 1.0f);
 	for (int i = 0; i < (int)bot01Positions.size(); i++) {
 		Matrix4 m = MMath::translate(bot01Positions[i]) *
 			MMath::rotate(180.0f, Vec3(0.0f, 1.0f, 0.0f)) *

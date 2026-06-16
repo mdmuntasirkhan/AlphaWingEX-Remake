@@ -50,11 +50,7 @@ public:
 				  const char* bot01File);
 	void OnDestroy();
 	void Update(float deltaTime);
-	void RenderAsteroids(Shader* shader,
-		const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const;
-	void RenderSmallAsteroids(Shader* shader,
-		const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const;
-	void RenderBot01(Shader* shader,
+	void Render(Shader* shader,
 		const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const;
 
 	// Getters for collision

@@ -25,8 +25,6 @@ Player::Player() :  mesh { nullptr },
 					shieldYRadius { 2.5f },
 					shieldZRadius { 3.0f },
 					shieldGlowRadius { 1.4f }
-
-
 {
 	// leave Empty
 }
@@ -114,7 +112,6 @@ void Player::Update(float deltaTime) {
 	if (pos.y >  4.5f) { pos.y =  4.5f; velocity.y = 0.0f; }
 
 
-	// Shield
 	modelMatrix = MMath::translate(pos) *
 				  MMath::scale(0.3f, 0.3f, 0.3f);
 
@@ -140,13 +137,6 @@ void Player::Update(float deltaTime) {
 	}
 }
 
-Vec3 Player::ComputeShieldGlowPoint(float phase) const {
-	float glowY = shieldYRadius - phase * (2.0f * shieldYRadius);
-	float zRatio = 1.0f - (glowY * glowY) / (shieldYRadius * shieldYRadius);
-	if (zRatio < 0.0f) zRatio = 0.0f;
-	float glowZ = shieldZRadius * sqrt(zRatio);
-	return Vec3(0.0f, glowY, glowZ);
-}
 
 void Player::Render(Shader* shader,
 					const Matrix4& projectionMatrix,

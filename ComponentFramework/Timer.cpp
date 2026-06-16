@@ -25,7 +25,7 @@ unsigned int Timer::GetSleepTime(const unsigned int fps_) const {
 	if (milliSecsPerFrame == 0) {
 		return 0;
 	}
-	unsigned int sleepTime = milliSecsPerFrame - SDL_GetTicks();
+	unsigned int sleepTime = milliSecsPerFrame - (unsigned int)SDL_GetTicks();
 	if (sleepTime > milliSecsPerFrame) {
 		return milliSecsPerFrame;
 	}

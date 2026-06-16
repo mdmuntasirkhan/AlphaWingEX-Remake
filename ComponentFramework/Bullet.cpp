@@ -111,28 +111,29 @@ void Bullet::Update(float deltaTime,
 	const std::vector<Vec3>& asteroidPositions, const Vec3& asteroidVelocity,
 	const std::vector<Vec3>& bot01Positions, const Vec3& bot01Velocity) {
 	// Move regular bullets forward
-	for (int i = 0; i < positions.size(); i++) {
+	for (int i = 0; i < (int)positions.size(); i++) {
 		positions[i].x += speed * deltaTime;
 	}
 
 	// Remove regular bullets off the screen
-	for (int i = positions.size() - 1; i >= 0; i--) {
+	for (int i = (int)positions.size() - 1; i >= 0; i--) {
 		if (positions[i].x > 15.0f) {
 			positions.erase(positions.begin() + i);
 		}
 	}
 
 	// Homing missiles - proportional navigation guidance
-	for (int i = 0; i < missilePositions.size(); i++) {
+	for (int i = 0; i < (int)missilePositions.size(); i++) {
 		missileLaunchTimers[i] += deltaTime;
 
 		// Re-acquire a target if the locked one is gone (destroyed mid-flight,
 		// or never had one). Never store a raw pointer into Enemy's vectors -
 		// they get resized/erased every frame and a stale pointer is undefined
 		// behaviour (this was the cause of missiles randomly flying backward).
-		bool hasTarget =
-			(missileTargetTypes[i] == MissileTargetType::ASTEROID && missileTargetIndices[i] < (int)asteroidPositions.size()) ||
-			(missileTargetTypes[i] == MissileTargetType::BOT01 && missileTargetIndices[i] < (int)bot01Positions.size());
+		int  tidx          = missileTargetIndices[i];
+		bool lockedAsteroid = missileTargetTypes[i] == MissileTargetType::ASTEROID && tidx >= 0 && tidx < (int)asteroidPositions.size();
+		bool lockedBot01    = missileTargetTypes[i] == MissileTargetType::BOT01    && tidx >= 0 && tidx < (int)bot01Positions.size();
+		bool hasTarget      = lockedAsteroid || lockedBot01;
 
 		if (!hasTarget) {
 			MissileTargetType newType;
@@ -222,7 +223,7 @@ void Bullet::Update(float deltaTime,
 	}
 
 	// Remove missiles off screen (any edge - PN guidance can curve them anywhere)
-	for (int i = missilePositions.size() - 1; i >= 0; i--) {
+	for (int i = (int)missilePositions.size() - 1; i >= 0; i--) {
 		if (missilePositions[i].x > 15.0f || missilePositions[i].x < -15.0f ||
 			missilePositions[i].y > 10.0f || missilePositions[i].y < -10.0f) {
 			RemoveMissileAt(i);
@@ -240,7 +241,7 @@ void Bullet::Render(Shader* shader,
 		1, GL_FALSE, viewMatrix);
 
 	// Draw regular bullets
-	for (int i = 0; i < positions.size(); i++) {
+	for (int i = 0; i < (int)positions.size(); i++) {
 		Matrix4 bulletMatrix = MMath::translate(positions[i]) *
 			MMath::scale(0.2f, 0.2f, 0.2f);
 		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"),
@@ -249,7 +250,7 @@ void Bullet::Render(Shader* shader,
 	}
 
 	// Draw Missiles
-	for (int i = 0; i < missilePositions.size(); i++) {
+	for (int i = 0; i < (int)missilePositions.size(); i++) {
 		Matrix4 missileMatrix = MMath::translate(missilePositions[i]) *
 								MMath::scale(0.3f, 0.3f, 0.3f);
 		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"),

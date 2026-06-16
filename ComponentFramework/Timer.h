@@ -19,9 +19,9 @@ public:
 	unsigned int GetSleepTime(const unsigned int fps_) const;
 	float GetCurrentTicks() const;
 	static void SetSingleEvent(Uint32 interval,void* param);
-private:	
-	unsigned int prevTicks;
-	unsigned int currentTicks;
+private:
+	Uint64 prevTicks;
+	Uint64 currentTicks;
 	static unsigned int singleEventID;
 	static Uint32 callBackFuncion(Uint32 interval, void* singleEventParam);
 };

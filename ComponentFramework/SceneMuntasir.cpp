@@ -417,17 +417,7 @@ void SceneMuntasir::Render() const {
     glUniform4f(shader->GetUniformID("color"), 1.0f, 1.0f, 0.0f, 1.0f);
     bullet->Render(shader, projectionMatrix, viewMatrix);
 
-    // Large asteroids - ORANGE
-    glUniform4f(shader->GetUniformID("color"), 1.0f, 0.3f, 0.0f, 1.0f);
-    enemy->RenderAsteroids(shader, projectionMatrix, viewMatrix);
-
-    // Small asteroids - GREY
-    glUniform4f(shader->GetUniformID("color"), 0.6f, 0.6f, 0.6f, 1.0f);
-    enemy->RenderSmallAsteroids(shader, projectionMatrix, viewMatrix);
-
-    // Bot01 - RED
-    glUniform4f(shader->GetUniformID("color"), 1.0f, 0.1f, 0.1f, 1.0f);
-    enemy->RenderBot01(shader, projectionMatrix, viewMatrix);
+    enemy->Render(shader, projectionMatrix, viewMatrix);
 
     glUseProgram(0);
 

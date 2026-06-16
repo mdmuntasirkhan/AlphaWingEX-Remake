@@ -39,19 +39,11 @@ private:
 	float shieldCooldownTimer;
 	bool shieldOnCooldown;
 
-	// Shield crescent effect - three crescent-shaped glints, evenly spaced
-	// 1/3 of a cycle apart, continuously slide down the shield's front curve
-	// and wrap back to the top - reads as 3 chunks rotating top to bottom.
 	float shieldSweepTimer;
-	float shieldSweepPeriod;		 // seconds for one full top-to-bottom pass
-	float shieldYRadius;			 // shield mesh's local Y radius (it spans -2.5..2.5)
-	float shieldZRadius;			 // shield mesh's local Z radius (it spans -3.0..3.0) -
-									 // used to trace each crescent along the front curve
-	float shieldGlowRadius;		 // falloff radius of each crescent, in local-space units
-
-	// Given a 0..1 phase through the sweep cycle, returns the point (on the
-	// shield's front curve, in local space) that crescent should center on.
-	Vec3 ComputeShieldGlowPoint(float phase) const;
+	float shieldSweepPeriod;
+	float shieldYRadius;
+	float shieldZRadius;
+	float shieldGlowRadius;
 
 public:
 	Player();
