@@ -1,11 +1,63 @@
-# Logs - NOT needed
+# Logs - not needed
 *.log
 GameEngineLog.txt
 imgui.ini
 
-# Build outputs - but KEEP dll files
-Debug/*
-!Debug/*.dll
-
-# Visual Studio 2015/2017 cache/options directory
+# Visual Studio IDE cache (regenerates automatically - not your real project
+# settings; those live in .sln/.vcxproj/.vcxproj.user, which stay tracked).
 .vs/
+
+# Compiler intermediate/output junk - scoped to the actual build folders ONLY,
+# at any depth (the "**/" prefix is required, otherwise these only match at
+# the repo root and miss ComponentFramework/Debug, ComponentFramework/x64, etc).
+# This deliberately does NOT use a global "*.obj" rule, because
+# meshes/*.obj are real Blender model assets and must never be touched here.
+# .dll/.exe are also deliberately left alone everywhere, so if one ever
+# ends up in these folders it stays tracked and synced (avoids the missing-
+# DLL problem from before).
+**/[Dd]ebug/**/*.obj
+**/[Dd]ebug/**/*.pdb
+**/[Dd]ebug/**/*.ilk
+**/[Dd]ebug/**/*.idb
+**/[Dd]ebug/**/*.tlog
+**/[Dd]ebug/**/*.lastbuildstate
+**/[Dd]ebug/**/*.recipe
+**/[Dd]ebug/**/*.iobj
+**/[Dd]ebug/**/*.ipdb
+
+**/[Rr]elease/**/*.obj
+**/[Rr]elease/**/*.pdb
+**/[Rr]elease/**/*.ilk
+**/[Rr]elease/**/*.idb
+**/[Rr]elease/**/*.tlog
+**/[Rr]elease/**/*.lastbuildstate
+**/[Rr]elease/**/*.recipe
+**/[Rr]elease/**/*.iobj
+**/[Rr]elease/**/*.ipdb
+
+**/x64/**/*.obj
+**/x64/**/*.pdb
+**/x64/**/*.ilk
+**/x64/**/*.idb
+**/x64/**/*.tlog
+**/x64/**/*.lastbuildstate
+**/x64/**/*.recipe
+**/x64/**/*.iobj
+**/x64/**/*.ipdb
+
+**/x86/**/*.obj
+**/x86/**/*.pdb
+**/x86/**/*.ilk
+**/x86/**/*.idb
+**/x86/**/*.tlog
+**/x86/**/*.lastbuildstate
+**/x86/**/*.recipe
+**/x86/**/*.iobj
+**/x86/**/*.ipdb
+
+# IntelliSense / precompiled header cache
+ipch/
+*.VC.db
+*.VC.VC.opendb
+*.sdf
+*.opensdf
