@@ -220,7 +220,9 @@ void SceneMuntasir::Update(const float deltaTime) {
     // Update all classes
     player->Update(deltaTime);
     enemy->Update(deltaTime);
-    bullet->Update(deltaTime, enemy->GetAsteroidPositions(), enemy->GetBot01Positions());
+    bullet->Update(deltaTime,
+        enemy->GetAsteroidPositions(), Vec3(-enemy->GetAsteroidSpeed(), 0.0f, 0.0f),
+        enemy->GetBot01Positions(), Vec3(-enemy->GetBot01Speed(), 0.0f, 0.0f));
     environment->Update(deltaTime);
 
     // Check game over

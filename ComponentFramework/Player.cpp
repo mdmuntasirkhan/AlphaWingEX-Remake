@@ -15,11 +15,16 @@ Player::Player() :  mesh { nullptr },
 					maxSpeed { 10.0f },
 					shieldActive { false },
 					shieldTimer { 0.0f },
-					shieldDuration { 2.0f },
-					shieldCooldown { 8.0f },
+					shieldDuration { 5.0f },
+					shieldCooldown { 15.0f },
 					shieldCooldownTimer { 0.0f },
 					shieldOnCooldown { false },
-					shieldMesh { nullptr }
+					shieldMesh { nullptr },
+					shieldSweepTimer { 0.0f },
+					shieldSweepPeriod { 1.2f },
+					shieldYRadius { 2.5f },
+					shieldZRadius { 3.0f },
+					shieldGlowRadius { 1.0f }
 
 
 {
@@ -116,6 +121,7 @@ void Player::Update(float deltaTime) {
 	// Shield active countdown
 	if (shieldActive) {
 		shieldTimer += deltaTime;
+		shieldSweepTimer += deltaTime;
 		if (shieldTimer >= shieldDuration) {
 			// Shield ran out
 			shieldActive = false;
@@ -133,6 +139,14 @@ void Player::Update(float deltaTime) {
 			shieldCooldownTimer = 0.0f;
 		}
 	}
+}
+
+Vec3 Player::ComputeShieldGlowPoint(float phase) const {
+	float glowY = shieldYRadius - phase * (2.0f * shieldYRadius);
+	float zRatio = 1.0f - (glowY * glowY) / (shieldYRadius * shieldYRadius);
+	if (zRatio < 0.0f) zRatio = 0.0f;
+	float glowZ = shieldZRadius * sqrt(zRatio);
+	return Vec3(0.0f, glowY, glowZ);
 }
 
 void Player::Render(Shader* shader,
@@ -155,7 +169,23 @@ void Player::Render(Shader* shader,
 		glDepthMask(GL_FALSE);
 
 		glUniform1f(shader->GetUniformID("emissive"), 1.0f);  // skip lighting
-		glUniform4f(shader->GetUniformID("color"), 0.0f, 0.9f, 1.0f, 0.25f);
+		// Brighter base alpha than before - the dome itself should stay
+		// clearly visible the whole time the shield is up, not just where
+		// the glint currently sits.
+		glUniform4f(shader->GetUniformID("color"), 0.0f, 0.9f, 1.0f, 0.45f);
+
+		// Three crescents, each tracing the shield's front curve (so they
+		// stay right on the dome's surface), spaced 1/3 of a cycle apart and
+		// looping every shieldSweepPeriod seconds - reads as 3 chunks
+		// continuously rotating from top to bottom while the shield is active.
+		float sweepT = fmod(shieldSweepTimer, shieldSweepPeriod) / shieldSweepPeriod;
+		Vec3 glowA = ComputeShieldGlowPoint(sweepT);
+		Vec3 glowB = ComputeShieldGlowPoint(fmod(sweepT + 1.0f / 3.0f, 1.0f));
+		Vec3 glowC = ComputeShieldGlowPoint(fmod(sweepT + 2.0f / 3.0f, 1.0f));
+		glUniform3f(shader->GetUniformID("shieldGlowPointA"), glowA.x, glowA.y, glowA.z);
+		glUniform3f(shader->GetUniformID("shieldGlowPointB"), glowB.x, glowB.y, glowB.z);
+		glUniform3f(shader->GetUniformID("shieldGlowPointC"), glowC.x, glowC.y, glowC.z);
+		glUniform1f(shader->GetUniformID("shieldGlowRadius"), shieldGlowRadius);
 
 		Matrix4 shieldMatrix = MMath::translate(pos) *
 							   MMath::scale(0.3f, 0.3f, 0.3f);
@@ -194,6 +224,7 @@ void Player::ActivateShield() {
 	if (!shieldActive && !shieldOnCooldown) {
 		shieldActive = true;
 		shieldTimer = 0.0f;
+		shieldSweepTimer = 0.0f; // sweep restarts from the top each activation
 	}
 }
 

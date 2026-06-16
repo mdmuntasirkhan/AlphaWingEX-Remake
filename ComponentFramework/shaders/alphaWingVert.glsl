@@ -12,10 +12,12 @@ layout(location = 2) uniform mat4 modelMatrix;
 // Passing to frag shader
 layout(location = 0) out vec3 fragNormal;
 layout(location = 1) out vec3 fragPos;
+layout(location = 2) out vec3 fragLocalPos; // mesh-local position, used for the shield glint
 
 void main() {
     vec4 worldPos  = modelMatrix * vec4(inVertex, 1.0);
     fragPos        = worldPos.xyz;
+    fragLocalPos   = inVertex;
     fragNormal     = mat3(transpose(inverse(modelMatrix))) * inNormal;
     gl_Position    = projectionMatrix * viewMatrix * worldPos;
 }

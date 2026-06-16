@@ -27,17 +27,31 @@ private:
 	// Homing Missile
 	Mesh* missileMesh;
 	std::vector<Vec3> missilePositions;
+	std::vector<Vec3> missileVelocities; // current heading*speed - drives PN steering
 	std::vector<MissileTargetType> missileTargetTypes;
 	std::vector<int> missileTargetIndices;
 	std::vector<float> missileLaunchTimers;
 	float missileLaunchDuration; // fly straight forward for this long before homing kicks in
 	float missileSpeed;
 
+	// Proportional navigation guidance tuning
+	float missileNavigationGain;	 // "N" in the PN law - higher = more aggressive turns
+	float missileMaxLateralAccel;	 // clamp so PN can't whip the missile around instantly
+	float missileTerminalRange;	 // once this close to the real target, floor the throttle
+	float missileTerminalSpeedMultiplier;
+
 	// Homing missile supply system
 	int missileCount;
 	int maxMissiles;
 	float missileReloadTimer;
 	float missileReloadInterval;
+
+	// Search both enemy lists for whichever is nearest to fromPosition - used to
+	// re-acquire a target after the locked one is destroyed mid-flight.
+	bool FindNearestTarget(const Vec3& fromPosition,
+		const std::vector<Vec3>& asteroidPositions,
+		const std::vector<Vec3>& bot01Positions,
+		MissileTargetType& outType, int& outIndex) const;
 
 public:
 	Bullet();
@@ -46,8 +60,8 @@ public:
 	bool OnCreate(const char* bulletMeshFile, const char* missileMeshFile);
 	void OnDestroy();
 	void Update(float deltaTime,
-		const std::vector<Vec3>& asteroidPositions,
-		const std::vector<Vec3>& bot01Positions);
+		const std::vector<Vec3>& asteroidPositions, const Vec3& asteroidVelocity,
+		const std::vector<Vec3>& bot01Positions, const Vec3& bot01Velocity);
 	void Render(Shader* shader,
 		const Matrix4& projectionMatrix,
 		const Matrix4& viewMatrix) const;

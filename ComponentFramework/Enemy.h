@@ -54,6 +54,10 @@ public:
 	std::vector<Vec3>& GetAsteroidPositions() { return asteroidPositions; }
 	std::vector<Vec3>& GetBot01Positions() { return bot01Positions; }
 
+	// Getters for missile guidance (enemies only ever move along -x)
+	float GetAsteroidSpeed() const { return asteroidSpeed; }
+	float GetBot01Speed() const { return bot01Speed; }
+
 	// Remove by index
 	void RemoveAsteroid(int index);
 	void RemoveBot01(int index);
