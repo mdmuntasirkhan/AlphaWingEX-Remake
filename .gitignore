@@ -12,9 +12,13 @@ imgui.ini
 # the repo root and miss ComponentFramework/Debug, ComponentFramework/x64, etc).
 # This deliberately does NOT use a global "*.obj" rule, because
 # meshes/*.obj are real Blender model assets and must never be touched here.
-# .dll/.exe are also deliberately left alone everywhere, so if one ever
-# ends up in these folders it stays tracked and synced (avoids the missing-
-# DLL problem from before).
+#
+# .exe IS ignored here: it's your own compiled output, changes on every
+# build, and is trivially regenerated - exactly the noise we want gone.
+# .dll is the ONE exception left untouched everywhere: those are third-party
+# runtime dependencies (SDL3/OpenGL) that you don't compile yourself, so if
+# one is ever deliberately placed here it stays tracked/synced instead of
+# silently disappearing (that's what caused the missing-DLL problem before).
 **/[Dd]ebug/**/*.obj
 **/[Dd]ebug/**/*.pdb
 **/[Dd]ebug/**/*.ilk
@@ -24,6 +28,8 @@ imgui.ini
 **/[Dd]ebug/**/*.recipe
 **/[Dd]ebug/**/*.iobj
 **/[Dd]ebug/**/*.ipdb
+**/[Dd]ebug/**/*.exe
+**/[Dd]ebug/**/*.FileListAbsolute.txt
 
 **/[Rr]elease/**/*.obj
 **/[Rr]elease/**/*.pdb
@@ -34,6 +40,8 @@ imgui.ini
 **/[Rr]elease/**/*.recipe
 **/[Rr]elease/**/*.iobj
 **/[Rr]elease/**/*.ipdb
+**/[Rr]elease/**/*.exe
+**/[Rr]elease/**/*.FileListAbsolute.txt
 
 **/x64/**/*.obj
 **/x64/**/*.pdb
@@ -44,6 +52,8 @@ imgui.ini
 **/x64/**/*.recipe
 **/x64/**/*.iobj
 **/x64/**/*.ipdb
+**/x64/**/*.exe
+**/x64/**/*.FileListAbsolute.txt
 
 **/x86/**/*.obj
 **/x86/**/*.pdb
@@ -54,6 +64,8 @@ imgui.ini
 **/x86/**/*.recipe
 **/x86/**/*.iobj
 **/x86/**/*.ipdb
+**/x86/**/*.exe
+**/x86/**/*.FileListAbsolute.txt
 
 # IntelliSense / precompiled header cache
 ipch/
