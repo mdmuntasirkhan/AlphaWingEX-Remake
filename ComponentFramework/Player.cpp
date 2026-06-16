@@ -9,6 +9,10 @@ Player::Player() :  mesh { nullptr },
 					health { 100 }, 
 					maxHealth { 100 }, 
 					lives { 3 },
+					velocity{ 0.0f, 0.0f, 0.0f },
+					thrustPower { 15.0f },
+					friction { 8.0f },
+					maxSpeed { 10.0f },
 					shieldActive { false },
 					shieldTimer { 0.0f },
 					shieldDuration { 2.0f },
@@ -31,12 +35,6 @@ bool Player::OnCreate(const char* meshFile) {
 		std::cout << "Player mesh not found!\n";
 		return false;
 	}
-
-	// Attributes
-	velocity = Vec3(0.0f, 0.0f, 0.0f);
-	thrustPower = 15.0f;
-	friction = 8.0f;
-	maxSpeed = 10.0f;
 
 	// Shield Mesh
 	shieldMesh = new Mesh("meshes/Temp_AlphaWing_Shield.obj");

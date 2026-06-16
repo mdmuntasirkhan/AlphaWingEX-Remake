@@ -5,8 +5,15 @@
 #include "Texture.h"
 #include "Shader.h"
 
-Body::Body(): pos{}, vel{}, accel{}, mass{1.0f}, radius(1.0f), 
-mesh{nullptr}, texture{nullptr}{
+Body::Body():	pos{},
+				vel{},
+				accel{},
+				mass{1.0f},
+				radius(1.0f),
+				collisionType{ 0 },
+				mesh{nullptr},
+				texture{nullptr}
+{
 	// set inertia
 }
 

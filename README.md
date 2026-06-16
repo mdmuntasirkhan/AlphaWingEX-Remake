@@ -55,6 +55,7 @@ How to play?
 
 - W A S D for movement
 - Spacebar/M1 to shoot
+- M2 to missile
 
 
 Sincierly,
