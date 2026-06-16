@@ -24,7 +24,7 @@ Player::Player() :  mesh { nullptr },
 					shieldSweepPeriod { 1.2f },
 					shieldYRadius { 2.5f },
 					shieldZRadius { 3.0f },
-					shieldGlowRadius { 1.0f }
+					shieldGlowRadius { 1.4f }
 
 
 {
@@ -121,7 +121,6 @@ void Player::Update(float deltaTime) {
 	// Shield active countdown
 	if (shieldActive) {
 		shieldTimer += deltaTime;
-		shieldSweepTimer += deltaTime;
 		if (shieldTimer >= shieldDuration) {
 			// Shield ran out
 			shieldActive = false;
@@ -163,29 +162,15 @@ void Player::Render(Shader* shader,
 
 	// Shield Mesh
 	if (shieldActive) {
-		// Turn ON transparancy
+		// Turn ON transparency; cull back faces so the dome interior is invisible
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glDepthMask(GL_FALSE);
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
 
-		glUniform1f(shader->GetUniformID("emissive"), 1.0f);  // skip lighting
-		// Brighter base alpha than before - the dome itself should stay
-		// clearly visible the whole time the shield is up, not just where
-		// the glint currently sits.
-		glUniform4f(shader->GetUniformID("color"), 0.0f, 0.9f, 1.0f, 0.45f);
-
-		// Three crescents, each tracing the shield's front curve (so they
-		// stay right on the dome's surface), spaced 1/3 of a cycle apart and
-		// looping every shieldSweepPeriod seconds - reads as 3 chunks
-		// continuously rotating from top to bottom while the shield is active.
-		float sweepT = fmod(shieldSweepTimer, shieldSweepPeriod) / shieldSweepPeriod;
-		Vec3 glowA = ComputeShieldGlowPoint(sweepT);
-		Vec3 glowB = ComputeShieldGlowPoint(fmod(sweepT + 1.0f / 3.0f, 1.0f));
-		Vec3 glowC = ComputeShieldGlowPoint(fmod(sweepT + 2.0f / 3.0f, 1.0f));
-		glUniform3f(shader->GetUniformID("shieldGlowPointA"), glowA.x, glowA.y, glowA.z);
-		glUniform3f(shader->GetUniformID("shieldGlowPointB"), glowB.x, glowB.y, glowB.z);
-		glUniform3f(shader->GetUniformID("shieldGlowPointC"), glowC.x, glowC.y, glowC.z);
-		glUniform1f(shader->GetUniformID("shieldGlowRadius"), shieldGlowRadius);
+		glUniform1f(shader->GetUniformID("emissive"), 1.0f);
+		glUniform4f(shader->GetUniformID("color"), 0.0f, 0.9f, 1.0f, 1.0f);
 
 		Matrix4 shieldMatrix = MMath::translate(pos) *
 							   MMath::scale(0.3f, 0.3f, 0.3f);
@@ -202,7 +187,8 @@ void Player::Render(Shader* shader,
 		//glUniform1f(shader->GetUniformID("alphaValue"), 1.0f);
 		glUniform1f(shader->GetUniformID("emissive"), 0.0f);
 
-		// Turn OFF transparancy
+		// Restore state
+		glDisable(GL_CULL_FACE);
 		glDisable(GL_BLEND);
 		glDepthMask(GL_TRUE);
 	}

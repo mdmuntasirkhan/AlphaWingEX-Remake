@@ -26,8 +26,8 @@ SceneMuntasir::SceneMuntasir() :
     sfxLaser{ nullptr },
     sfxExplosion{ nullptr },
     audioTest{ nullptr },
-    musicVolume{ 0.3f },
-    sfxVolume{ 0.3f },
+    musicVolume{ 0.1f },
+    sfxVolume{ 0.05f },
     musicPaused{ false } {
     Debug::Info("Created SceneMuntasir: ", __FILE__, __LINE__);
 }
@@ -97,6 +97,7 @@ bool SceneMuntasir::OnCreate() {
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
         &defaultSpec, nullptr, nullptr);
     if (!audioPlayer) std::cout << "Failed to create music player\n";
+    SDL_SetAudioStreamGain(audioPlayer, musicVolume);
     SDL_ResumeAudioStreamDevice(audioPlayer);
 
     // SFX stream
@@ -104,6 +105,7 @@ bool SceneMuntasir::OnCreate() {
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
         &defaultSpec, nullptr, nullptr);
     if (!sfxPlayer) std::cout << "Failed to create SFX player\n";
+    SDL_SetAudioStreamGain(sfxPlayer, sfxVolume);
     SDL_ResumeAudioStreamDevice(sfxPlayer);
 
     // Music
@@ -268,6 +270,24 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
+    // Collision - bullet hits small asteroid
+    for (int b = bullet->GetPositions().size() - 1; b >= 0; b--) {
+        for (int a = enemy->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = bullet->GetPositions()[b].x - enemy->GetSmallAsteroidPositions()[a].x;
+            float dy = bullet->GetPositions()[b].y - enemy->GetSmallAsteroidPositions()[a].y;
+            if (sqrt(dx * dx + dy * dy) < 0.6f) {
+                bullet->RemoveAt(b);
+                enemy->RemoveSmallAsteroid(a);
+                score += 25;
+                if (explosionCooldownTimer <= 0.0f) {
+                    sfxExplosion->Play(sfxPlayer);
+                    explosionCooldownTimer = explosionCooldown;
+                }
+                break;
+            }
+        }
+    }
+
     // Collision - missile hits Bot01
     for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
         for (int e = enemy->GetBot01Positions().size() - 1; e >= 0; e--) {
@@ -306,6 +326,24 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
+    // Collision - missile hits small asteroid
+    for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
+        for (int a = enemy->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = bullet->GetMissilePositions()[m].x - enemy->GetSmallAsteroidPositions()[a].x;
+            float dy = bullet->GetMissilePositions()[m].y - enemy->GetSmallAsteroidPositions()[a].y;
+            if (sqrt(dx * dx + dy * dy) < 0.6f) {
+                bullet->RemoveMissileAt(m);
+                enemy->RemoveSmallAsteroid(a);
+                score += 25;
+                if (explosionCooldownTimer <= 0.0f) {
+                    sfxExplosion->Play(sfxPlayer);
+                    explosionCooldownTimer = explosionCooldown;
+                }
+                break;
+            }
+        }
+    }
+
     // Collision - asteroid hits player
     for (int a = enemy->GetAsteroidPositions().size() - 1; a >= 0; a--) {
         float dx = player->GetPosition().x - enemy->GetAsteroidPositions()[a].x;
@@ -314,6 +352,20 @@ void SceneMuntasir::Update(const float deltaTime) {
         if (distance < 1.0f) {
             enemy->RemoveAsteroid(a);
             player->TakeDamage(25.0f);
+            if (explosionCooldownTimer <= 0.0f) {
+                sfxExplosion->Play(sfxPlayer);
+                explosionCooldownTimer = explosionCooldown;
+            }
+        }
+    }
+
+    // Collision - small asteroid hits player (less damage)
+    for (int a = enemy->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
+        float dx = player->GetPosition().x - enemy->GetSmallAsteroidPositions()[a].x;
+        float dy = player->GetPosition().y - enemy->GetSmallAsteroidPositions()[a].y;
+        if (sqrt(dx * dx + dy * dy) < 0.7f) {
+            enemy->RemoveSmallAsteroid(a);
+            player->TakeDamage(10.0f);
             if (explosionCooldownTimer <= 0.0f) {
                 sfxExplosion->Play(sfxPlayer);
                 explosionCooldownTimer = explosionCooldown;
@@ -365,9 +417,17 @@ void SceneMuntasir::Render() const {
     glUniform4f(shader->GetUniformID("color"), 1.0f, 1.0f, 0.0f, 1.0f);
     bullet->Render(shader, projectionMatrix, viewMatrix);
 
-    // Enemies color ORANGE
+    // Large asteroids - ORANGE
     glUniform4f(shader->GetUniformID("color"), 1.0f, 0.3f, 0.0f, 1.0f);
-    enemy->Render(shader, projectionMatrix, viewMatrix);
+    enemy->RenderAsteroids(shader, projectionMatrix, viewMatrix);
+
+    // Small asteroids - GREY
+    glUniform4f(shader->GetUniformID("color"), 0.6f, 0.6f, 0.6f, 1.0f);
+    enemy->RenderSmallAsteroids(shader, projectionMatrix, viewMatrix);
+
+    // Bot01 - RED
+    glUniform4f(shader->GetUniformID("color"), 1.0f, 0.1f, 0.1f, 1.0f);
+    enemy->RenderBot01(shader, projectionMatrix, viewMatrix);
 
     glUseProgram(0);
 

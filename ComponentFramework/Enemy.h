@@ -23,15 +23,19 @@ private:
 
 	// Positions
 	std::vector<Vec3> asteroidPositions;
+	std::vector<Vec3> smallAsteroidPositions;
 	std::vector<Vec3> bot01Positions;
 
 	// speed
 	float asteroidSpeed;
+	float smallAsteroidSpeed;
 	float bot01Speed;
 
 	// Spawn timers
 	float asteroidSpawnTimer;
 	float asteroidSpawnInterval;
+	float smallAsteroidSpawnTimer;
+	float smallAsteroidSpawnInterval;
 	float bot01SpawnTimer;
 	float bot01SpawnInterval;
 
@@ -46,20 +50,26 @@ public:
 				  const char* bot01File);
 	void OnDestroy();
 	void Update(float deltaTime);
-	void Render(Shader* shader,
-		const Matrix4& projectionMatrix,
-		const Matrix4& viewMatrix) const;
+	void RenderAsteroids(Shader* shader,
+		const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const;
+	void RenderSmallAsteroids(Shader* shader,
+		const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const;
+	void RenderBot01(Shader* shader,
+		const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const;
 
 	// Getters for collision
-	std::vector<Vec3>& GetAsteroidPositions() { return asteroidPositions; }
-	std::vector<Vec3>& GetBot01Positions() { return bot01Positions; }
+	std::vector<Vec3>& GetAsteroidPositions()      { return asteroidPositions; }
+	std::vector<Vec3>& GetSmallAsteroidPositions() { return smallAsteroidPositions; }
+	std::vector<Vec3>& GetBot01Positions()         { return bot01Positions; }
 
 	// Getters for missile guidance (enemies only ever move along -x)
-	float GetAsteroidSpeed() const { return asteroidSpeed; }
-	float GetBot01Speed() const { return bot01Speed; }
+	float GetAsteroidSpeed()      const { return asteroidSpeed; }
+	float GetSmallAsteroidSpeed() const { return smallAsteroidSpeed; }
+	float GetBot01Speed()         const { return bot01Speed; }
 
 	// Remove by index
 	void RemoveAsteroid(int index);
+	void RemoveSmallAsteroid(int index);
 	void RemoveBot01(int index);
 
 	// Reset
