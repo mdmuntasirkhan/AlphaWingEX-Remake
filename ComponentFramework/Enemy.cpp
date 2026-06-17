@@ -75,11 +75,16 @@ void Enemy::OnDestroy() {
 	asteroidPositions.clear();
 	asteroidAngles.clear();
 	asteroidSpinSpeeds.clear();
+	asteroidHP.clear();
+	asteroidScales.clear();
 	smallAsteroidPositions.clear();
 	smallAsteroidAngles.clear();
 	smallAsteroidSpinSpeeds.clear();
+	smallAsteroidHP.clear();
+	smallAsteroidScales.clear();
 	bot01Positions.clear();
 	bot01YVelocities.clear();
+	bot01HP.clear();
 	debris.clear();
 }
 
@@ -94,7 +99,9 @@ void Enemy::Update(float deltaTime, float playerY) {
 		float randomY = ((rand() % 10) - 5) * 0.5f;
 		asteroidPositions.push_back(Vec3(15.0f, randomY, -10.0f));
 		asteroidAngles.push_back(0.0f);
-		asteroidSpinSpeeds.push_back((float)((rand() % 121) - 60)); // -60..+60 deg/s
+		asteroidSpinSpeeds.push_back((float)((rand() % 121) - 60));
+		asteroidHP.push_back(6);
+		asteroidScales.push_back(0.4f);
 	}
 	for (int i = 0; i < (int)asteroidPositions.size(); i++) {
 		asteroidPositions[i].x -= asteroidSpeed * deltaTime;
@@ -105,6 +112,8 @@ void Enemy::Update(float deltaTime, float playerY) {
 			asteroidPositions.erase(asteroidPositions.begin() + i);
 			asteroidAngles.erase(asteroidAngles.begin() + i);
 			asteroidSpinSpeeds.erase(asteroidSpinSpeeds.begin() + i);
+			asteroidHP.erase(asteroidHP.begin() + i);
+			asteroidScales.erase(asteroidScales.begin() + i);
 		}
 	}
 
@@ -115,7 +124,9 @@ void Enemy::Update(float deltaTime, float playerY) {
 		float randomY = ((rand() % 14) - 7) * 0.5f;
 		smallAsteroidPositions.push_back(Vec3(15.0f, randomY, -10.0f));
 		smallAsteroidAngles.push_back(0.0f);
-		smallAsteroidSpinSpeeds.push_back((float)((rand() % 181) - 90)); // -90..+90 deg/s
+		smallAsteroidSpinSpeeds.push_back((float)((rand() % 181) - 90));
+		smallAsteroidHP.push_back(3);
+		smallAsteroidScales.push_back(0.2f);
 	}
 	for (int i = 0; i < (int)smallAsteroidPositions.size(); i++) {
 		smallAsteroidPositions[i].x -= smallAsteroidSpeed * deltaTime;
@@ -126,6 +137,8 @@ void Enemy::Update(float deltaTime, float playerY) {
 			smallAsteroidPositions.erase(smallAsteroidPositions.begin() + i);
 			smallAsteroidAngles.erase(smallAsteroidAngles.begin() + i);
 			smallAsteroidSpinSpeeds.erase(smallAsteroidSpinSpeeds.begin() + i);
+			smallAsteroidHP.erase(smallAsteroidHP.begin() + i);
+			smallAsteroidScales.erase(smallAsteroidScales.begin() + i);
 		}
 	}
 
@@ -137,6 +150,7 @@ void Enemy::Update(float deltaTime, float playerY) {
 			float randomY = ((rand() % 10) - 5) * 0.5f;
 			bot01Positions.push_back(Vec3(15.0f, randomY, -10.0f));
 			bot01YVelocities.push_back(0.0f);
+			bot01HP.push_back(10);
 		}
 	}
 	for (int i = 0; i < (int)bot01Positions.size(); i++) {
@@ -152,8 +166,9 @@ void Enemy::Update(float deltaTime, float playerY) {
 	}
 	for (int i = (int)bot01Positions.size() - 1; i >= 0; i--) {
 		if (bot01Positions[i].x < -15.0f) {
-			bot01Positions.erase(bot01Positions.begin() + i);
+			bot01Positions.erase  (bot01Positions.begin()   + i);
 			bot01YVelocities.erase(bot01YVelocities.begin() + i);
+			bot01HP.erase         (bot01HP.begin()          + i);
 		}
 	}
 
@@ -172,22 +187,24 @@ void Enemy::Render(Shader* shader,
 	glUniformMatrix4fv(shader->GetUniformID("projectionMatrix"), 1, GL_FALSE, projectionMatrix);
 	glUniformMatrix4fv(shader->GetUniformID("viewMatrix"), 1, GL_FALSE, viewMatrix);
 
-	// Large asteroids — ORANGE, spinning
+	// Large asteroids — ORANGE, spinning, scale shrinks with damage
 	glUniform4f(shader->GetUniformID("color"), 1.0f, 0.3f, 0.0f, 1.0f);
 	for (int i = 0; i < (int)asteroidPositions.size(); i++) {
+		float s = asteroidScales[i];
 		Matrix4 m = MMath::translate(asteroidPositions[i]) *
 		            MMath::rotate(asteroidAngles[i], Vec3(0.0f, 0.0f, 1.0f)) *
-		            MMath::scale(0.4f, 0.4f, 0.4f);
+		            MMath::scale(s, s, s);
 		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
 		asteroidMesh->Render();
 	}
 
-	// Small asteroids — GREY, spinning faster
+	// Small asteroids — GREY, spinning, scale shrinks with damage
 	glUniform4f(shader->GetUniformID("color"), 0.6f, 0.6f, 0.6f, 1.0f);
 	for (int i = 0; i < (int)smallAsteroidPositions.size(); i++) {
+		float s = smallAsteroidScales[i];
 		Matrix4 m = MMath::translate(smallAsteroidPositions[i]) *
 		            MMath::rotate(smallAsteroidAngles[i], Vec3(0.0f, 0.0f, 1.0f)) *
-		            MMath::scale(0.2f, 0.2f, 0.2f);
+		            MMath::scale(s, s, s);
 		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
 		asteroidMesh->Render();
 	}
@@ -231,9 +248,10 @@ void Enemy::Render(Shader* shader,
 			float alpha = debris[i].lifetime / debris[i].maxLifetime;
 			glUniform4f(shader->GetUniformID("color"),
 				debris[i].color.x, debris[i].color.y, debris[i].color.z, alpha);
+			float ps = debris[i].pieceScale;
 			Matrix4 m = MMath::translate(debris[i].pos) *
 			            MMath::rotate(debris[i].angle, Vec3(0.0f, 0.0f, 1.0f)) *
-			            MMath::scale(0.06f, 0.06f, 0.06f);
+			            MMath::scale(ps, ps, ps);
 			glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
 			asteroidMesh->Render();
 		}
@@ -243,52 +261,130 @@ void Enemy::Render(Shader* shader,
 	}
 }
 
-void Enemy::SpawnDebris(const Vec3& pos, const Vec3& color) {
-	const int count = 4;
+// Tiny chips on each hit — slow, short-lived
+void Enemy::SpawnHitDebris(const Vec3& pos, const Vec3& color, int count) {
 	for (int i = 0; i < count; i++) {
 		Debris d;
-		d.pos   = pos;
-		d.color = color;
-		float angle = (float)(rand() % 360) * 3.14159f / 180.0f;
-		float spd   = 2.0f + (rand() % 40) * 0.1f;   // 2..6 units/s
-		d.vel       = Vec3(cosf(angle) * spd, sinf(angle) * spd, 0.0f);
-		d.angle     = (float)(rand() % 360);
-		d.spinSpeed = (float)((rand() % 361) - 180);  // -180..+180 deg/s
-		d.maxLifetime = 0.6f + (rand() % 40) * 0.01f; // 0.6..1.0 s
+		d.pos         = pos;
+		d.color       = color;
+		float angle   = (float)(rand() % 360) * 3.14159f / 180.0f;
+		float spd     = 1.0f + (rand() % 20) * 0.05f;          // 1.0..2.0
+		d.vel         = Vec3(cosf(angle) * spd, sinf(angle) * spd, 0.0f);
+		d.angle       = (float)(rand() % 360);
+		d.spinSpeed   = (float)((rand() % 361) - 180);
+		d.maxLifetime = 0.3f + (rand() % 30) * 0.01f;           // 0.3..0.6 s
 		d.lifetime    = d.maxLifetime;
+		d.pieceScale  = 0.008f + (rand() % 3) * 0.004f;         // 0.008..0.016
 		debris.push_back(d);
 	}
 }
 
+// Kill burst — fast, long-lived, sails off screen; always smaller than dying asteroid
+void Enemy::SpawnKillDebris(const Vec3& pos, const Vec3& color, int count) {
+	for (int i = 0; i < count; i++) {
+		Debris d;
+		d.pos         = pos;
+		d.color       = color;
+		float angle   = (float)(rand() % 360) * 3.14159f / 180.0f;
+		float spd     = 5.0f + (rand() % 40) * 0.1f;           // 5..9 units/s
+		d.vel         = Vec3(cosf(angle) * spd, sinf(angle) * spd, 0.0f);
+		d.angle       = (float)(rand() % 360);
+		d.spinSpeed   = (float)((rand() % 361) - 180);
+		d.maxLifetime = 1.8f + (rand() % 70) * 0.01f;           // 1.8..2.5 s
+		d.lifetime    = d.maxLifetime;
+		d.pieceScale  = 0.025f + (rand() % 4) * 0.005f;         // 0.025..0.040
+		debris.push_back(d);
+	}
+}
+
+// Bullet/missile hit — chip away HP, shrink, spawn chunk, returns true if destroyed
+bool Enemy::DamageAsteroid(int index) {
+	asteroidHP[index]--;
+	asteroidScales[index] *= 0.85f;
+	SpawnHitDebris(asteroidPositions[index], Vec3(1.0f, 0.5f, 0.0f), 2);
+
+	if (asteroidHP[index] <= 0) {
+		SpawnKillDebris(asteroidPositions[index], Vec3(1.0f, 0.5f, 0.0f), 6);
+		asteroidPositions.erase (asteroidPositions.begin()  + index);
+		asteroidAngles.erase    (asteroidAngles.begin()     + index);
+		asteroidSpinSpeeds.erase(asteroidSpinSpeeds.begin() + index);
+		asteroidHP.erase        (asteroidHP.begin()         + index);
+		asteroidScales.erase    (asteroidScales.begin()     + index);
+		return true;
+	}
+	return false;
+}
+
+bool Enemy::DamageSmallAsteroid(int index) {
+	smallAsteroidHP[index]--;
+	smallAsteroidScales[index] *= 0.78f;
+	SpawnHitDebris(smallAsteroidPositions[index], Vec3(0.6f, 0.6f, 0.6f), 1);
+
+	if (smallAsteroidHP[index] <= 0) {
+		SpawnKillDebris(smallAsteroidPositions[index], Vec3(0.6f, 0.6f, 0.6f), 4);
+		smallAsteroidPositions.erase (smallAsteroidPositions.begin()  + index);
+		smallAsteroidAngles.erase    (smallAsteroidAngles.begin()     + index);
+		smallAsteroidSpinSpeeds.erase(smallAsteroidSpinSpeeds.begin() + index);
+		smallAsteroidHP.erase        (smallAsteroidHP.begin()         + index);
+		smallAsteroidScales.erase    (smallAsteroidScales.begin()     + index);
+		return true;
+	}
+	return false;
+}
+
+// Bot01 takes a bullet/missile hit — no scale change, 10 HP to kill
+bool Enemy::DamageBot01(int index) {
+	bot01HP[index]--;
+	if (bot01HP[index] <= 0) {
+		SpawnKillDebris(bot01Positions[index], Vec3(1.0f, 0.2f, 0.2f), 6);
+		bot01Positions.erase  (bot01Positions.begin()   + index);
+		bot01YVelocities.erase(bot01YVelocities.begin() + index);
+		bot01HP.erase         (bot01HP.begin()          + index);
+		return true;
+	}
+	return false;
+}
+
+// Instant kill — player rams asteroid (full burst)
 void Enemy::RemoveAsteroid(int index) {
-	SpawnDebris(asteroidPositions[index], Vec3(1.0f, 0.5f, 0.0f));
-	asteroidPositions.erase(asteroidPositions.begin() + index);
-	asteroidAngles.erase(asteroidAngles.begin() + index);
+	SpawnKillDebris(asteroidPositions[index], Vec3(1.0f, 0.5f, 0.0f), 6);
+	asteroidPositions.erase (asteroidPositions.begin()  + index);
+	asteroidAngles.erase    (asteroidAngles.begin()     + index);
 	asteroidSpinSpeeds.erase(asteroidSpinSpeeds.begin() + index);
+	asteroidHP.erase        (asteroidHP.begin()         + index);
+	asteroidScales.erase    (asteroidScales.begin()     + index);
 }
 
 void Enemy::RemoveSmallAsteroid(int index) {
-	SpawnDebris(smallAsteroidPositions[index], Vec3(0.6f, 0.6f, 0.6f));
-	smallAsteroidPositions.erase(smallAsteroidPositions.begin() + index);
-	smallAsteroidAngles.erase(smallAsteroidAngles.begin() + index);
+	SpawnKillDebris(smallAsteroidPositions[index], Vec3(0.6f, 0.6f, 0.6f), 4);
+	smallAsteroidPositions.erase (smallAsteroidPositions.begin()  + index);
+	smallAsteroidAngles.erase    (smallAsteroidAngles.begin()     + index);
 	smallAsteroidSpinSpeeds.erase(smallAsteroidSpinSpeeds.begin() + index);
+	smallAsteroidHP.erase        (smallAsteroidHP.begin()         + index);
+	smallAsteroidScales.erase    (smallAsteroidScales.begin()     + index);
 }
 
 void Enemy::RemoveBot01(int index) {
-	SpawnDebris(bot01Positions[index], Vec3(1.0f, 0.2f, 0.2f));
-	bot01Positions.erase(bot01Positions.begin() + index);
+	SpawnKillDebris(bot01Positions[index], Vec3(1.0f, 0.2f, 0.2f), 6);
+	bot01Positions.erase  (bot01Positions.begin()   + index);
 	bot01YVelocities.erase(bot01YVelocities.begin() + index);
+	bot01HP.erase         (bot01HP.begin()          + index);
 }
 
 void Enemy::Reset() {
 	asteroidPositions.clear();
 	asteroidAngles.clear();
 	asteroidSpinSpeeds.clear();
+	asteroidHP.clear();
+	asteroidScales.clear();
 	smallAsteroidPositions.clear();
 	smallAsteroidAngles.clear();
 	smallAsteroidSpinSpeeds.clear();
+	smallAsteroidHP.clear();
+	smallAsteroidScales.clear();
 	bot01Positions.clear();
 	bot01YVelocities.clear();
+	bot01HP.clear();
 	debris.clear();
 	asteroidSpawnTimer = 0.0f;
 	smallAsteroidSpawnTimer = 0.0f;

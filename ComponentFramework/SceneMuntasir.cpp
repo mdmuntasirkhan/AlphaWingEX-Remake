@@ -237,54 +237,57 @@ void SceneMuntasir::Update(const float deltaTime) {
     // Ellipse helper: (dx/rx)^2 + (dy/ry)^2 < 1
     // rx = front/back extent, ry = top/bottom extent
 
-    // Bullet hits Bot01  (bot01 is a ship: long X, narrow Y)
+    // Bullet hits Bot01
     for (int b = bullet->GetPositions().size() - 1; b >= 0; b--) {
         for (int e = enemy->GetBot01Positions().size() - 1; e >= 0; e--) {
             float dx = bullet->GetPositions()[b].x - enemy->GetBot01Positions()[e].x;
             float dy = bullet->GetPositions()[b].y - enemy->GetBot01Positions()[e].y;
             if ((dx*dx)/(0.6f*0.6f) + (dy*dy)/(0.32f*0.32f) < 1.0f) {
                 bullet->RemoveAt(b);
-                enemy->RemoveBot01(e);
-                score += 100;
-                if (explosionCooldownTimer <= 0.0f) {
-                    sfxExplosion->Play(sfxPlayer);
-                    explosionCooldownTimer = explosionCooldown;
+                if (enemy->DamageBot01(e)) {
+                    score += 100;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
                 }
                 break;
             }
         }
     }
 
-    // Bullet hits large asteroid  (rock: nearly round, slight X stretch)
+    // Bullet hits large asteroid
     for (int b = bullet->GetPositions().size() - 1; b >= 0; b--) {
         for (int a = enemy->GetAsteroidPositions().size() - 1; a >= 0; a--) {
             float dx = bullet->GetPositions()[b].x - enemy->GetAsteroidPositions()[a].x;
             float dy = bullet->GetPositions()[b].y - enemy->GetAsteroidPositions()[a].y;
             if ((dx*dx)/(0.85f*0.85f) + (dy*dy)/(0.7f*0.7f) < 1.0f) {
                 bullet->RemoveAt(b);
-                enemy->RemoveAsteroid(a);
-                score += 50;
-                if (explosionCooldownTimer <= 0.0f) {
-                    sfxExplosion->Play(sfxPlayer);
-                    explosionCooldownTimer = explosionCooldown;
+                if (enemy->DamageAsteroid(a)) {
+                    score += 50;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
                 }
                 break;
             }
         }
     }
 
-    // Bullet hits small asteroid  (small rock: nearly round)
+    // Bullet hits small asteroid
     for (int b = bullet->GetPositions().size() - 1; b >= 0; b--) {
         for (int a = enemy->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
             float dx = bullet->GetPositions()[b].x - enemy->GetSmallAsteroidPositions()[a].x;
             float dy = bullet->GetPositions()[b].y - enemy->GetSmallAsteroidPositions()[a].y;
             if ((dx*dx)/(0.45f*0.45f) + (dy*dy)/(0.38f*0.38f) < 1.0f) {
                 bullet->RemoveAt(b);
-                enemy->RemoveSmallAsteroid(a);
-                score += 25;
-                if (explosionCooldownTimer <= 0.0f) {
-                    sfxExplosion->Play(sfxPlayer);
-                    explosionCooldownTimer = explosionCooldown;
+                if (enemy->DamageSmallAsteroid(a)) {
+                    score += 25;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
                 }
                 break;
             }
@@ -298,11 +301,12 @@ void SceneMuntasir::Update(const float deltaTime) {
             float dy = bullet->GetMissilePositions()[m].y - enemy->GetBot01Positions()[e].y;
             if ((dx*dx)/(0.65f*0.65f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
                 bullet->RemoveMissileAt(m);
-                enemy->RemoveBot01(e);
-                score += 100;
-                if (explosionCooldownTimer <= 0.0f) {
-                    sfxExplosion->Play(sfxPlayer);
-                    explosionCooldownTimer = explosionCooldown;
+                if (enemy->DamageBot01(e)) {
+                    score += 100;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
                 }
                 break;
             }
@@ -316,11 +320,12 @@ void SceneMuntasir::Update(const float deltaTime) {
             float dy = bullet->GetMissilePositions()[m].y - enemy->GetAsteroidPositions()[a].y;
             if ((dx*dx)/(0.9f*0.9f) + (dy*dy)/(0.75f*0.75f) < 1.0f) {
                 bullet->RemoveMissileAt(m);
-                enemy->RemoveAsteroid(a);
-                score += 50;
-                if (explosionCooldownTimer <= 0.0f) {
-                    sfxExplosion->Play(sfxPlayer);
-                    explosionCooldownTimer = explosionCooldown;
+                if (enemy->DamageAsteroid(a)) {
+                    score += 50;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
                 }
                 break;
             }
@@ -334,11 +339,12 @@ void SceneMuntasir::Update(const float deltaTime) {
             float dy = bullet->GetMissilePositions()[m].y - enemy->GetSmallAsteroidPositions()[a].y;
             if ((dx*dx)/(0.5f*0.5f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
                 bullet->RemoveMissileAt(m);
-                enemy->RemoveSmallAsteroid(a);
-                score += 25;
-                if (explosionCooldownTimer <= 0.0f) {
-                    sfxExplosion->Play(sfxPlayer);
-                    explosionCooldownTimer = explosionCooldown;
+                if (enemy->DamageSmallAsteroid(a)) {
+                    score += 25;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
                 }
                 break;
             }

@@ -23,6 +23,7 @@ struct Debris {
 	float spinSpeed;
 	float lifetime;
 	float maxLifetime;
+	float pieceScale;
 };
 
 class Enemy {
@@ -39,21 +40,29 @@ private:
 	std::vector<Vec3> smallAsteroidPositions;
 	std::vector<Vec3> bot01Positions;
 
-	// Spin (feature 1)
+	// Spin
 	std::vector<float> asteroidAngles;
 	std::vector<float> asteroidSpinSpeeds;
 	std::vector<float> smallAsteroidAngles;
 	std::vector<float> smallAsteroidSpinSpeeds;
 
-	// Bot01 Y-axis steering (feature 3)
+	// Per-asteroid HP and current scale (destructible system)
+	std::vector<int>   asteroidHP;
+	std::vector<float> asteroidScales;
+	std::vector<int>   smallAsteroidHP;
+	std::vector<float> smallAsteroidScales;
+
+	// Bot01 Y-axis steering
 	std::vector<float> bot01YVelocities;
+	std::vector<int>   bot01HP;
 	float bot01SteerForce;
 	float bot01YDamping;
 	float bot01YMaxSpeed;
 
-	// Debris (feature 5)
+	// Debris
 	std::vector<Debris> debris;
-	void SpawnDebris(const Vec3& pos, const Vec3& color);
+	void SpawnHitDebris (const Vec3& pos, const Vec3& color, int count);
+	void SpawnKillDebris(const Vec3& pos, const Vec3& color, int count);
 
 	// speed
 	float asteroidSpeed;
@@ -92,7 +101,12 @@ public:
 	float GetSmallAsteroidSpeed() const { return smallAsteroidSpeed; }
 	float GetBot01Speed()         const { return bot01Speed; }
 
-	// Remove by index
+	// Damage (bullet/missile hits — multi-hit destructible)
+	bool DamageAsteroid(int index);
+	bool DamageSmallAsteroid(int index);
+	bool DamageBot01(int index);
+
+	// Remove by index (instant kill — player ram, or off-screen cleanup)
 	void RemoveAsteroid(int index);
 	void RemoveSmallAsteroid(int index);
 	void RemoveBot01(int index);
