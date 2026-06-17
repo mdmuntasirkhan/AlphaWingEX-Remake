@@ -52,6 +52,8 @@ private:
 	float rollDamping;
 	float maxRollAngle;
 
+	float thrustTimer;
+
 public:
 	Player();
 	~Player();

@@ -30,7 +30,8 @@ Player::Player() :  mesh { nullptr },
 					rollVelocity     { 0.0f },
 					rollStiffness    { 100.0f },
 					rollDamping      { 16.0f },
-					maxRollAngle     { 5.0f }
+					maxRollAngle     { 5.0f },
+					thrustTimer      { 0.0f }
 {
 	// leave Empty
 }
@@ -132,6 +133,8 @@ void Player::Update(float deltaTime) {
 	if (pos.y >  4.5f) { pos.y =  4.5f; velocity.y = 0.0f; }
 
 
+	thrustTimer += deltaTime;
+
 	float targetRoll = inputDir.y * maxRollAngle;
 	rollVelocity += (-rollStiffness * (rollAngle - targetRoll) - rollDamping * rollVelocity) * deltaTime;
 	rollAngle    += rollVelocity * deltaTime;
@@ -179,8 +182,11 @@ void Player::Render(Shader* shader,
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 	glDepthMask(GL_FALSE);
+	// Two overlapping sine waves give an organic, non-repeating flicker
+	float pulse = 0.75f + 0.15f * sinf(thrustTimer * 11.0f)
+	                    + 0.10f * sinf(thrustTimer *  7.3f);
 	glUniform1f(shader->GetUniformID("emissive"), 1.0f);
-	glUniform4f(shader->GetUniformID("color"), 1.0f, 0.45f, 0.05f, 0.9f);
+	glUniform4f(shader->GetUniformID("color"), 1.0f, 0.45f * pulse, 0.05f, pulse);
 	thrustMesh->Render();
 	glUniform1f(shader->GetUniformID("emissive"), 0.0f);
 	glDepthMask(GL_TRUE);
