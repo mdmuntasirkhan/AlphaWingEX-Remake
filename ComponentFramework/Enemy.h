@@ -52,9 +52,10 @@ private:
 	std::vector<int>   smallAsteroidHP;
 	std::vector<float> smallAsteroidScales;
 
-	// Bot01 Y-axis steering
+	// Bot01 Y-axis steering + state
 	std::vector<float> bot01YVelocities;
 	std::vector<int>   bot01HP;
+	std::vector<float> bot01HitTimers;   // white flash timer per bot01
 	float bot01SteerForce;
 	float bot01YDamping;
 	float bot01YMaxSpeed;

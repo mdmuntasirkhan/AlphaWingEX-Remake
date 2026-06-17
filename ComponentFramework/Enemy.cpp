@@ -13,15 +13,15 @@ Enemy::Enemy() :
 	bot01SteerForce{ 3.0f },
 	bot01YDamping{ 4.5f },
 	bot01YMaxSpeed{ 2.5f },
-	asteroidSpeed{ 1.4f },
-	smallAsteroidSpeed{ 2.6f },
-	bot01Speed{ 2.0f },
+	asteroidSpeed{ 0.9f },
+	smallAsteroidSpeed{ 1.6f },
+	bot01Speed{ 1.2f },
 	asteroidSpawnTimer{ 0.0f },
-	asteroidSpawnInterval{ 2.2f },
+	asteroidSpawnInterval{ 3.2f },
 	smallAsteroidSpawnTimer{ 0.0f },
-	smallAsteroidSpawnInterval{ 1.3f },
+	smallAsteroidSpawnInterval{ 2.0f },
 	bot01SpawnTimer{ 0.0f },
-	bot01SpawnInterval{ 3.0f },
+	bot01SpawnInterval{ 4.5f },
 	totalTime{ 0.0f }
 {
 	// Leave Empty
@@ -85,6 +85,7 @@ void Enemy::OnDestroy() {
 	bot01Positions.clear();
 	bot01YVelocities.clear();
 	bot01HP.clear();
+	bot01HitTimers.clear();
 	debris.clear();
 }
 
@@ -151,6 +152,7 @@ void Enemy::Update(float deltaTime, float playerY) {
 			bot01Positions.push_back(Vec3(15.0f, randomY, -10.0f));
 			bot01YVelocities.push_back(0.0f);
 			bot01HP.push_back(10);
+			bot01HitTimers.push_back(0.0f);
 		}
 	}
 	for (int i = 0; i < (int)bot01Positions.size(); i++) {
@@ -169,6 +171,15 @@ void Enemy::Update(float deltaTime, float playerY) {
 			bot01Positions.erase  (bot01Positions.begin()   + i);
 			bot01YVelocities.erase(bot01YVelocities.begin() + i);
 			bot01HP.erase         (bot01HP.begin()          + i);
+			bot01HitTimers.erase  (bot01HitTimers.begin()   + i);
+		}
+	}
+
+	// Decrement bot01 hit flash timers
+	for (int i = 0; i < (int)bot01HitTimers.size(); i++) {
+		if (bot01HitTimers[i] > 0.0f) {
+			bot01HitTimers[i] -= deltaTime;
+			if (bot01HitTimers[i] < 0.0f) bot01HitTimers[i] = 0.0f;
 		}
 	}
 
@@ -209,9 +220,12 @@ void Enemy::Render(Shader* shader,
 		asteroidMesh->Render();
 	}
 
-	// Bot01 — RED
-	glUniform4f(shader->GetUniformID("color"), 1.0f, 0.1f, 0.1f, 1.0f);
+	// Bot01 — RED, flashes white on hit
 	for (int i = 0; i < (int)bot01Positions.size(); i++) {
+		if (bot01HitTimers[i] > 0.0f)
+			glUniform4f(shader->GetUniformID("color"), 1.0f, 1.0f, 1.0f, 1.0f);
+		else
+			glUniform4f(shader->GetUniformID("color"), 1.0f, 0.1f, 0.1f, 1.0f);
 		Matrix4 m = MMath::translate(bot01Positions[i]) *
 			MMath::rotate(180.0f, Vec3(0.0f, 1.0f, 0.0f)) *
 			MMath::scale(0.17f, 0.17f, 0.17f);
@@ -340,8 +354,12 @@ bool Enemy::DamageBot01(int index) {
 		bot01Positions.erase  (bot01Positions.begin()   + index);
 		bot01YVelocities.erase(bot01YVelocities.begin() + index);
 		bot01HP.erase         (bot01HP.begin()          + index);
+		bot01HitTimers.erase  (bot01HitTimers.begin()   + index);
 		return true;
 	}
+	// Non-kill hit: white flash + tiny yellow sparks
+	bot01HitTimers[index] = 0.12f;
+	SpawnHitDebris(bot01Positions[index], Vec3(1.0f, 0.95f, 0.3f), 3);
 	return false;
 }
 
@@ -369,6 +387,7 @@ void Enemy::RemoveBot01(int index) {
 	bot01Positions.erase  (bot01Positions.begin()   + index);
 	bot01YVelocities.erase(bot01YVelocities.begin() + index);
 	bot01HP.erase         (bot01HP.begin()          + index);
+	bot01HitTimers.erase  (bot01HitTimers.begin()   + index);
 }
 
 void Enemy::Reset() {
@@ -385,6 +404,7 @@ void Enemy::Reset() {
 	bot01Positions.clear();
 	bot01YVelocities.clear();
 	bot01HP.clear();
+	bot01HitTimers.clear();
 	debris.clear();
 	asteroidSpawnTimer = 0.0f;
 	smallAsteroidSpawnTimer = 0.0f;
