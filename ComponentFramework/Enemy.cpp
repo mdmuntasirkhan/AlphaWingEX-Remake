@@ -3,19 +3,22 @@
 #include <glew.h>
 #include <iostream>
 #include <cstdlib>
+#include <cmath>
 
 Enemy::Enemy() :
 	asteroidMesh{ nullptr },
 	bot01Mesh{ nullptr },
-	asteroidSpeed{ 2.0f },
-	smallAsteroidSpeed{ 3.5f },
-	bot01Speed{ 3.0f },
+	bot01ThrustMesh{ nullptr },
+	thrustTimer{ 0.0f },
+	asteroidSpeed{ 1.4f },
+	smallAsteroidSpeed{ 2.6f },
+	bot01Speed{ 2.0f },
 	asteroidSpawnTimer{ 0.0f },
-	asteroidSpawnInterval{ 1.5f },
+	asteroidSpawnInterval{ 2.2f },
 	smallAsteroidSpawnTimer{ 0.0f },
-	smallAsteroidSpawnInterval{ 0.8f },
+	smallAsteroidSpawnInterval{ 1.3f },
 	bot01SpawnTimer{ 0.0f },
-	bot01SpawnInterval{ 2.0f },
+	bot01SpawnInterval{ 3.0f },
 	totalTime{ 0.0f }
 {
 	// Leave Empty
@@ -39,6 +42,13 @@ bool Enemy::OnCreate(const char* asteroidFile,
 		return false;
 	}
 
+	// Bot01 thrust mesh
+	bot01ThrustMesh = new Mesh("meshes/Temp_AlphaWing_Enemy_Bot01_Thrust.obj");
+	if (bot01ThrustMesh->OnCreate() == false) {
+		std::cout << "Bot01 thrust mesh not found!\n";
+		return false;
+	}
+
 	return true;
 
 }
@@ -54,6 +64,11 @@ void Enemy::OnDestroy() {
 		delete bot01Mesh;
 		bot01Mesh = nullptr;
 	}
+	if (bot01ThrustMesh) {
+		bot01ThrustMesh->OnDestroy();
+		delete bot01ThrustMesh;
+		bot01ThrustMesh = nullptr;
+	}
 	asteroidPositions.clear();
 	smallAsteroidPositions.clear();
 	bot01Positions.clear();
@@ -61,6 +76,7 @@ void Enemy::OnDestroy() {
 
 void Enemy::Update(float deltaTime) {
 	totalTime += deltaTime;
+	thrustTimer += deltaTime;
 
 	// Wave 1 - Large asteroids
 	asteroidSpawnTimer += deltaTime;
@@ -137,10 +153,29 @@ void Enemy::Render(Shader* shader,
 	for (int i = 0; i < (int)bot01Positions.size(); i++) {
 		Matrix4 m = MMath::translate(bot01Positions[i]) *
 			MMath::rotate(180.0f, Vec3(0.0f, 1.0f, 0.0f)) *
-			MMath::scale(0.3f, 0.3f, 0.3f);
+			MMath::scale(0.17f, 0.17f, 0.17f);
 		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
 		bot01Mesh->Render();
 	}
+
+	// Bot01 thrust — additive blue electric pulse (faster than player's orange)
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	glDepthMask(GL_FALSE);
+	glUniform1f(shader->GetUniformID("emissive"), 1.0f);
+	float pulse = 0.65f + 0.25f * sinf(thrustTimer * 20.0f)
+	                    + 0.10f * sinf(thrustTimer * 37.0f);
+	glUniform4f(shader->GetUniformID("color"), 0.0f, 0.4f * pulse, 1.0f, pulse);
+	for (int i = 0; i < (int)bot01Positions.size(); i++) {
+		Matrix4 m = MMath::translate(bot01Positions[i]) *
+			MMath::rotate(180.0f, Vec3(0.0f, 1.0f, 0.0f)) *
+			MMath::scale(0.17f, 0.17f, 0.17f);
+		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
+		bot01ThrustMesh->Render();
+	}
+	glUniform1f(shader->GetUniformID("emissive"), 0.0f);
+	glDepthMask(GL_TRUE);
+	glDisable(GL_BLEND);
 }
 
 void Enemy::RemoveAsteroid(int index) {

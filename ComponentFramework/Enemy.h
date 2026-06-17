@@ -20,6 +20,9 @@ private:
 	// Meshes
 	Mesh* asteroidMesh;
 	Mesh* bot01Mesh;
+	Mesh* bot01ThrustMesh;
+
+	float thrustTimer;
 
 	// Positions
 	std::vector<Vec3> asteroidPositions;
