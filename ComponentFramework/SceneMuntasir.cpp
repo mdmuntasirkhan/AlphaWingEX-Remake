@@ -232,13 +232,15 @@ void SceneMuntasir::Update(const float deltaTime) {
         gameOver = true;
     }
 
-    // Collision - bullet hits Bot01
+    // Ellipse helper: (dx/rx)^2 + (dy/ry)^2 < 1
+    // rx = front/back extent, ry = top/bottom extent
+
+    // Bullet hits Bot01  (bot01 is a ship: long X, narrow Y)
     for (int b = bullet->GetPositions().size() - 1; b >= 0; b--) {
         for (int e = enemy->GetBot01Positions().size() - 1; e >= 0; e--) {
             float dx = bullet->GetPositions()[b].x - enemy->GetBot01Positions()[e].x;
             float dy = bullet->GetPositions()[b].y - enemy->GetBot01Positions()[e].y;
-            float distance = sqrt(dx * dx + dy * dy);
-            if (distance < 0.75f) {
+            if ((dx*dx)/(0.6f*0.6f) + (dy*dy)/(0.32f*0.32f) < 1.0f) {
                 bullet->RemoveAt(b);
                 enemy->RemoveBot01(e);
                 score += 100;
@@ -251,13 +253,12 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Collision - bullet hits asteroid
+    // Bullet hits large asteroid  (rock: nearly round, slight X stretch)
     for (int b = bullet->GetPositions().size() - 1; b >= 0; b--) {
         for (int a = enemy->GetAsteroidPositions().size() - 1; a >= 0; a--) {
             float dx = bullet->GetPositions()[b].x - enemy->GetAsteroidPositions()[a].x;
             float dy = bullet->GetPositions()[b].y - enemy->GetAsteroidPositions()[a].y;
-            float distance = sqrt(dx * dx + dy * dy);
-            if (distance < 1.0f) {
+            if ((dx*dx)/(0.85f*0.85f) + (dy*dy)/(0.7f*0.7f) < 1.0f) {
                 bullet->RemoveAt(b);
                 enemy->RemoveAsteroid(a);
                 score += 50;
@@ -270,12 +271,12 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Collision - bullet hits small asteroid
+    // Bullet hits small asteroid  (small rock: nearly round)
     for (int b = bullet->GetPositions().size() - 1; b >= 0; b--) {
         for (int a = enemy->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
             float dx = bullet->GetPositions()[b].x - enemy->GetSmallAsteroidPositions()[a].x;
             float dy = bullet->GetPositions()[b].y - enemy->GetSmallAsteroidPositions()[a].y;
-            if (sqrt(dx * dx + dy * dy) < 0.6f) {
+            if ((dx*dx)/(0.45f*0.45f) + (dy*dy)/(0.38f*0.38f) < 1.0f) {
                 bullet->RemoveAt(b);
                 enemy->RemoveSmallAsteroid(a);
                 score += 25;
@@ -288,13 +289,12 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Collision - missile hits Bot01
+    // Missile hits Bot01
     for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
         for (int e = enemy->GetBot01Positions().size() - 1; e >= 0; e--) {
             float dx = bullet->GetMissilePositions()[m].x - enemy->GetBot01Positions()[e].x;
             float dy = bullet->GetMissilePositions()[m].y - enemy->GetBot01Positions()[e].y;
-            float distance = sqrt(dx * dx + dy * dy);
-            if (distance < 0.75f) {
+            if ((dx*dx)/(0.65f*0.65f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
                 bullet->RemoveMissileAt(m);
                 enemy->RemoveBot01(e);
                 score += 100;
@@ -307,13 +307,12 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Collision - missile hits asteroid
+    // Missile hits large asteroid
     for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
         for (int a = enemy->GetAsteroidPositions().size() - 1; a >= 0; a--) {
             float dx = bullet->GetMissilePositions()[m].x - enemy->GetAsteroidPositions()[a].x;
             float dy = bullet->GetMissilePositions()[m].y - enemy->GetAsteroidPositions()[a].y;
-            float distance = sqrt(dx * dx + dy * dy);
-            if (distance < 1.0f) {
+            if ((dx*dx)/(0.9f*0.9f) + (dy*dy)/(0.75f*0.75f) < 1.0f) {
                 bullet->RemoveMissileAt(m);
                 enemy->RemoveAsteroid(a);
                 score += 50;
@@ -326,12 +325,12 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Collision - missile hits small asteroid
+    // Missile hits small asteroid
     for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
         for (int a = enemy->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
             float dx = bullet->GetMissilePositions()[m].x - enemy->GetSmallAsteroidPositions()[a].x;
             float dy = bullet->GetMissilePositions()[m].y - enemy->GetSmallAsteroidPositions()[a].y;
-            if (sqrt(dx * dx + dy * dy) < 0.6f) {
+            if ((dx*dx)/(0.5f*0.5f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
                 bullet->RemoveMissileAt(m);
                 enemy->RemoveSmallAsteroid(a);
                 score += 25;
@@ -344,11 +343,11 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Collision - asteroid hits player (elliptical: ship is long on X, narrow on Y)
+    // Asteroid hits player  (player ship: long X, narrow Y)
     for (int a = enemy->GetAsteroidPositions().size() - 1; a >= 0; a--) {
         float dx = player->GetPosition().x - enemy->GetAsteroidPositions()[a].x;
         float dy = player->GetPosition().y - enemy->GetAsteroidPositions()[a].y;
-        if ((dx * dx) / (1.0f * 1.0f) + (dy * dy) / (0.5f * 0.5f) < 1.0f) {
+        if ((dx*dx)/(1.0f*1.0f) + (dy*dy)/(0.5f*0.5f) < 1.0f) {
             enemy->RemoveAsteroid(a);
             player->TakeDamage(25.0f);
             if (explosionCooldownTimer <= 0.0f) {
@@ -358,11 +357,11 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Collision - small asteroid hits player (less damage)
+    // Small asteroid hits player
     for (int a = enemy->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
         float dx = player->GetPosition().x - enemy->GetSmallAsteroidPositions()[a].x;
         float dy = player->GetPosition().y - enemy->GetSmallAsteroidPositions()[a].y;
-        if (sqrt(dx * dx + dy * dy) < 0.7f) {
+        if ((dx*dx)/(0.65f*0.65f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
             enemy->RemoveSmallAsteroid(a);
             player->TakeDamage(10.0f);
             if (explosionCooldownTimer <= 0.0f) {
@@ -372,11 +371,11 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Collision - Bot01 hits player (elliptical: ship is long on X, narrow on Y)
+    // Bot01 hits player
     for (int e = enemy->GetBot01Positions().size() - 1; e >= 0; e--) {
         float dx = player->GetPosition().x - enemy->GetBot01Positions()[e].x;
         float dy = player->GetPosition().y - enemy->GetBot01Positions()[e].y;
-        if ((dx * dx) / (0.75f * 0.75f) + (dy * dy) / (0.4f * 0.4f) < 1.0f) {
+        if ((dx*dx)/(0.75f*0.75f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
             enemy->RemoveBot01(e);
             player->TakeDamage(40.0f);
             if (explosionCooldownTimer <= 0.0f) {
