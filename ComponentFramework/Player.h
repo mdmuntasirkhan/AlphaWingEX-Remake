@@ -15,6 +15,7 @@ union SDL_Event;
 class Player {
 private:
 	Mesh* mesh;
+	Mesh* thrustMesh;
 	Matrix4 modelMatrix;
 
 	Vec3 pos;

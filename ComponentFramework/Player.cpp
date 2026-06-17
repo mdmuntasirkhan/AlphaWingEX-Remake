@@ -5,6 +5,7 @@
 #include <iostream>
 
 Player::Player() :  mesh { nullptr },
+					thrustMesh { nullptr },
 					speed { 5.0f }, 
 					health { 100 }, 
 					maxHealth { 100 }, 
@@ -51,6 +52,13 @@ bool Player::OnCreate(const char* meshFile) {
 		return false;
 	}
 
+	// Thrust Mesh
+	thrustMesh = new Mesh("meshes/Temp_AlphaWing_Thrust.obj");
+	if (thrustMesh->OnCreate() == false) {
+		std::cout << "Thrust mesh not found!\n";
+		return false;
+	}
+
 	pos = Vec3(0.0f, 0.0f, -10.0f);
 	modelMatrix = MMath::translate(pos) *
 				  MMath::scale(0.5f, 0.5f, 0.5f);
@@ -69,6 +77,13 @@ void Player::OnDestroy() {
 		shieldMesh->OnDestroy();
 		delete shieldMesh;
 		shieldMesh = nullptr;
+	}
+
+	// Thrust Mesh
+	if (thrustMesh) {
+		thrustMesh->OnDestroy();
+		delete thrustMesh;
+		thrustMesh = nullptr;
 	}
 }
 
@@ -159,6 +174,17 @@ void Player::Render(Shader* shader,
 
 	// Alpha Wing Mesh
 	mesh->Render();
+
+	// Thrust glow — additive blend so it lights up rather than paints over
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	glDepthMask(GL_FALSE);
+	glUniform1f(shader->GetUniformID("emissive"), 1.0f);
+	glUniform4f(shader->GetUniformID("color"), 1.0f, 0.45f, 0.05f, 0.9f);
+	thrustMesh->Render();
+	glUniform1f(shader->GetUniformID("emissive"), 0.0f);
+	glDepthMask(GL_TRUE);
+	glDisable(GL_BLEND);
 
 	// Shield Mesh
 	if (shieldActive) {
