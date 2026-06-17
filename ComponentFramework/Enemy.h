@@ -15,6 +15,16 @@ enum class EnemyType {
 	BOT01,		// wave 2
 };
 
+struct Debris {
+	Vec3  pos;
+	Vec3  vel;
+	Vec3  color;
+	float angle;
+	float spinSpeed;
+	float lifetime;
+	float maxLifetime;
+};
+
 class Enemy {
 private:
 	// Meshes
@@ -28,6 +38,22 @@ private:
 	std::vector<Vec3> asteroidPositions;
 	std::vector<Vec3> smallAsteroidPositions;
 	std::vector<Vec3> bot01Positions;
+
+	// Spin (feature 1)
+	std::vector<float> asteroidAngles;
+	std::vector<float> asteroidSpinSpeeds;
+	std::vector<float> smallAsteroidAngles;
+	std::vector<float> smallAsteroidSpinSpeeds;
+
+	// Bot01 Y-axis steering (feature 3)
+	std::vector<float> bot01YVelocities;
+	float bot01SteerForce;
+	float bot01YDamping;
+	float bot01YMaxSpeed;
+
+	// Debris (feature 5)
+	std::vector<Debris> debris;
+	void SpawnDebris(const Vec3& pos, const Vec3& color);
 
 	// speed
 	float asteroidSpeed;
@@ -52,7 +78,7 @@ public:
 	bool OnCreate(const char* asteroidFile,
 				  const char* bot01File);
 	void OnDestroy();
-	void Update(float deltaTime);
+	void Update(float deltaTime, float playerY = 0.0f);
 	void Render(Shader* shader,
 		const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const;
 

@@ -175,6 +175,7 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
             break;
         case SDL_SCANCODE_SPACE:
             bullet->Spawn(player->GetPosition());
+            player->ApplyImpulse(Vec3(-1.5f, 0.0f, 0.0f)); // recoil
             sfxLaser->Play(sfxPlayer);
             break;
         default:
@@ -187,6 +188,7 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
         if (sdlEvent.button.button == SDL_BUTTON_LEFT) {
             if (!ImGui::GetIO().WantCaptureMouse) {
                 bullet->Spawn(player->GetPosition());
+                player->ApplyImpulse(Vec3(-1.5f, 0.0f, 0.0f)); // recoil
                 sfxLaser->Play(sfxPlayer);
             }
         }
@@ -221,10 +223,10 @@ void SceneMuntasir::Update(const float deltaTime) {
 
     // Update all classes
     player->Update(deltaTime);
-    enemy->Update(deltaTime);
     bullet->Update(deltaTime,
         enemy->GetAsteroidPositions(), Vec3(-enemy->GetAsteroidSpeed(), 0.0f, 0.0f),
         enemy->GetBot01Positions(), Vec3(-enemy->GetBot01Speed(), 0.0f, 0.0f));
+    enemy->Update(deltaTime, player->GetPosition().y);
     environment->Update(deltaTime);
 
     // Check game over
@@ -348,6 +350,9 @@ void SceneMuntasir::Update(const float deltaTime) {
         float dx = player->GetPosition().x - enemy->GetAsteroidPositions()[a].x;
         float dy = player->GetPosition().y - enemy->GetAsteroidPositions()[a].y;
         if ((dx*dx)/(1.0f*1.0f) + (dy*dy)/(0.5f*0.5f) < 1.0f) {
+            // Knockback: push player away from asteroid
+            float len = sqrtf(dx*dx + dy*dy);
+            if (len > 0.001f) player->ApplyImpulse(Vec3(dx/len * 4.0f, dy/len * 4.0f, 0.0f));
             enemy->RemoveAsteroid(a);
             player->TakeDamage(25.0f);
             if (explosionCooldownTimer <= 0.0f) {
@@ -362,6 +367,8 @@ void SceneMuntasir::Update(const float deltaTime) {
         float dx = player->GetPosition().x - enemy->GetSmallAsteroidPositions()[a].x;
         float dy = player->GetPosition().y - enemy->GetSmallAsteroidPositions()[a].y;
         if ((dx*dx)/(0.65f*0.65f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
+            float len = sqrtf(dx*dx + dy*dy);
+            if (len > 0.001f) player->ApplyImpulse(Vec3(dx/len * 2.5f, dy/len * 2.5f, 0.0f));
             enemy->RemoveSmallAsteroid(a);
             player->TakeDamage(10.0f);
             if (explosionCooldownTimer <= 0.0f) {
@@ -376,6 +383,8 @@ void SceneMuntasir::Update(const float deltaTime) {
         float dx = player->GetPosition().x - enemy->GetBot01Positions()[e].x;
         float dy = player->GetPosition().y - enemy->GetBot01Positions()[e].y;
         if ((dx*dx)/(0.75f*0.75f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
+            float len = sqrtf(dx*dx + dy*dy);
+            if (len > 0.001f) player->ApplyImpulse(Vec3(dx/len * 5.0f, dy/len * 5.0f, 0.0f));
             enemy->RemoveBot01(e);
             player->TakeDamage(40.0f);
             if (explosionCooldownTimer <= 0.0f) {

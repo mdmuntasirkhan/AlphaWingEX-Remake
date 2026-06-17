@@ -21,7 +21,8 @@ class Bullet {
 private:
 	// Regular one
 	Mesh* mesh;
-	std::vector<Vec3> positions;
+	std::vector<Vec3>  positions;
+	std::vector<float> bulletYVelocities;
 	float speed;
 
 	// Homing Missile

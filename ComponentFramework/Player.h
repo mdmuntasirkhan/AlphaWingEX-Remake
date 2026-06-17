@@ -72,8 +72,9 @@ public:
 	int GetLives() const { return lives; }
 	bool IsGameOver() const { return lives <= 0; }
 
-	// Danage and Reset
+	// Damage and Reset
 	void TakeDamage(float amount);
+	void ApplyImpulse(const Vec3& impulse) { velocity += impulse; }
 	void Reset();
 
 	// Shield

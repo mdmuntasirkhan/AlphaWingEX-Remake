@@ -2,6 +2,7 @@
 #include <MMath.h>
 #include <glew.h>
 #include <iostream>
+#include <cstdlib>
 
 Bullet::Bullet() :  mesh{ nullptr },
 					speed{ 10.0f },
@@ -53,6 +54,7 @@ void Bullet::OnDestroy() {
 		missileMesh = nullptr;
 	}
 	positions.clear();
+	bulletYVelocities.clear();
 	missilePositions.clear();
 	missileVelocities.clear();
 	missileTargetTypes.clear();
@@ -62,6 +64,8 @@ void Bullet::OnDestroy() {
 
 void Bullet::Spawn(Vec3 position) {
 	positions.push_back(position);
+	float ySpread = ((rand() % 100) - 50) * 0.004f; // ±0.2 units/s subtle spread
+	bulletYVelocities.push_back(ySpread);
 }
 
 void Bullet::SpawnHoming(Vec3 position, MissileTargetType targetType, int targetIndex) {
@@ -110,15 +114,17 @@ bool Bullet::FindNearestTarget(const Vec3& fromPosition,
 void Bullet::Update(float deltaTime,
 	const std::vector<Vec3>& asteroidPositions, const Vec3& asteroidVelocity,
 	const std::vector<Vec3>& bot01Positions, const Vec3& bot01Velocity) {
-	// Move regular bullets forward
+	// Move regular bullets (X forward + slight Y spread)
 	for (int i = 0; i < (int)positions.size(); i++) {
 		positions[i].x += speed * deltaTime;
+		positions[i].y += bulletYVelocities[i] * deltaTime;
 	}
 
 	// Remove regular bullets off the screen
 	for (int i = (int)positions.size() - 1; i >= 0; i--) {
 		if (positions[i].x > 15.0f) {
 			positions.erase(positions.begin() + i);
+			bulletYVelocities.erase(bulletYVelocities.begin() + i);
 		}
 	}
 
@@ -261,6 +267,7 @@ void Bullet::Render(Shader* shader,
 
 void Bullet::RemoveAt(int index) {
 	positions.erase(positions.begin() + index);
+	bulletYVelocities.erase(bulletYVelocities.begin() + index);
 }
 
 void Bullet::RemoveMissileAt(int index) {
