@@ -82,23 +82,20 @@ void SceneManager::Run() {
 		HandleEvents();
 		timer->UpdateFrameTicks();
 
-
-
 		// Start ImGui frame
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplSDL3_NewFrame();
 		ImGui::NewFrame();
 
-
 		currentScene->Update(timer->GetDeltaTime());
-		currentScene->Render();
+		currentScene->RenderBackground(); // OpenGL nebula drawn before 3D
+		currentScene->Render();           // 3D scene on top of nebula
+		currentScene->DrawGui();          // HUD on top of everything
 
-		currentScene->DrawGui();
-
-		// Render ImGui
+		// Render ImGui (stars + HUD)
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-		
+
 		SDL_GL_SwapWindow(window->getWindow());
 		SDL_Delay(timer->GetSleepTime(fps));
 	}

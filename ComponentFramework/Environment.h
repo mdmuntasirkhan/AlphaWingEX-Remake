@@ -16,10 +16,11 @@ enum class EnvironmentType {
 };
 
 struct Star {
-    float x, y;     // screen position
-    float speed;    // scroll speed
-    float size;     // star size
+    float x, y;
+    float speed;
+    float size;
 };
+
 
 class Environment {
 private:
@@ -28,6 +29,7 @@ private:
     // Starfield
     std::vector<Star> stars;
     int starCount;
+
 
     // Screen dimensions
     float screenWidth;

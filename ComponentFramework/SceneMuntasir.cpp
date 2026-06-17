@@ -389,11 +389,50 @@ void SceneMuntasir::Update(const float deltaTime) {
     }
 }
 
+// RenderBackground — pure OpenGL nebula drawn before 3D so it can't tint game objects
+void SceneMuntasir::RenderBackground() {
+    // Clear to black
+    glDisable(GL_SCISSOR_TEST);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Query actual viewport so this isn't hardcoded to 1920x1080
+    GLint vp[4];
+    glGetIntegerv(GL_VIEWPORT, vp);
+    int W = vp[2], H = vp[3];
+
+    // Nebula occupies the top 33% of screen.
+    // GL y=0 is at bottom, so top-33% maps to GL y = H*0.67 .. H
+    int solidBottom = (int)(H * 0.85f); // top 15%: solid blue
+    int gradBottom  = (int)(H * 0.67f); // top 33%: gradient starts here
+
+    glEnable(GL_SCISSOR_TEST);
+
+    // Solid blue band (top 15%)
+    glScissor(0, solidBottom, W, H - solidBottom);
+    glClearColor(10.f/255.f, 30.f/255.f, 120.f/255.f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // Gradient band (15%–33%): black at bottom, blue at top
+    int gradH = solidBottom - gradBottom;
+    const int steps = 24;
+    for (int i = 0; i < steps; i++) {
+        int y0 = gradBottom + (i * gradH) / steps;
+        int y1 = gradBottom + ((i + 1) * gradH) / steps;
+        float t = (float)i / (steps - 1); // 0=transparent(bottom), 1=solid(top)
+        glScissor(0, y0, W, y1 - y0);
+        glClearColor(10.f/255.f * t, 30.f/255.f * t, 120.f/255.f * t, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
+
+    glDisable(GL_SCISSOR_TEST);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+}
+
 // Render
 void SceneMuntasir::Render() const {
     glEnable(GL_DEPTH_TEST);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_DEPTH_BUFFER_BIT); // color already set by RenderBackground
 
     // Wireframe
     if (drawInWireMode) {
@@ -421,7 +460,7 @@ void SceneMuntasir::Render() const {
 
     glUseProgram(0);
 
-    // Starfield - drawn after OpenGL
+    // Stars — ImGui draws these on top of 3D (fine; they're small background dots)
     environment->Render();
 }
 

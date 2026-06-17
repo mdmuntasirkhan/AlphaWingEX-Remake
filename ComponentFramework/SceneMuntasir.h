@@ -57,6 +57,7 @@ public:
 	virtual bool OnCreate() override;
 	virtual void OnDestroy() override;
 	virtual void Update(const float deltaTime) override;
+	virtual void RenderBackground() override;
 	virtual void Render() const override;
 	virtual void HandleEvents(const SDL_Event& sdlEvent) override;
 

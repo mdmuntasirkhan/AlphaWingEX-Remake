@@ -12,6 +12,8 @@ public:
 	virtual void HandleEvents(const SDL_Event &sdlEvent) = 0;
 	
 
+	virtual void RenderBackground() {}
+
 	// ImGui
 	virtual void DrawGui() {}
 };

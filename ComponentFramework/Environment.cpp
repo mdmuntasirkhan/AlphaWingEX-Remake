@@ -22,10 +22,11 @@ bool Environment::OnCreate(float width, float height) {
         Star star;
         star.x = (float)(rand() % (int)screenWidth);
         star.y = (float)(rand() % (int)screenHeight);
-        star.speed = 20.0f + (rand() % 80);   // random scroll speed
-        star.size = 0.5f + (rand() % 2);       // random size
+        star.speed = 20.0f + (rand() % 80);
+        star.size = 0.5f + (rand() % 2);
         stars.push_back(star);
     }
+
     return true;
 }
 
@@ -35,7 +36,7 @@ void Environment::OnDestroy() {
 
 void Environment::Update(float deltaTime) {
     // Scroll stars from right to left
-    for (int i = 0; i < stars.size(); i++) {
+    for (int i = 0; i < (int)stars.size(); i++) {
         stars[i].x -= stars[i].speed * deltaTime;
 
         // Wrap around when off screen
@@ -52,10 +53,10 @@ void Environment::Update(float deltaTime) {
 }
 
 void Environment::Render() const {
-    // Draw starfield using ImGui background draw list
     ImDrawList* drawList = ImGui::GetBackgroundDrawList();
 
-    for (int i = 0; i < stars.size(); i++) {
+    // Starfield
+    for (int i = 0; i < (int)stars.size(); i++) {
         // Dimmer stars further back, brighter ones in front
         int brightness = 150 + (int)(stars[i].speed);
         if (brightness > 255) brightness = 255;
