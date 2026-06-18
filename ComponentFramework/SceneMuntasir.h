@@ -9,9 +9,9 @@
 #include "Enemy.h"
 #include "Bullet.h"
 #include "Environment.h"
+#include "SaveData.h"
+#include "SceneSwitcher.h"
 #include <vector>
-
-#include "Environment.h"
 
 using namespace MATH;
  
@@ -35,6 +35,32 @@ private:
 	// Game state
 	bool gameOver;
 	int score;
+
+	// Energy shards — RPG currency dropped by enemies
+	struct Shard {
+		Vec3  pos;
+		Vec3  vel;
+		float angle;
+		float spinSpeed;
+	};
+	std::vector<Shard> shards;
+	int   shardCount;
+	Mesh* shardMesh;
+
+	// Lost shard pile — dropped on death, recoverable once
+	struct DroppedShard {
+		Vec3  pos;
+		int   count;
+		float pulseTimer;
+	};
+	DroppedShard lostShards;
+	bool hasLostShards;
+	int  prevLives;
+
+	static constexpr float kMagnetRadius  = 2.4f;
+	static constexpr float kCollectRadius = 0.5f;
+
+	void SpawnShards(const Vec3& pos, int count);
 
 	// Explosion cooldown
 	float explosionCooldown;

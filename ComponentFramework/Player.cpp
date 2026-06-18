@@ -5,6 +5,8 @@
 #include <iostream>
 
 Player::Player() :  mesh { nullptr },
+					cockpitMesh { nullptr },
+					attachmentMesh { nullptr },
 					thrustMesh { nullptr },
 					speed { 5.0f }, 
 					health { 100 }, 
@@ -46,6 +48,20 @@ bool Player::OnCreate(const char* meshFile) {
 		return false;
 	}
 
+	// Cockpit mesh
+	cockpitMesh = new Mesh("meshes/Temp_AlphaWingEX_Cockpit.obj");
+	if (cockpitMesh->OnCreate() == false) {
+		std::cout << "Cockpit mesh not found!\n";
+		return false;
+	}
+
+	// Magnet attachment mesh
+	attachmentMesh = new Mesh("meshes/Temp_AlphaWingEX_Attachment01.obj");
+	if (attachmentMesh->OnCreate() == false) {
+		std::cout << "Attachment mesh not found!\n";
+		return false;
+	}
+
 	// Shield Mesh
 	shieldMesh = new Mesh("meshes/Temp_AlphaWing_Shield.obj");
 	if (shieldMesh->OnCreate() == false) {
@@ -72,6 +88,16 @@ void Player::OnDestroy() {
 		mesh->OnDestroy();
 		delete mesh;
 		mesh = nullptr;
+	}
+	if (cockpitMesh) {
+		cockpitMesh->OnDestroy();
+		delete cockpitMesh;
+		cockpitMesh = nullptr;
+	}
+	if (attachmentMesh) {
+		attachmentMesh->OnDestroy();
+		delete attachmentMesh;
+		attachmentMesh = nullptr;
 	}
 	// Shield Mesh
 	if (shieldMesh) {
@@ -175,8 +201,28 @@ void Player::Render(Shader* shader,
 	glUniformMatrix4fv(shader->GetUniformID("viewMatrix"), 1, GL_FALSE, viewMatrix);
 	glUniformMatrix4fv(shader->GetUniformID("modelMatrix"),	1, GL_FALSE, modelMatrix);
 
-	// Alpha Wing Mesh
+	// Ship body — cool metallic silver (Phong shading)
+	glUniform4f(shader->GetUniformID("color"), 0.72f, 0.76f, 0.82f, 1.0f);
 	mesh->Render();
+
+	// Cockpit — electric blue (Phong)
+	glUniform4f(shader->GetUniformID("color"), 0.10f, 0.45f, 1.0f, 1.0f);
+	cockpitMesh->Render();
+
+	// Magnet attachment — deep crimson body (Phong)
+	glUniform4f(shader->GetUniformID("color"), 0.72f, 0.05f, 0.08f, 1.0f);
+	attachmentMesh->Render();
+
+	// Attachment magnetic field — faint cyan additive glow (idle state)
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+	glDepthMask(GL_FALSE);
+	glUniform1f(shader->GetUniformID("emissive"), 1.0f);
+	glUniform4f(shader->GetUniformID("color"), 0.0f, 0.7f, 1.0f, 0.18f);
+	attachmentMesh->Render();
+	glUniform1f(shader->GetUniformID("emissive"), 0.0f);
+	glDepthMask(GL_TRUE);
+	glDisable(GL_BLEND);
 
 	// Thrust glow — additive blend so it lights up rather than paints over
 	glEnable(GL_BLEND);

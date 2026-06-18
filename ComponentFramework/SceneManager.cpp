@@ -5,6 +5,8 @@
 #include "SceneSTG.h"
 #include "SceneTestJacky.h"
 #include "SceneMuntasir.h"
+#include "SceneTitle.h"
+#include "SceneSwitcher.h"
 
 
 
@@ -69,7 +71,7 @@ bool SceneManager::Initialize(std::string name_, int width_, int height_) {
 
 
 	/********************************   Default first scene   ***********************/
-	BuildNewScene(SCENE_NUMBER::SCENEMUN);
+	BuildNewScene(SCENE_NUMBER::SCENETITLE);
 	/********************************************************************************/
 	return true;
 }
@@ -91,6 +93,19 @@ void SceneManager::Run() {
 		currentScene->RenderBackground(); // OpenGL nebula drawn before 3D
 		currentScene->Render();           // 3D scene on top of nebula
 		currentScene->DrawGui();          // HUD on top of everything
+
+		// Drain any scene-switch request made during this frame's Update/DrawGui.
+		// ImGui draw data is already captured, so it renders fine one last time.
+		if (SceneSwitcher::hasPending) {
+			GameScene gs = SceneSwitcher::pending;
+			SceneSwitcher::hasPending = false;
+			switch (gs) {
+			case GameScene::TITLE: BuildNewScene(SCENE_NUMBER::SCENETITLE); break;
+			case GameScene::MUN:   BuildNewScene(SCENE_NUMBER::SCENEMUN);   break;
+			case GameScene::STG:   BuildNewScene(SCENE_NUMBER::SCENESTG);   break;
+			case GameScene::JA:    BuildNewScene(SCENE_NUMBER::SCENEJA);    break;
+			}
+		}
 
 		// Render ImGui (stars + HUD)
 		ImGui::Render();
@@ -160,7 +175,11 @@ bool SceneManager::BuildNewScene(SCENE_NUMBER scene) {
 	}
 
 	switch (scene) {
-	// default scenes
+	case SCENE_NUMBER::SCENETITLE:
+		currentScene = new SceneTitle();
+		status = currentScene->OnCreate();
+		break;
+
 	case SCENE_NUMBER::SCENESTG:
 		currentScene = new SceneSTG();
 		status = currentScene->OnCreate();

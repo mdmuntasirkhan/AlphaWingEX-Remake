@@ -1,5 +1,7 @@
 #include <glew.h>
 #include <iostream>
+#include <cstdlib>
+#include <cmath>
 #include <SDL.h>
 #include <SDL3/SDL_events.h>
 #include "SceneMuntasir.h"
@@ -19,6 +21,11 @@ SceneMuntasir::SceneMuntasir() :
     drawInWireMode{ false },
     gameOver{ false },
     score{ 0 },
+    shardCount{ 0 },
+    shardMesh{ nullptr },
+    lostShards{},
+    hasLostShards{ false },
+    prevLives{ 3 },
     explosionCooldown{ 2.0f },
     explosionCooldownTimer{ 0.0f },
     audioPlayer{ nullptr },
@@ -68,6 +75,13 @@ bool SceneMuntasir::OnCreate() {
     environment = new Environment();
     if (environment->OnCreate(1920.0f, 1080.0f) == false) {
         std::cout << "Environment failed to load!\n";
+        return false;
+    }
+
+    // Shard mesh (placeholder: bullet OBJ spun tiny — swap later for a real crystal)
+    shardMesh = new Mesh("meshes/Temp_AlphaWing_Bullet.obj");
+    if (shardMesh->OnCreate() == false) {
+        std::cout << "Shard mesh not found!\n";
         return false;
     }
 
@@ -123,12 +137,38 @@ bool SceneMuntasir::OnCreate() {
     SDL_Log("Music queued bytes: %d", SDL_GetAudioStreamQueued(audioPlayer));
     SDL_Log("SFX queued bytes: %d", SDL_GetAudioStreamQueued(sfxPlayer));
 
+    // Load persistent progress into session
+    shardCount = SaveData::current.shardCount;
+    prevLives  = player->GetLives();
+
+    // Apply saved audio preferences
+    SDL_SetAudioStreamGain(audioPlayer, SaveData::current.musicVolume);
+    SDL_SetAudioStreamGain(sfxPlayer,   SaveData::current.sfxVolume);
+    musicVolume = SaveData::current.musicVolume;
+    sfxVolume   = SaveData::current.sfxVolume;
+
     return true;
 }
 
 // OnDestroy
 void SceneMuntasir::OnDestroy() {
     Debug::Info("Deleting assets SceneMuntasir: ", __FILE__, __LINE__);
+
+    // Persist progress — bank whatever shards survived this session
+    SaveData::current.shardCount = shardCount;
+    if (score > SaveData::current.highScore)
+        SaveData::current.highScore = score;
+    SaveData::current.musicVolume = musicVolume;
+    SaveData::current.sfxVolume   = sfxVolume;
+    SaveData::current.Save();
+
+    // Shards
+    shards.clear();
+    if (shardMesh) {
+        shardMesh->OnDestroy();
+        delete shardMesh;
+        shardMesh = nullptr;
+    }
 
     // Game classes
     player->OnDestroy();
@@ -209,6 +249,19 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
     }
 }
 
+void SceneMuntasir::SpawnShards(const Vec3& pos, int count) {
+    for (int i = 0; i < count; i++) {
+        Shard s;
+        s.pos = pos;
+        float angle = (float)(rand() % 360) * 3.14159f / 180.0f;
+        float spd   = 0.3f + (rand() % 50) * 0.01f;   // 0.30 .. 0.80 units/s drift
+        s.vel       = Vec3(cosf(angle) * spd, sinf(angle) * spd, 0.0f);
+        s.angle     = (float)(rand() % 360);
+        s.spinSpeed = (float)((rand() % 241) - 120);    // -120..+120 deg/s
+        shards.push_back(s);
+    }
+}
+
 // Update
 void SceneMuntasir::Update(const float deltaTime) {
     static float totalTime = 0.0f;
@@ -229,6 +282,59 @@ void SceneMuntasir::Update(const float deltaTime) {
     enemy->Update(deltaTime, player->GetPosition().y);
     environment->Update(deltaTime);
 
+    // Shard physics — drift, magnet pull, collect, cull
+    Vec3 ppos = player->GetPosition();
+    for (int i = (int)shards.size() - 1; i >= 0; i--) {
+        // Drift
+        shards[i].pos   += shards[i].vel * deltaTime;
+        shards[i].angle += shards[i].spinSpeed * deltaTime;
+
+        // Magnet attachment pull (inverse-linear: closer = stronger)
+        float dx   = ppos.x - shards[i].pos.x;
+        float dy   = ppos.y - shards[i].pos.y;
+        float dist = sqrtf(dx*dx + dy*dy);
+        if (dist < kMagnetRadius && dist > 0.01f) {
+            float pull = 5.0f / dist;
+            shards[i].vel.x += (dx / dist) * pull * deltaTime;
+            shards[i].vel.y += (dy / dist) * pull * deltaTime;
+            // Clamp so they don't rocket past the ship
+            float vspd = sqrtf(shards[i].vel.x * shards[i].vel.x +
+                               shards[i].vel.y * shards[i].vel.y);
+            if (vspd > 6.0f) {
+                shards[i].vel.x = shards[i].vel.x / vspd * 6.0f;
+                shards[i].vel.y = shards[i].vel.y / vspd * 6.0f;
+            }
+        }
+
+        // Collect
+        if (dx*dx + dy*dy < kCollectRadius * kCollectRadius) {
+            shardCount++;
+            shards.erase(shards.begin() + i);
+            continue;
+        }
+
+        // Cull off-screen
+        if (shards[i].pos.x < -16.0f || shards[i].pos.x > 16.0f ||
+            shards[i].pos.y < -10.0f || shards[i].pos.y >  10.0f) {
+            shards.erase(shards.begin() + i);
+        }
+    }
+
+    // Lost shard pulse timer
+    if (hasLostShards) {
+        lostShards.pulseTimer += deltaTime;
+
+        // Player collects lost pile
+        float ldx = ppos.x - lostShards.pos.x;
+        float ldy = ppos.y - lostShards.pos.y;
+        if (ldx*ldx + ldy*ldy < 0.8f * 0.8f) {
+            shardCount += lostShards.count;
+            SaveData::current.shardCount = shardCount;
+            SaveData::current.Save();
+            hasLostShards = false;
+        }
+    }
+
     // Check game over
     if (player->IsGameOver()) {
         gameOver = true;
@@ -243,8 +349,10 @@ void SceneMuntasir::Update(const float deltaTime) {
             float dx = bullet->GetPositions()[b].x - enemy->GetBot01Positions()[e].x;
             float dy = bullet->GetPositions()[b].y - enemy->GetBot01Positions()[e].y;
             if ((dx*dx)/(0.6f*0.6f) + (dy*dy)/(0.32f*0.32f) < 1.0f) {
+                Vec3 deathPos = enemy->GetBot01Positions()[e];
                 bullet->RemoveAt(b);
                 if (enemy->DamageBot01(e)) {
+                    SpawnShards(deathPos, 5);
                     score += 100;
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
@@ -262,8 +370,10 @@ void SceneMuntasir::Update(const float deltaTime) {
             float dx = bullet->GetPositions()[b].x - enemy->GetAsteroidPositions()[a].x;
             float dy = bullet->GetPositions()[b].y - enemy->GetAsteroidPositions()[a].y;
             if ((dx*dx)/(0.85f*0.85f) + (dy*dy)/(0.7f*0.7f) < 1.0f) {
+                Vec3 deathPos = enemy->GetAsteroidPositions()[a];
                 bullet->RemoveAt(b);
                 if (enemy->DamageAsteroid(a)) {
+                    SpawnShards(deathPos, 3);
                     score += 50;
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
@@ -281,8 +391,10 @@ void SceneMuntasir::Update(const float deltaTime) {
             float dx = bullet->GetPositions()[b].x - enemy->GetSmallAsteroidPositions()[a].x;
             float dy = bullet->GetPositions()[b].y - enemy->GetSmallAsteroidPositions()[a].y;
             if ((dx*dx)/(0.45f*0.45f) + (dy*dy)/(0.38f*0.38f) < 1.0f) {
+                Vec3 deathPos = enemy->GetSmallAsteroidPositions()[a];
                 bullet->RemoveAt(b);
                 if (enemy->DamageSmallAsteroid(a)) {
+                    SpawnShards(deathPos, 2);
                     score += 25;
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
@@ -300,8 +412,10 @@ void SceneMuntasir::Update(const float deltaTime) {
             float dx = bullet->GetMissilePositions()[m].x - enemy->GetBot01Positions()[e].x;
             float dy = bullet->GetMissilePositions()[m].y - enemy->GetBot01Positions()[e].y;
             if ((dx*dx)/(0.65f*0.65f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
+                Vec3 deathPos = enemy->GetBot01Positions()[e];
                 bullet->RemoveMissileAt(m);
                 if (enemy->DamageBot01(e)) {
+                    SpawnShards(deathPos, 5);
                     score += 100;
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
@@ -319,8 +433,10 @@ void SceneMuntasir::Update(const float deltaTime) {
             float dx = bullet->GetMissilePositions()[m].x - enemy->GetAsteroidPositions()[a].x;
             float dy = bullet->GetMissilePositions()[m].y - enemy->GetAsteroidPositions()[a].y;
             if ((dx*dx)/(0.9f*0.9f) + (dy*dy)/(0.75f*0.75f) < 1.0f) {
+                Vec3 deathPos = enemy->GetAsteroidPositions()[a];
                 bullet->RemoveMissileAt(m);
                 if (enemy->DamageAsteroid(a)) {
+                    SpawnShards(deathPos, 3);
                     score += 50;
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
@@ -338,8 +454,10 @@ void SceneMuntasir::Update(const float deltaTime) {
             float dx = bullet->GetMissilePositions()[m].x - enemy->GetSmallAsteroidPositions()[a].x;
             float dy = bullet->GetMissilePositions()[m].y - enemy->GetSmallAsteroidPositions()[a].y;
             if ((dx*dx)/(0.5f*0.5f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
+                Vec3 deathPos = enemy->GetSmallAsteroidPositions()[a];
                 bullet->RemoveMissileAt(m);
                 if (enemy->DamageSmallAsteroid(a)) {
+                    SpawnShards(deathPos, 2);
                     score += 25;
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
@@ -351,15 +469,16 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Asteroid hits player  (player ship: long X, narrow Y)
+    // Asteroid hits player
     for (int a = enemy->GetAsteroidPositions().size() - 1; a >= 0; a--) {
         float dx = player->GetPosition().x - enemy->GetAsteroidPositions()[a].x;
         float dy = player->GetPosition().y - enemy->GetAsteroidPositions()[a].y;
         if ((dx*dx)/(1.0f*1.0f) + (dy*dy)/(0.5f*0.5f) < 1.0f) {
-            // Knockback: push player away from asteroid
+            Vec3 deathPos = enemy->GetAsteroidPositions()[a];
             float len = sqrtf(dx*dx + dy*dy);
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx/len * 4.0f, dy/len * 4.0f, 0.0f));
             enemy->RemoveAsteroid(a);
+            SpawnShards(deathPos, 3);
             player->TakeDamage(25.0f);
             if (explosionCooldownTimer <= 0.0f) {
                 sfxExplosion->Play(sfxPlayer);
@@ -373,9 +492,11 @@ void SceneMuntasir::Update(const float deltaTime) {
         float dx = player->GetPosition().x - enemy->GetSmallAsteroidPositions()[a].x;
         float dy = player->GetPosition().y - enemy->GetSmallAsteroidPositions()[a].y;
         if ((dx*dx)/(0.65f*0.65f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
+            Vec3 deathPos = enemy->GetSmallAsteroidPositions()[a];
             float len = sqrtf(dx*dx + dy*dy);
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx/len * 2.5f, dy/len * 2.5f, 0.0f));
             enemy->RemoveSmallAsteroid(a);
+            SpawnShards(deathPos, 2);
             player->TakeDamage(10.0f);
             if (explosionCooldownTimer <= 0.0f) {
                 sfxExplosion->Play(sfxPlayer);
@@ -389,9 +510,11 @@ void SceneMuntasir::Update(const float deltaTime) {
         float dx = player->GetPosition().x - enemy->GetBot01Positions()[e].x;
         float dy = player->GetPosition().y - enemy->GetBot01Positions()[e].y;
         if ((dx*dx)/(0.75f*0.75f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
+            Vec3 deathPos = enemy->GetBot01Positions()[e];
             float len = sqrtf(dx*dx + dy*dy);
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx/len * 5.0f, dy/len * 5.0f, 0.0f));
             enemy->RemoveBot01(e);
+            SpawnShards(deathPos, 5);
             player->TakeDamage(40.0f);
             if (explosionCooldownTimer <= 0.0f) {
                 sfxExplosion->Play(sfxPlayer);
@@ -399,6 +522,28 @@ void SceneMuntasir::Update(const float deltaTime) {
             }
         }
     }
+
+    // Life-loss detection — runs after all damage this frame.
+    // On each death: current shards drop at player position (previous pile replaced/lost).
+    int currentLives = player->GetLives();
+    if (currentLives < prevLives) {
+        if (shardCount > 0) {
+            lostShards.pos       = player->GetPosition();
+            lostShards.count     = shardCount;
+            lostShards.pulseTimer = 0.0f;
+            hasLostShards        = true;
+            shardCount           = 0;
+            SaveData::current.shardCount = 0;
+            SaveData::current.Save();
+        } else if (hasLostShards) {
+            // Died again with no new shards — previous pile is replaced (gone forever)
+            lostShards.pos       = player->GetPosition();
+            lostShards.count     = 0;
+            lostShards.pulseTimer = 0.0f;
+            hasLostShards        = false;
+        }
+    }
+    prevLives = currentLives;
 }
 
 // RenderBackground — pure OpenGL nebula drawn before 3D so it can't tint game objects
@@ -460,15 +605,57 @@ void SceneMuntasir::Render() const {
     glUniform3f(shader->GetUniformID("lightPos"), 0.0f, 5.0f, 10.0f);
     glUniform3f(shader->GetUniformID("viewPos"), 0.0f, 0.0f, 10.0f);
 
-    // Player color CYAN
-    glUniform4f(shader->GetUniformID("color"), 0.0f, 1.0f, 1.0f, 1.0f);
+    // Player — colors set per-part inside Player::Render()
     player->Render(shader, projectionMatrix, viewMatrix);
 
-    // Bullets color YELLOW
+    // Bullets — YELLOW
     glUniform4f(shader->GetUniformID("color"), 1.0f, 1.0f, 0.0f, 1.0f);
     bullet->Render(shader, projectionMatrix, viewMatrix);
 
     enemy->Render(shader, projectionMatrix, viewMatrix);
+
+    // Energy shards + lost shard pile — additive emissive
+    if (!shards.empty() || hasLostShards) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        glDepthMask(GL_FALSE);
+        glUniform1f(shader->GetUniformID("emissive"), 1.0f);
+
+        // Regular shards — spinning gold orbs (scale 0.12, visible now)
+        glUniform4f(shader->GetUniformID("color"), 1.0f, 0.85f, 0.1f, 0.9f);
+        for (int i = 0; i < (int)shards.size(); i++) {
+            Matrix4 m = MMath::translate(shards[i].pos) *
+                        MMath::rotate(shards[i].angle, Vec3(0.0f, 0.0f, 1.0f)) *
+                        MMath::scale(0.12f, 0.12f, 0.12f);
+            glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
+            shardMesh->Render();
+        }
+
+        // Lost shard pile — larger pulsing white-gold cluster at death position
+        if (hasLostShards) {
+            float pulse = 0.55f + 0.45f * sinf(lostShards.pulseTimer * 4.5f);
+            glUniform4f(shader->GetUniformID("color"), 1.0f, 0.92f, 0.4f, pulse);
+            // Draw 3 orbs in a small cluster around the drop point
+            const Vec3 offsets[3] = {
+                Vec3( 0.00f,  0.00f, 0.0f),
+                Vec3( 0.18f,  0.10f, 0.0f),
+                Vec3(-0.18f,  0.10f, 0.0f)
+            };
+            for (int k = 0; k < 3; k++) {
+                Vec3 p = lostShards.pos + offsets[k];
+                float spin = lostShards.pulseTimer * 60.0f + k * 120.0f;
+                Matrix4 m = MMath::translate(p) *
+                            MMath::rotate(spin, Vec3(0.0f, 0.0f, 1.0f)) *
+                            MMath::scale(0.18f, 0.18f, 0.18f);
+                glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
+                shardMesh->Render();
+            }
+        }
+
+        glUniform1f(shader->GetUniformID("emissive"), 0.0f);
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
+    }
 
     glUseProgram(0);
 
@@ -486,6 +673,9 @@ void SceneMuntasir::DrawGui() {
 
     // Score
     ImGui::Text("SCORE: %d", score);
+
+    // Shards
+    ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.1f, 1.0f), "SHARDS: %d", shardCount);
 
     // Lives
     ImGui::Text("LIVES: ");
@@ -527,6 +717,25 @@ void SceneMuntasir::DrawGui() {
             "SHIELD READY (E)");
     }
 
+    // Shard count (lost pile hint)
+    if (hasLostShards) {
+        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.1f, 1.0f),
+            "! LOST SHARDS: %d — fly to them!", lostShards.count);
+    }
+
+    ImGui::Separator();
+
+    // Save & return to title
+    if (ImGui::Button("Save & Title", ImVec2(127, 28))) {
+        SceneSwitcher::Request(GameScene::TITLE); // OnDestroy auto-saves
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Exit Game", ImVec2(127, 28))) {
+        SDL_Event quitEvent;
+        quitEvent.type = SDL_EVENT_QUIT;
+        SDL_PushEvent(&quitEvent);
+    }
+
     ImGui::Separator();
 
     // Music volume
@@ -543,22 +752,16 @@ void SceneMuntasir::DrawGui() {
 
     // Pause/Play
     if (musicPaused) {
-        if (ImGui::Button("Play Music", ImVec2(120, 30))) {
+        if (ImGui::Button("Play Music", ImVec2(260, 28))) {
             SDL_ResumeAudioStreamDevice(audioPlayer);
             musicPaused = false;
         }
     }
     else {
-        if (ImGui::Button("Pause Music", ImVec2(120, 30))) {
+        if (ImGui::Button("Pause Music", ImVec2(260, 28))) {
             SDL_PauseAudioStreamDevice(audioPlayer);
             musicPaused = true;
         }
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Exit Game", ImVec2(120, 30))) {
-        SDL_Event quitEvent;
-        quitEvent.type = SDL_EVENT_QUIT;
-        SDL_PushEvent(&quitEvent);
     }
 
     ImGui::End();
@@ -583,14 +786,24 @@ void SceneMuntasir::DrawGui() {
         ImGui::Spacing();
         ImGui::Spacing();
         ImGui::SetCursorPosX(50);
-        if (ImGui::Button("Try Again", ImVec2(130, 40))) {
-            gameOver = false;
-            score = 0;
+        if (ImGui::Button("Try Again", ImVec2(120, 40))) {
+            gameOver    = false;
+            score       = 0;
+            shardCount  = 0;
+            hasLostShards = false;
+            shards.clear();
+            SaveData::current.shardCount = 0;
+            SaveData::current.Save();
             player->Reset();
             enemy->Reset();
+            prevLives = player->GetLives();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Exit Game", ImVec2(130, 40))) {
+        if (ImGui::Button("Title", ImVec2(70, 40))) {
+            SceneSwitcher::Request(GameScene::TITLE); // OnDestroy auto-saves high score
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Exit", ImVec2(70, 40))) {
             SDL_Event quitEvent;
             quitEvent.type = SDL_EVENT_QUIT;
             SDL_PushEvent(&quitEvent);

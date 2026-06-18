@@ -15,6 +15,8 @@ union SDL_Event;
 class Player {
 private:
 	Mesh* mesh;
+	Mesh* cockpitMesh;
+	Mesh* attachmentMesh;
 	Mesh* thrustMesh;
 	Matrix4 modelMatrix;
 

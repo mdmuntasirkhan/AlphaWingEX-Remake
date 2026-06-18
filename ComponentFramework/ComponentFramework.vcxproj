@@ -151,7 +151,10 @@
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="SaveData.cpp" />
     <ClCompile Include="SceneMuntasir.cpp" />
+    <ClCompile Include="SceneSwitcher.cpp" />
+    <ClCompile Include="SceneTitle.cpp" />
     <ClCompile Include="SceneSTG.cpp" />
     <ClCompile Include="SceneTestJacky.cpp" />
     <ClCompile Include="Shader.cpp" />
