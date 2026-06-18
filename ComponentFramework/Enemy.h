@@ -102,6 +102,10 @@ public:
 	float GetSmallAsteroidSpeed() const { return smallAsteroidSpeed; }
 	float GetBot01Speed()         const { return bot01Speed; }
 
+	// Wave-progression time (save/load)
+	float GetTotalTime()        const { return totalTime; }
+	void  SetTotalTime(float t)       { totalTime = t; }
+
 	// Damage (bullet/missile hits — multi-hit destructible)
 	bool DamageAsteroid(int index);
 	bool DamageSmallAsteroid(int index);

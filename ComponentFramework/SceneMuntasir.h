@@ -61,6 +61,11 @@ private:
 	static constexpr float kCollectRadius = 0.5f;
 
 	void SpawnShards(const Vec3& pos, int count);
+	void SaveGame();
+
+	// Auto-save
+	float autoSaveTimer;
+	static constexpr float kAutoSaveInterval = 10.0f; // save every 10 s
 
 	// Explosion cooldown
 	float explosionCooldown;

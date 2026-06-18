@@ -26,6 +26,7 @@ SceneMuntasir::SceneMuntasir() :
     lostShards{},
     hasLostShards{ false },
     prevLives{ 3 },
+    autoSaveTimer{ 0.0f },
     explosionCooldown{ 2.0f },
     explosionCooldownTimer{ 0.0f },
     audioPlayer{ nullptr },
@@ -137,9 +138,26 @@ bool SceneMuntasir::OnCreate() {
     SDL_Log("Music queued bytes: %d", SDL_GetAudioStreamQueued(audioPlayer));
     SDL_Log("SFX queued bytes: %d", SDL_GetAudioStreamQueued(sfxPlayer));
 
-    // Load persistent progress into session
+    // Restore full game state from save (works for both New Game and Load Game)
     shardCount = SaveData::current.shardCount;
-    prevLives  = player->GetLives();
+    score      = SaveData::current.score;
+
+    player->SetHealth  (SaveData::current.health);
+    player->SetLives   (SaveData::current.lives);
+    player->SetPosition(SaveData::current.posX, SaveData::current.posY);
+
+    enemy->SetTotalTime(SaveData::current.waveTime);
+
+    // Restore lost shard pile
+    hasLostShards = SaveData::current.hasLostShards;
+    if (hasLostShards) {
+        lostShards.pos   = Vec3(SaveData::current.lostShardPosX,
+                                SaveData::current.lostShardPosY, -10.0f);
+        lostShards.count = SaveData::current.lostShardCount;
+        lostShards.pulseTimer = 0.0f;
+    }
+
+    prevLives = player->GetLives();
 
     // Apply saved audio preferences
     SDL_SetAudioStreamGain(audioPlayer, SaveData::current.musicVolume);
@@ -154,13 +172,8 @@ bool SceneMuntasir::OnCreate() {
 void SceneMuntasir::OnDestroy() {
     Debug::Info("Deleting assets SceneMuntasir: ", __FILE__, __LINE__);
 
-    // Persist progress — bank whatever shards survived this session
-    SaveData::current.shardCount = shardCount;
-    if (score > SaveData::current.highScore)
-        SaveData::current.highScore = score;
-    SaveData::current.musicVolume = musicVolume;
-    SaveData::current.sfxVolume   = sfxVolume;
-    SaveData::current.Save();
+    // Auto-save full state on scene exit (covers quit, title-return, etc.)
+    SaveGame();
 
     // Shards
     shards.clear();
@@ -249,6 +262,26 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
     }
 }
 
+// Pack current full game state into SaveData::current then write to disk
+void SceneMuntasir::SaveGame() {
+    SaveData::current.shardCount      = shardCount;
+    SaveData::current.score           = score;
+    SaveData::current.health          = player->GetHealth();
+    SaveData::current.lives           = player->GetLives();
+    SaveData::current.posX            = player->GetPosition().x;
+    SaveData::current.posY            = player->GetPosition().y;
+    SaveData::current.waveTime        = enemy->GetTotalTime();
+    SaveData::current.hasLostShards   = hasLostShards;
+    SaveData::current.lostShardPosX   = hasLostShards ? lostShards.pos.x : 0.0f;
+    SaveData::current.lostShardPosY   = hasLostShards ? lostShards.pos.y : 0.0f;
+    SaveData::current.lostShardCount  = hasLostShards ? lostShards.count : 0;
+    SaveData::current.musicVolume     = musicVolume;
+    SaveData::current.sfxVolume       = sfxVolume;
+    if (score > SaveData::current.highScore)
+        SaveData::current.highScore   = score;
+    SaveData::current.Save();
+}
+
 void SceneMuntasir::SpawnShards(const Vec3& pos, int count) {
     for (int i = 0; i < count; i++) {
         Shard s;
@@ -270,6 +303,15 @@ void SceneMuntasir::Update(const float deltaTime) {
     // Explosion cooldown timer
     if (explosionCooldownTimer > 0.0f) {
         explosionCooldownTimer -= deltaTime;
+    }
+
+    // Periodic auto-save (only while alive)
+    if (!gameOver) {
+        autoSaveTimer += deltaTime;
+        if (autoSaveTimer >= kAutoSaveInterval) {
+            autoSaveTimer = 0.0f;
+            SaveGame();
+        }
     }
 
     if (gameOver) return;
@@ -310,6 +352,9 @@ void SceneMuntasir::Update(const float deltaTime) {
         if (dx*dx + dy*dy < kCollectRadius * kCollectRadius) {
             shardCount++;
             shards.erase(shards.begin() + i);
+            // Small auto-save nudge so shard count is banked continuously
+            SaveData::current.shardCount = shardCount;
+            SaveData::current.Save();
             continue;
         }
 
@@ -320,18 +365,15 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Lost shard pulse timer
+    // Lost shard pile — pulse + collect (larger 1.2-unit radius so it feels good)
     if (hasLostShards) {
         lostShards.pulseTimer += deltaTime;
-
-        // Player collects lost pile
         float ldx = ppos.x - lostShards.pos.x;
         float ldy = ppos.y - lostShards.pos.y;
-        if (ldx*ldx + ldy*ldy < 0.8f * 0.8f) {
-            shardCount += lostShards.count;
-            SaveData::current.shardCount = shardCount;
-            SaveData::current.Save();
+        if (ldx*ldx + ldy*ldy < 1.2f * 1.2f) {
+            shardCount   += lostShards.count;
             hasLostShards = false;
+            SaveGame();   // immediately bank the recovered shards
         }
     }
 
@@ -523,25 +565,20 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Life-loss detection — runs after all damage this frame.
-    // On each death: current shards drop at player position (previous pile replaced/lost).
+    // Life-loss detection — after all collision damage this frame.
     int currentLives = player->GetLives();
     if (currentLives < prevLives) {
         if (shardCount > 0) {
-            lostShards.pos       = player->GetPosition();
-            lostShards.count     = shardCount;
+            // Drop shards at death position — replaces any previous pile
+            lostShards.pos        = player->GetPosition();
+            lostShards.count      = shardCount;
             lostShards.pulseTimer = 0.0f;
-            hasLostShards        = true;
-            shardCount           = 0;
-            SaveData::current.shardCount = 0;
-            SaveData::current.Save();
-        } else if (hasLostShards) {
-            // Died again with no new shards — previous pile is replaced (gone forever)
-            lostShards.pos       = player->GetPosition();
-            lostShards.count     = 0;
-            lostShards.pulseTimer = 0.0f;
-            hasLostShards        = false;
+            hasLostShards         = true;
+            shardCount            = 0;
         }
+        // If shardCount == 0: keep any existing pile — dying broke doesn't erase
+        // previously dropped shards (player still has a chance to recover them)
+        SaveGame();  // snapshot: one fewer life, 0 shards, pile recorded
     }
     prevLives = currentLives;
 }
@@ -668,10 +705,12 @@ void SceneMuntasir::DrawGui() {
 
     // HUD
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(300, 260), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(300, 290), ImGuiCond_Always);
     ImGui::Begin("Alpha Wing EX", nullptr, ImGuiWindowFlags_NoResize);
 
-    // Score
+    // Pilot name + score
+    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f),
+        "PILOT: %s", SaveData::current.profileName.c_str());
     ImGui::Text("SCORE: %d", score);
 
     // Shards
@@ -717,10 +756,10 @@ void SceneMuntasir::DrawGui() {
             "SHIELD READY (E)");
     }
 
-    // Shard count (lost pile hint)
+    // Lost shard warning
     if (hasLostShards) {
-        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.1f, 1.0f),
-            "! LOST SHARDS: %d — fly to them!", lostShards.count);
+        ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.05f, 1.0f),
+            ">> LOST SHARDS: %d  (recover or lose!)", lostShards.count);
     }
 
     ImGui::Separator();
@@ -787,16 +826,18 @@ void SceneMuntasir::DrawGui() {
         ImGui::Spacing();
         ImGui::SetCursorPosX(50);
         if (ImGui::Button("Try Again", ImVec2(120, 40))) {
-            gameOver    = false;
-            score       = 0;
-            shardCount  = 0;
+            // Full game over: restart run but keep profile/highscore on disk
+            gameOver      = false;
+            score         = 0;
+            shardCount    = 0;
             hasLostShards = false;
             shards.clear();
-            SaveData::current.shardCount = 0;
-            SaveData::current.Save();
+            autoSaveTimer = 0.0f;
             player->Reset();
             enemy->Reset();
             prevLives = player->GetLives();
+            SaveData::current.Reset();
+            SaveData::current.Save();  // wipe the in-progress save cleanly
         }
         ImGui::SameLine();
         if (ImGui::Button("Title", ImVec2(70, 40))) {

@@ -4,13 +4,28 @@
 
 #include "Scene.h"
 #include "SaveData.h"
+#include "Sound.h"
+#include <SDL3/SDL.h>
+#include <string>
+#include <vector>
 
 union SDL_Event;
 
 class SceneTitle : public Scene {
 private:
-    bool showSettings;
-    bool saveExists;
+    enum class TitleState { MAIN, NEW_GAME_NAME, LOAD_SELECT };
+    TitleState state;
+
+    char        nameBuf[32];
+    std::vector<std::string> profiles;
+    bool        showSettings;
+
+    // Selection sound
+    SDL_AudioStream* sfxStream;
+    Sound*           selectSound;
+
+    void PlaySelect();
+    void RefreshProfiles();
 
 public:
     SceneTitle();

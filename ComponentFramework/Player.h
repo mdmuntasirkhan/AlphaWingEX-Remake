@@ -79,6 +79,11 @@ public:
 	void ApplyImpulse(const Vec3& impulse) { velocity += impulse; }
 	void Reset();
 
+	// State restore (used by save/load system)
+	void SetHealth(float h)           { health = (h > maxHealth ? maxHealth : h); }
+	void SetLives(int l)              { lives  = l; }
+	void SetPosition(float x, float y){ pos    = Vec3(x, y, -10.0f); velocity = Vec3(0,0,0); }
+
 	// Shield
 	void ActivateShield();
 	bool IsShieldActive() const { return shieldActive; }
