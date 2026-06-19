@@ -352,9 +352,6 @@ void SceneMuntasir::Update(const float deltaTime) {
         if (dx*dx + dy*dy < kCollectRadius * kCollectRadius) {
             shardCount++;
             shards.erase(shards.begin() + i);
-            // Small auto-save nudge so shard count is banked continuously
-            SaveData::current.shardCount = shardCount;
-            SaveData::current.Save();
             continue;
         }
 
@@ -639,7 +636,7 @@ void SceneMuntasir::Render() const {
     glUseProgram(shader->GetProgram());
 
     // Light and camera position (sent to frag shader)
-    glUniform3f(shader->GetUniformID("lightPos"), 0.0f, 5.0f, 10.0f);
+    glUniform3f(shader->GetUniformID("lightPos"), 0.0f, 50.0f, 10.0f);
     glUniform3f(shader->GetUniformID("viewPos"), 0.0f, 0.0f, 10.0f);
 
     // Player — colors set per-part inside Player::Render()
@@ -715,6 +712,10 @@ void SceneMuntasir::DrawGui() {
 
     // Shards
     ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.1f, 1.0f), "SHARDS: %d", shardCount);
+
+    // Missiles
+    ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.1f, 1.0f),
+        "MISSILES: %d / %d", bullet->GetMissileCount(), bullet->GetMaxMissiles());
 
     // Lives
     ImGui::Text("LIVES: ");

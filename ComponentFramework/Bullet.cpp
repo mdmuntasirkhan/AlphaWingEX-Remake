@@ -16,7 +16,9 @@ Bullet::Bullet() :  mesh{ nullptr },
 					missileCount{ 5 },
 					maxMissiles{ 5 },
 					missileReloadTimer{ 0.0f },
-					missileReloadInterval{ 3.0f }
+					missileReloadInterval{ 3.0f },
+					fireCooldown{ 0.15f },
+					fireCooldownTimer{ 0.0f }
 {
 	// Leave Empty
 }
@@ -63,12 +65,16 @@ void Bullet::OnDestroy() {
 }
 
 void Bullet::Spawn(Vec3 position) {
+	if (fireCooldownTimer > 0.0f) return;
+	fireCooldownTimer = fireCooldown;
 	positions.push_back(position);
 	float ySpread = ((rand() % 100) - 50) * 0.004f; // ±0.2 units/s subtle spread
 	bulletYVelocities.push_back(ySpread);
 }
 
 void Bullet::SpawnHoming(Vec3 position, MissileTargetType targetType, int targetIndex) {
+	if (missileCount <= 0) return;
+	missileCount--;
 	missilePositions.push_back(position);
 	missileVelocities.push_back(Vec3(missileSpeed, 0.0f, 0.0f)); // launch straight forward
 	missileTargetTypes.push_back(targetType);
@@ -114,6 +120,18 @@ bool Bullet::FindNearestTarget(const Vec3& fromPosition,
 void Bullet::Update(float deltaTime,
 	const std::vector<Vec3>& asteroidPositions, const Vec3& asteroidVelocity,
 	const std::vector<Vec3>& bot01Positions, const Vec3& bot01Velocity) {
+	// Fire rate cooldown
+	if (fireCooldownTimer > 0.0f) fireCooldownTimer -= deltaTime;
+
+	// Missile reload — one missile every missileReloadInterval seconds
+	if (missileCount < maxMissiles) {
+		missileReloadTimer += deltaTime;
+		if (missileReloadTimer >= missileReloadInterval) {
+			missileReloadTimer = 0.0f;
+			missileCount++;
+		}
+	}
+
 	// Move regular bullets (X forward + slight Y spread)
 	for (int i = 0; i < (int)positions.size(); i++) {
 		positions[i].x += speed * deltaTime;

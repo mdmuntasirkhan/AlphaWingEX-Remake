@@ -40,8 +40,13 @@ struct SaveData {
     bool Load(const std::string& name);
     void Reset();
 
-    // Lists all profile names found on disk
+    // Lists all profile names found on disk (max kMaxProfiles)
     static std::vector<std::string> GetProfileList();
+
+    // Permanently deletes the save file for the given profile name
+    static bool DeleteProfile(const std::string& name);
+
+    static constexpr int kMaxProfiles = 10;
 };
 
 #endif

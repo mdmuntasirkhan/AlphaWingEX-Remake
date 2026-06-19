@@ -144,9 +144,9 @@ void Player::Update(float deltaTime) {
 	velocity -= velocity * friction * deltaTime;
 
 	// Speed cap and Normalized
-	float speed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-	if (speed > maxSpeed) {
-		velocity = velocity * (maxSpeed / speed);
+	float currentSpeed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+	if (currentSpeed > maxSpeed) {
+		velocity = velocity * (maxSpeed / currentSpeed);
 	}
 
 	// Move the position
@@ -297,4 +297,12 @@ void Player::Reset() {
 	health = maxHealth;
 	lives = 3;
 	pos = Vec3(0.0f, 0.0f, -10.0f);
+	velocity = Vec3(0.0f, 0.0f, 0.0f);
+	rollAngle = 0.0f;
+	rollVelocity = 0.0f;
+	shieldActive = false;
+	shieldTimer = 0.0f;
+	shieldOnCooldown = false;
+	shieldCooldownTimer = 0.0f;
+	thrustTimer = 0.0f;
 }

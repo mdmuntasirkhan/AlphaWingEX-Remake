@@ -8,6 +8,7 @@
 SceneTitle::SceneTitle()
     : state(TitleState::MAIN)
     , showSettings(false)
+    , pendingDeleteIndex(-1)
     , sfxStream(nullptr)
     , selectSound(nullptr)
 {
@@ -92,10 +93,11 @@ void SceneTitle::DrawGui() {
     ImGui::End();
 
     // ── main panel ─────────────────────────────────────────────────────────
+    bool atCap = (int)profiles.size() >= SaveData::kMaxProfiles;
     float panH = 0.0f;
-    if      (state == TitleState::MAIN)          panH = 200.0f + (showSettings ? 130.0f : 0.0f);
+    if      (state == TitleState::MAIN)          panH = 200.0f + (showSettings ? 130.0f : 0.0f) + (atCap ? 46.0f : 0.0f);
     else if (state == TitleState::NEW_GAME_NAME) panH = 160.0f;
-    else if (state == TitleState::LOAD_SELECT)   panH = 60.0f + (float)profiles.size() * 46.0f + 50.0f;
+    else if (state == TitleState::LOAD_SELECT)   panH = 60.0f + (float)profiles.size() * 52.0f + 50.0f;
 
     float panW = 420.0f;
     ImGui::SetNextWindowPos(ImVec2(cx, cy * 1.12f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
@@ -112,10 +114,20 @@ void SceneTitle::DrawGui() {
     // ── MAIN ──────────────────────────────────────────────────────────────
     if (state == TitleState::MAIN) {
         ImGui::SetCursorPosX(btnX);
+        if (atCap) ImGui::BeginDisabled();
         if (ImGui::Button("NEW GAME", ImVec2(btnW, 44))) {
             PlaySelect();
             memset(nameBuf, 0, sizeof(nameBuf));
             state = TitleState::NEW_GAME_NAME;
+        }
+        if (atCap) {
+            ImGui::EndDisabled();
+            ImGui::SetCursorPosX(btnX);
+            ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.15f, 1.0f),
+                "Profile limit reached (%d/%d).", (int)profiles.size(), SaveData::kMaxProfiles);
+            ImGui::SetCursorPosX(btnX);
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f),
+                "Delete a slot in LOAD GAME to free space.");
         }
 
         ImGui::Spacing();
@@ -204,12 +216,53 @@ void SceneTitle::DrawGui() {
         ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "Select pilot:");
         ImGui::Spacing();
 
-        for (auto& pname : profiles) {
+        float delBtnW = 38.0f;
+        float spacing  = ImGui::GetStyle().ItemSpacing.x;
+        float loadBtnW = btnW - delBtnW - spacing;
+
+        for (int i = 0; i < (int)profiles.size(); i++) {
+            // Local copy — must not hold a reference into profiles[] across RefreshProfiles()
+            std::string pname = profiles[i];
             ImGui::SetCursorPosX(btnX);
-            if (ImGui::Button(pname.c_str(), ImVec2(btnW, 40))) {
-                PlaySelect();
-                SaveData::current.Load(pname);
-                SceneSwitcher::Request(GameScene::MUN);
+
+            if (pendingDeleteIndex == i) {
+                // Confirmation row
+                bool doDelete = false;
+                bool doCancel = false;
+                ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f),
+                    "Delete \"%s\"?", pname.c_str());
+                ImGui::SameLine();
+                float confirmX = btnX + btnW - 172.0f;
+                ImGui::SetCursorPosX(confirmX);
+                if (ImGui::Button(("Yes##" + pname).c_str(), ImVec2(80.0f, 0.0f))) doDelete = true;
+                ImGui::SameLine();
+                if (ImGui::Button(("No##"  + pname).c_str(), ImVec2(80.0f, 0.0f))) doCancel = true;
+
+                if (doDelete) {
+                    SaveData::DeleteProfile(pname);
+                    RefreshProfiles();
+                    pendingDeleteIndex = -1;
+                    break; // profiles vector changed — stop iterating
+                }
+                if (doCancel) {
+                    pendingDeleteIndex = -1;
+                }
+            } else {
+                // Normal row: load button + red X
+                if (ImGui::Button(pname.c_str(), ImVec2(loadBtnW, 40.0f))) {
+                    PlaySelect();
+                    SaveData::current.Load(pname);
+                    SceneSwitcher::Request(GameScene::MUN);
+                }
+                ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.55f, 0.1f, 0.1f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8f,  0.2f, 0.2f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(1.0f,  0.3f, 0.3f, 1.0f));
+                if (ImGui::Button(("X##" + pname).c_str(), ImVec2(delBtnW, 40.0f))) {
+                    PlaySelect();
+                    pendingDeleteIndex = i;
+                }
+                ImGui::PopStyleColor(3);
             }
         }
 
@@ -219,6 +272,7 @@ void SceneTitle::DrawGui() {
         ImGui::SetCursorPosX(btnX);
         if (ImGui::Button("BACK", ImVec2(btnW, 34))) {
             PlaySelect();
+            pendingDeleteIndex = -1;
             state = TitleState::MAIN;
         }
     }

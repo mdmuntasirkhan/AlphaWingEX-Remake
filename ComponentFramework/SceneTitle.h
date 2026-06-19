@@ -19,6 +19,7 @@ private:
     char        nameBuf[32];
     std::vector<std::string> profiles;
     bool        showSettings;
+    int         pendingDeleteIndex;  // index in profiles awaiting delete confirmation, -1 = none
 
     // Selection sound
     SDL_AudioStream* sfxStream;

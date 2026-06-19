@@ -1,5 +1,6 @@
 #include "SaveData.h"
 #include <fstream>
+#include <cstdio>      // std::remove
 #include <io.h>        // _findfirst / _findnext (MSVC)
 
 SaveData SaveData::current;
@@ -57,7 +58,6 @@ bool SaveData::Load(const std::string& name) {
 
 void SaveData::Reset() {
     shardCount      = 0;
-    highScore       = 0;
     health          = 100.0f;
     lives           = 3;
     score           = 0;
@@ -70,6 +70,11 @@ void SaveData::Reset() {
     lostShardCount  = 0;
     musicVolume     = 0.10f;
     sfxVolume       = 0.05f;
+}
+
+bool SaveData::DeleteProfile(const std::string& name) {
+    std::string path = "profile_" + name + ".dat";
+    return std::remove(path.c_str()) == 0;
 }
 
 std::vector<std::string> SaveData::GetProfileList() {

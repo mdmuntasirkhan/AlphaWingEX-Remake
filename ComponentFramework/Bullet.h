@@ -47,6 +47,10 @@ private:
 	float missileReloadTimer;
 	float missileReloadInterval;
 
+	// Regular bullet fire rate limit
+	float fireCooldown;
+	float fireCooldownTimer;
+
 	// Search both enemy lists for whichever is nearest to fromPosition - used to
 	// re-acquire a target after the locked one is destroyed mid-flight.
 	bool FindNearestTarget(const Vec3& fromPosition,
@@ -80,6 +84,10 @@ public:
 	// Remove by index
 	void RemoveAt(int index);
 	void RemoveMissileAt(int index);
+
+	// HUD query
+	int GetMissileCount() const { return missileCount; }
+	int GetMaxMissiles()  const { return maxMissiles; }
 
 };
 
