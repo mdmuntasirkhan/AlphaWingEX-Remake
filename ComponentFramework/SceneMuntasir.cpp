@@ -36,7 +36,9 @@ SceneMuntasir::SceneMuntasir() :
     audioTest{ nullptr },
     musicVolume{ 0.1f },
     sfxVolume{ 0.05f },
-    musicPaused{ false } {
+    musicPaused{ false },
+    gamePaused{ false },
+    pauseShowSettings{ false } {
     Debug::Info("Created SceneMuntasir: ", __FILE__, __LINE__);
 }
 
@@ -223,6 +225,9 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
     switch (sdlEvent.type) {
     case SDL_EVENT_KEY_DOWN:
         switch (sdlEvent.key.scancode) {
+        case SDL_SCANCODE_ESCAPE:
+            if (!gameOver) gamePaused = !gamePaused;
+            break;
         case SDL_SCANCODE_F12:
             drawInWireMode = !drawInWireMode;
             break;
@@ -297,6 +302,8 @@ void SceneMuntasir::SpawnShards(const Vec3& pos, int count) {
 
 // Update
 void SceneMuntasir::Update(const float deltaTime) {
+    if (gamePaused) return;
+
     static float totalTime = 0.0f;
     totalTime += deltaTime;
 
@@ -700,113 +707,155 @@ void SceneMuntasir::Render() const {
 // DrawGui
 void SceneMuntasir::DrawGui() {
 
-    // HUD
+    // ── Game HUD (always visible) ─────────────────────────────────────────
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(300, 290), ImGuiCond_Always);
-    ImGui::Begin("Alpha Wing EX", nullptr, ImGuiWindowFlags_NoResize);
+    ImGui::SetNextWindowSize(ImVec2(280, 210), ImGuiCond_Always);
+    ImGui::SetNextWindowBgAlpha(0.75f);
+    ImGui::Begin("##hud", nullptr,
+        ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoMove        |
+        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar   |
+        ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-    // Pilot name + score
     ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f),
         "PILOT: %s", SaveData::current.profileName.c_str());
-    ImGui::Text("SCORE: %d", score);
-
-    // Shards
+    ImGui::Text("SCORE: %-8d   HI: %d", score, SaveData::current.highScore);
     ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.1f, 1.0f), "SHARDS: %d", shardCount);
-
-    // Missiles
     ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.1f, 1.0f),
         "MISSILES: %d / %d", bullet->GetMissileCount(), bullet->GetMaxMissiles());
 
     // Lives
-    ImGui::Text("LIVES: ");
-    ImGui::SameLine();
+    ImGui::Text("LIVES:");
     for (int i = 0; i < player->GetLives(); i++) {
-        ImGui::Text("[*]");
         ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "[*]");
     }
-    ImGui::NewLine();
 
-    // Health bar
-    float healthPercent = player->GetHealth() / 100.0f;
-    if (healthPercent > 0.6f) {
-        ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
-            ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
-    }
-    else if (healthPercent > 0.3f) {
-        ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
-            ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
-    }
-    else {
-        ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
-            ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-    }
-    ImGui::ProgressBar(healthPercent, ImVec2(260, 20), "");
+    // Health bar — green / yellow / red
+    float hp = player->GetHealth() / 100.0f;
+    ImVec4 hpCol = hp > 0.6f ? ImVec4(0.0f, 1.0f, 0.0f, 1.0f)
+                 : hp > 0.3f ? ImVec4(1.0f, 1.0f, 0.0f, 1.0f)
+                             : ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, hpCol);
+    ImGui::ProgressBar(hp, ImVec2(250, 18), "");
     ImGui::PopStyleColor();
 
-    // Shield
+    // Shield status
     if (player->IsShieldActive()) {
         ImGui::TextColored(ImVec4(0.0f, 0.5f, 1.0f, 1.0f), "SHIELD ACTIVE!");
-    }
-    else if (player->IsShieldOnCooldown()) {
+    } else if (player->IsShieldOnCooldown()) {
         ImGui::Text("Shield Recharging...");
-        ImGui::ProgressBar(player->GetShieldCooldownPercent(),
-            ImVec2(260, 15), "");
-    }
-    else {
-        ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f),
-            "SHIELD READY (E)");
+        ImGui::ProgressBar(player->GetShieldCooldownPercent(), ImVec2(250, 12), "");
+    } else {
+        ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "SHIELD READY  [E]");
     }
 
     // Lost shard warning
     if (hasLostShards) {
         ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.05f, 1.0f),
-            ">> LOST SHARDS: %d  (recover or lose!)", lostShards.count);
+            ">> LOST SHARDS: %d", lostShards.count);
     }
 
-    ImGui::Separator();
-
-    // Save & return to title
-    if (ImGui::Button("Save & Title", ImVec2(127, 28))) {
-        SceneSwitcher::Request(GameScene::TITLE); // OnDestroy auto-saves
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Exit Game", ImVec2(127, 28))) {
-        SDL_Event quitEvent;
-        quitEvent.type = SDL_EVENT_QUIT;
-        SDL_PushEvent(&quitEvent);
-    }
-
-    ImGui::Separator();
-
-    // Music volume
-    ImGui::Text("Music Volume");
-    if (ImGui::SliderFloat("##music", &musicVolume, 0.0f, 1.0f)) {
-        SDL_SetAudioStreamGain(audioPlayer, musicVolume);
-    }
-
-    // SFX volume
-    ImGui::Text("SFX Volume");
-    if (ImGui::SliderFloat("##sfx", &sfxVolume, 0.0f, 1.0f)) {
-        SDL_SetAudioStreamGain(sfxPlayer, sfxVolume);
-    }
-
-    // Pause/Play
-    if (musicPaused) {
-        if (ImGui::Button("Play Music", ImVec2(260, 28))) {
-            SDL_ResumeAudioStreamDevice(audioPlayer);
-            musicPaused = false;
-        }
-    }
-    else {
-        if (ImGui::Button("Pause Music", ImVec2(260, 28))) {
-            SDL_PauseAudioStreamDevice(audioPlayer);
-            musicPaused = true;
-        }
-    }
+    ImGui::TextDisabled("ESC  Pause");
 
     ImGui::End();
 
-    // Game Over screen
+    // ── Pause Menu ────────────────────────────────────────────────────────
+    if (gamePaused) {
+        ImGuiIO& io   = ImGui::GetIO();
+        float    panW = 380.0f;
+        float    panH = pauseShowSettings ? 415.0f : 275.0f;
+        ImGui::SetNextWindowPos(
+            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
+            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(panW, panH), ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.92f);
+        ImGui::Begin("##pause", nullptr,
+            ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar);
+
+        float innerW = ImGui::GetContentRegionAvail().x;
+        float btnW   = innerW - 16.0f;
+        float btnX   = 8.0f;
+
+        // "PAUSED" — large centred title, same style as title screen
+        ImGui::SetWindowFontScale(2.0f);
+        ImVec2 tSz = ImGui::CalcTextSize("PAUSED");
+        ImGui::SetCursorPosX((innerW - tSz.x) * 0.5f);
+        ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "PAUSED");
+        ImGui::SetWindowFontScale(1.0f);
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::SetCursorPosX(btnX);
+        if (ImGui::Button("RESUME", ImVec2(btnW, 40.0f)))
+            gamePaused = false;
+
+        ImGui::Spacing();
+
+        ImGui::SetCursorPosX(btnX);
+        if (ImGui::Button(
+                pauseShowSettings ? "SETTINGS  [hide]" : "SETTINGS  [show]",
+                ImVec2(btnW, 32.0f)))
+            pauseShowSettings = !pauseShowSettings;
+
+        if (pauseShowSettings) {
+            ImGui::Spacing();
+            ImGui::SetCursorPosX(btnX);
+            ImGui::Text("Music Volume");
+            ImGui::SetCursorPosX(btnX);
+            ImGui::SetNextItemWidth(btnW);
+            if (ImGui::SliderFloat("##music", &musicVolume, 0.0f, 1.0f))
+                SDL_SetAudioStreamGain(audioPlayer, musicVolume);
+
+            ImGui::SetCursorPosX(btnX);
+            ImGui::Text("SFX Volume");
+            ImGui::SetCursorPosX(btnX);
+            ImGui::SetNextItemWidth(btnW);
+            if (ImGui::SliderFloat("##sfx", &sfxVolume, 0.0f, 1.0f))
+                SDL_SetAudioStreamGain(sfxPlayer, sfxVolume);
+
+            ImGui::SetCursorPosX(btnX);
+            if (musicPaused) {
+                if (ImGui::Button("Play Music", ImVec2(btnW, 28.0f))) {
+                    SDL_ResumeAudioStreamDevice(audioPlayer);
+                    musicPaused = false;
+                }
+            } else {
+                if (ImGui::Button("Pause Music", ImVec2(btnW, 28.0f))) {
+                    SDL_PauseAudioStreamDevice(audioPlayer);
+                    musicPaused = true;
+                }
+            }
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        ImGui::SetCursorPosX(btnX);
+        if (ImGui::Button("BACK TO TITLE", ImVec2(btnW, 36.0f))) {
+            gamePaused = false;
+            SceneSwitcher::Request(GameScene::TITLE);
+        }
+
+        ImGui::Spacing();
+
+        ImGui::SetCursorPosX(btnX);
+        ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.50f, 0.10f, 0.10f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.75f, 0.15f, 0.15f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(1.00f, 0.20f, 0.20f, 1.0f));
+        if (ImGui::Button("QUIT GAME", ImVec2(btnW, 36.0f))) {
+            SDL_Event e; e.type = SDL_EVENT_QUIT;
+            SDL_PushEvent(&e);
+        }
+        ImGui::PopStyleColor(3);
+
+        ImGui::End();
+    }
+
+    // ── Game Over screen ──────────────────────────────────────────────────
     if (gameOver) {
         ImGuiIO& io = ImGui::GetIO();
         ImGui::SetNextWindowPos(
@@ -815,11 +864,15 @@ void SceneMuntasir::DrawGui() {
         ImGui::SetNextWindowSize(ImVec2(400, 220), ImGuiCond_Always);
         ImGui::Begin("##gameover", nullptr,
             ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoMove   |
             ImGuiWindowFlags_NoTitleBar);
 
-        ImGui::SetCursorPosX(130);
+        ImGui::SetWindowFontScale(2.0f);
+        ImVec2 goSz = ImGui::CalcTextSize("GAME OVER");
+        ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - goSz.x) * 0.5f);
         ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "GAME OVER");
+        ImGui::SetWindowFontScale(1.0f);
+
         ImGui::Spacing();
         ImGui::SetCursorPosX(100);
         ImGui::Text("Final Score: %d", score);
@@ -827,7 +880,6 @@ void SceneMuntasir::DrawGui() {
         ImGui::Spacing();
         ImGui::SetCursorPosX(50);
         if (ImGui::Button("Try Again", ImVec2(120, 40))) {
-            // Full game over: restart run but keep profile/highscore on disk
             gameOver      = false;
             score         = 0;
             shardCount    = 0;
@@ -838,17 +890,15 @@ void SceneMuntasir::DrawGui() {
             enemy->Reset();
             prevLives = player->GetLives();
             SaveData::current.Reset();
-            SaveData::current.Save();  // wipe the in-progress save cleanly
+            SaveData::current.Save();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Title", ImVec2(70, 40))) {
-            SceneSwitcher::Request(GameScene::TITLE); // OnDestroy auto-saves high score
-        }
+        if (ImGui::Button("Title", ImVec2(70, 40)))
+            SceneSwitcher::Request(GameScene::TITLE);
         ImGui::SameLine();
         if (ImGui::Button("Exit", ImVec2(70, 40))) {
-            SDL_Event quitEvent;
-            quitEvent.type = SDL_EVENT_QUIT;
-            SDL_PushEvent(&quitEvent);
+            SDL_Event e; e.type = SDL_EVENT_QUIT;
+            SDL_PushEvent(&e);
         }
         ImGui::End();
     }

@@ -81,6 +81,10 @@ private:
 	float sfxVolume;
 	bool musicPaused;
 
+	// Pause
+	bool gamePaused;
+	bool pauseShowSettings;
+
 public:
 	explicit SceneMuntasir();
 	virtual ~SceneMuntasir();
