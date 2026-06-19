@@ -38,7 +38,7 @@ bool SceneTitle::OnCreate() {
         SDL_SetAudioStreamGain(bgmStream, SaveData::current.musicVolume);
         SDL_ResumeAudioStreamDevice(bgmStream);
     }
-    bgmSound = new Sound("audio/music/fuad-taray.wav");
+    bgmSound = new Sound("audio/music/AlphaWing-MainTheme.wav");
     bgmSound->OnCreate();
     if (bgmStream && bgmSound->IsLoaded()) {
         // Pre-queue two copies so the loop is seamless on first pass
