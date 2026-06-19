@@ -38,7 +38,11 @@ SceneMuntasir::SceneMuntasir() :
     sfxVolume{ 0.05f },
     musicPaused{ false },
     gamePaused{ false },
-    pauseShowSettings{ false } {
+    pauseShowSettings{ false },
+    hoverStream{ nullptr },
+    uiClickSound{ nullptr },
+    lastHoveredId{ 0 },
+    lastHoverTick{ 0 } {
     Debug::Info("Created SceneMuntasir: ", __FILE__, __LINE__);
 }
 
@@ -137,6 +141,15 @@ bool SceneMuntasir::OnCreate() {
     sfxExplosion = new Sound("audio/sfx/Explosion03.wav");
     sfxExplosion->OnCreate();
 
+    hoverStream = SDL_OpenAudioDeviceStream(
+        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &defaultSpec, nullptr, nullptr);
+    if (hoverStream) {
+        SDL_SetAudioStreamGain(hoverStream, sfxVolume * 0.35f);
+        SDL_ResumeAudioStreamDevice(hoverStream);
+    }
+    uiClickSound = new Sound("audio/sfx/Select01.wav");
+    uiClickSound->OnCreate();
+
     SDL_Log("Music queued bytes: %d", SDL_GetAudioStreamQueued(audioPlayer));
     SDL_Log("SFX queued bytes: %d", SDL_GetAudioStreamQueued(sfxPlayer));
 
@@ -212,6 +225,16 @@ void SceneMuntasir::OnDestroy() {
 
     sfxExplosion->OnDestroy();
     delete sfxExplosion;
+
+    if (uiClickSound) {
+        uiClickSound->OnDestroy();
+        delete uiClickSound;
+        uiClickSound = nullptr;
+    }
+    if (hoverStream) {
+        SDL_DestroyAudioStream(hoverStream);
+        hoverStream = nullptr;
+    }
 
     // Audio
     SDL_DestroyAudioStream(audioPlayer);
@@ -707,6 +730,16 @@ void SceneMuntasir::Render() const {
 // DrawGui
 void SceneMuntasir::DrawGui() {
 
+    auto chkHov = [&]() {
+        if (!uiClickSound || !hoverStream || !ImGui::IsItemHovered()) return;
+        unsigned int id  = ImGui::GetItemID();
+        Uint64       now = SDL_GetTicks();
+        if (id == lastHoveredId || now - lastHoverTick < 150) return;
+        lastHoveredId = id;
+        lastHoverTick = now;
+        uiClickSound->Play(hoverStream);
+    };
+
     // ── Game HUD (always visible) ─────────────────────────────────────────
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(280, 210), ImGuiCond_Always);
@@ -791,6 +824,7 @@ void SceneMuntasir::DrawGui() {
         ImGui::SetCursorPosX(btnX);
         if (ImGui::Button("RESUME", ImVec2(btnW, 40.0f)))
             gamePaused = false;
+        chkHov();
 
         ImGui::Spacing();
 
@@ -799,6 +833,7 @@ void SceneMuntasir::DrawGui() {
                 pauseShowSettings ? "SETTINGS  [hide]" : "SETTINGS  [show]",
                 ImVec2(btnW, 32.0f)))
             pauseShowSettings = !pauseShowSettings;
+        chkHov();
 
         if (pauseShowSettings) {
             ImGui::Spacing();
@@ -813,8 +848,10 @@ void SceneMuntasir::DrawGui() {
             ImGui::Text("SFX Volume");
             ImGui::SetCursorPosX(btnX);
             ImGui::SetNextItemWidth(btnW);
-            if (ImGui::SliderFloat("##sfx", &sfxVolume, 0.0f, 1.0f))
-                SDL_SetAudioStreamGain(sfxPlayer, sfxVolume);
+            if (ImGui::SliderFloat("##sfx", &sfxVolume, 0.0f, 1.0f)) {
+                SDL_SetAudioStreamGain(sfxPlayer,   sfxVolume);
+                if (hoverStream) SDL_SetAudioStreamGain(hoverStream, sfxVolume * 0.35f);
+            }
 
             ImGui::SetCursorPosX(btnX);
             if (musicPaused) {
@@ -828,6 +865,7 @@ void SceneMuntasir::DrawGui() {
                     musicPaused = true;
                 }
             }
+            chkHov();
         }
 
         ImGui::Spacing();
@@ -839,6 +877,7 @@ void SceneMuntasir::DrawGui() {
             gamePaused = false;
             SceneSwitcher::Request(GameScene::TITLE);
         }
+        chkHov();
 
         ImGui::Spacing();
 
@@ -850,6 +889,7 @@ void SceneMuntasir::DrawGui() {
             SDL_Event e; e.type = SDL_EVENT_QUIT;
             SDL_PushEvent(&e);
         }
+        chkHov();
         ImGui::PopStyleColor(3);
 
         ImGui::End();
@@ -892,14 +932,17 @@ void SceneMuntasir::DrawGui() {
             SaveData::current.Reset();
             SaveData::current.Save();
         }
+        chkHov();
         ImGui::SameLine();
         if (ImGui::Button("Title", ImVec2(70, 40)))
             SceneSwitcher::Request(GameScene::TITLE);
+        chkHov();
         ImGui::SameLine();
         if (ImGui::Button("Exit", ImVec2(70, 40))) {
             SDL_Event e; e.type = SDL_EVENT_QUIT;
             SDL_PushEvent(&e);
         }
+        chkHov();
         ImGui::End();
     }
 }

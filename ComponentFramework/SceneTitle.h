@@ -8,6 +8,7 @@
 #include <SDL3/SDL.h>
 #include <string>
 #include <vector>
+#include <utility>
 
 union SDL_Event;
 
@@ -16,16 +17,25 @@ private:
     enum class TitleState { MAIN, NEW_GAME_NAME, LOAD_SELECT };
     TitleState state;
 
-    char        nameBuf[32];
+    char                     nameBuf[32];
     std::vector<std::string> profiles;
-    bool        showSettings;
-    int         pendingDeleteIndex;  // index in profiles awaiting delete confirmation, -1 = none
+    bool                     showSettings;
+    int                      pendingDeleteIndex;
 
-    // Selection sound
+    // Leaderboard cache (sorted by high score descending)
+    std::vector<std::pair<std::string, int>> leaderboard;
+
+    // Audio
+    // sfxStream   — full SFX gain for click/confirm sounds
+    // hoverStream — same selectSound at ~18 % gain for hover feedback
     SDL_AudioStream* sfxStream;
+    SDL_AudioStream* hoverStream;
     Sound*           selectSound;
+    unsigned int     lastHoveredId;
+    Uint64           lastHoverTick;
 
     void PlaySelect();
+    void PlayHover();
     void RefreshProfiles();
 
 public:

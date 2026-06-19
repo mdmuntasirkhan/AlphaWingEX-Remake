@@ -20,6 +20,7 @@ public:
 
 	bool OnCreate();
 	void OnDestroy();
+	bool IsLoaded() const { return soundBuffer != nullptr; }
 
 	void Play(SDL_AudioStream* audioPlayer) const;
 };

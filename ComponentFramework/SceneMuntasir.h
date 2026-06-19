@@ -85,6 +85,12 @@ private:
 	bool gamePaused;
 	bool pauseShowSettings;
 
+	// Hover — selectSound played on a low-gain stream
+	SDL_AudioStream* hoverStream;
+	Sound*           uiClickSound;
+	unsigned int     lastHoveredId;
+	Uint64           lastHoverTick;
+
 public:
 	explicit SceneMuntasir();
 	virtual ~SceneMuntasir();

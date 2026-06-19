@@ -1,5 +1,6 @@
 #include "SaveData.h"
 #include <fstream>
+#include <algorithm>   // std::sort
 #include <cstdio>      // std::remove
 #include <io.h>        // _findfirst / _findnext (MSVC)
 
@@ -70,6 +71,29 @@ void SaveData::Reset() {
     lostShardCount  = 0;
     musicVolume     = 0.10f;
     sfxVolume       = 0.05f;
+}
+
+std::vector<std::pair<std::string, int>> SaveData::GetLeaderboard() {
+    std::vector<std::pair<std::string, int>> board;
+    auto names = GetProfileList();
+    for (const auto& name : names) {
+        std::ifstream f("profile_" + name + ".dat");
+        int hs = 0;
+        if (f) {
+            std::string key;
+            while (f >> key) {
+                if (key == "highscore") { f >> hs; break; }
+                std::string skip; f >> skip; // consume this key's value
+            }
+        }
+        board.push_back({ name, hs });
+    }
+    std::sort(board.begin(), board.end(),
+        [](const std::pair<std::string, int>& a,
+           const std::pair<std::string, int>& b) {
+            return a.second > b.second;
+        });
+    return board;
 }
 
 bool SaveData::DeleteProfile(const std::string& name) {

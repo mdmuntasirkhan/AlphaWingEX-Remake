@@ -10,7 +10,10 @@ SceneTitle::SceneTitle()
     , showSettings(false)
     , pendingDeleteIndex(-1)
     , sfxStream(nullptr)
+    , hoverStream(nullptr)
     , selectSound(nullptr)
+    , lastHoveredId(0)
+    , lastHoverTick(0)
 {
     memset(nameBuf, 0, sizeof(nameBuf));
 }
@@ -33,6 +36,13 @@ bool SceneTitle::OnCreate() {
     selectSound = new Sound("audio/sfx/Select01.wav");
     selectSound->OnCreate();
 
+    hoverStream = SDL_OpenAudioDeviceStream(
+        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr);
+    if (hoverStream) {
+        SDL_SetAudioStreamGain(hoverStream, SaveData::current.sfxVolume * 0.35f);
+        SDL_ResumeAudioStreamDevice(hoverStream);
+    }
+
     RefreshProfiles();
     return true;
 }
@@ -46,6 +56,10 @@ void SceneTitle::OnDestroy() {
     if (sfxStream) {
         SDL_DestroyAudioStream(sfxStream);
         sfxStream = nullptr;
+    }
+    if (hoverStream) {
+        SDL_DestroyAudioStream(hoverStream);
+        hoverStream = nullptr;
     }
 }
 
@@ -62,8 +76,19 @@ void SceneTitle::PlaySelect() {
     if (selectSound && sfxStream) selectSound->Play(sfxStream);
 }
 
+void SceneTitle::PlayHover() {
+    if (!selectSound || !hoverStream) return;
+    unsigned int id  = ImGui::GetItemID();
+    Uint64       now = SDL_GetTicks();
+    if (id == lastHoveredId || now - lastHoverTick < 150) return;
+    lastHoveredId = id;
+    lastHoverTick = now;
+    selectSound->Play(hoverStream);
+}
+
 void SceneTitle::RefreshProfiles() {
-    profiles = SaveData::GetProfileList();
+    profiles    = SaveData::GetProfileList();
+    leaderboard = SaveData::GetLeaderboard();
 }
 
 void SceneTitle::DrawGui() {
@@ -79,7 +104,6 @@ void SceneTitle::DrawGui() {
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar |
         ImGuiWindowFlags_NoInputs);
-
     float iw = ImGui::GetContentRegionAvail().x;
     ImGui::SetWindowFontScale(2.4f);
     ImVec2 tSz = ImGui::CalcTextSize("ALPHA WING EX");
@@ -91,6 +115,51 @@ void SceneTitle::DrawGui() {
     ImGui::TextColored(ImVec4(0.40f, 0.40f, 0.60f, 1.0f), "R  E  M  A  K  E");
     ImGui::SetWindowFontScale(1.0f);
     ImGui::End();
+
+    // ── leaderboard panel (right side, always visible) ─────────────────────
+    {
+        float lbW = 290.0f;
+        float lbH = 76.0f + (float)(leaderboard.empty() ? 1 : (int)leaderboard.size()) * 21.0f;
+        ImGui::SetNextWindowPos(
+            ImVec2(io.DisplaySize.x - 20.0f, io.DisplaySize.y * 0.24f),
+            ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+        ImGui::SetNextWindowSize(ImVec2(lbW, lbH), ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.82f);
+        ImGui::Begin("##leaderboard", nullptr,
+            ImGuiWindowFlags_NoResize  | ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar |
+            ImGuiWindowFlags_NoInputs);
+
+        float lbIW = ImGui::GetContentRegionAvail().x;
+        ImGui::SetWindowFontScale(1.25f);
+        ImVec2 hSz = ImGui::CalcTextSize("HIGH SCORES");
+        ImGui::SetCursorPosX((lbIW - hSz.x) * 0.5f);
+        ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.1f, 1.0f), "HIGH SCORES");
+        ImGui::SetWindowFontScale(1.0f);
+        ImGui::Separator();
+        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), " %-3s %-14s %s", "#", "PILOT", "SCORE");
+        ImGui::Separator();
+
+        if (leaderboard.empty()) {
+            ImGui::TextDisabled("  No profiles yet.");
+        } else {
+            static const ImVec4 kRankCol[3] = {
+                ImVec4(1.0f,  0.84f, 0.0f,  1.0f), // gold
+                ImVec4(0.75f, 0.75f, 0.75f, 1.0f), // silver
+                ImVec4(0.80f, 0.50f, 0.20f, 1.0f), // bronze
+            };
+            for (int i = 0; i < (int)leaderboard.size(); i++) {
+                ImVec4 col = (i < 3) ? kRankCol[i] : ImVec4(0.85f, 0.85f, 0.85f, 1.0f);
+                if (leaderboard[i].second > 0)
+                    ImGui::TextColored(col, " %-3d %-14s %d",
+                        i + 1, leaderboard[i].first.c_str(), leaderboard[i].second);
+                else
+                    ImGui::TextColored(ImVec4(0.4f, 0.4f, 0.4f, 1.0f),
+                        " %-3d %-14s --", i + 1, leaderboard[i].first.c_str());
+            }
+        }
+        ImGui::End();
+    }
 
     // ── main panel ─────────────────────────────────────────────────────────
     bool atCap = (int)profiles.size() >= SaveData::kMaxProfiles;
@@ -120,6 +189,7 @@ void SceneTitle::DrawGui() {
             memset(nameBuf, 0, sizeof(nameBuf));
             state = TitleState::NEW_GAME_NAME;
         }
+        if (ImGui::IsItemHovered()) PlayHover();
         if (atCap) {
             ImGui::EndDisabled();
             ImGui::SetCursorPosX(btnX);
@@ -139,6 +209,7 @@ void SceneTitle::DrawGui() {
             RefreshProfiles();
             state = TitleState::LOAD_SELECT;
         }
+        if (ImGui::IsItemHovered()) PlayHover();
         if (!hasProfiles) ImGui::EndDisabled();
 
         ImGui::Spacing();
@@ -148,6 +219,7 @@ void SceneTitle::DrawGui() {
             PlaySelect();
             showSettings = !showSettings;
         }
+        if (ImGui::IsItemHovered()) PlayHover();
 
         if (showSettings) {
             ImGui::Spacing();
@@ -158,14 +230,15 @@ void SceneTitle::DrawGui() {
             ImGui::SetCursorPosX(btnX);
             ImGui::SetNextItemWidth(btnW);
             ImGui::SliderFloat("##mv", &SaveData::current.musicVolume, 0.0f, 1.0f);
-
             ImGui::SetCursorPosX(btnX);
             ImGui::Text("SFX Volume");
             ImGui::SetCursorPosX(btnX);
             ImGui::SetNextItemWidth(btnW);
             if (ImGui::SliderFloat("##sv", &SaveData::current.sfxVolume, 0.0f, 1.0f)) {
                 if (sfxStream)
-                    SDL_SetAudioStreamGain(sfxStream, SaveData::current.sfxVolume);
+                    SDL_SetAudioStreamGain(sfxStream,   SaveData::current.sfxVolume);
+                if (hoverStream)
+                    SDL_SetAudioStreamGain(hoverStream, SaveData::current.sfxVolume * 0.35f);
             }
         }
 
@@ -178,6 +251,7 @@ void SceneTitle::DrawGui() {
             SDL_Event e; e.type = SDL_EVENT_QUIT;
             SDL_PushEvent(&e);
         }
+        if (ImGui::IsItemHovered()) PlayHover();
     }
 
     // ── NEW GAME — enter name ─────────────────────────────────────────────
@@ -201,6 +275,7 @@ void SceneTitle::DrawGui() {
             SaveData::current.Save();
             SceneSwitcher::Request(GameScene::MUN);
         }
+        if (ImGui::IsItemHovered()) PlayHover();
         if (!nameOk) ImGui::EndDisabled();
 
         ImGui::SameLine();
@@ -208,6 +283,7 @@ void SceneTitle::DrawGui() {
             PlaySelect();
             state = TitleState::MAIN;
         }
+        if (ImGui::IsItemHovered()) PlayHover();
     }
 
     // ── LOAD — pick profile ───────────────────────────────────────────────
@@ -216,17 +292,15 @@ void SceneTitle::DrawGui() {
         ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "Select pilot:");
         ImGui::Spacing();
 
-        float delBtnW = 38.0f;
+        float delBtnW  = 38.0f;
         float spacing  = ImGui::GetStyle().ItemSpacing.x;
         float loadBtnW = btnW - delBtnW - spacing;
 
         for (int i = 0; i < (int)profiles.size(); i++) {
-            // Local copy — must not hold a reference into profiles[] across RefreshProfiles()
             std::string pname = profiles[i];
             ImGui::SetCursorPosX(btnX);
 
             if (pendingDeleteIndex == i) {
-                // Confirmation row
                 bool doDelete = false;
                 bool doCancel = false;
                 ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f),
@@ -235,25 +309,25 @@ void SceneTitle::DrawGui() {
                 float confirmX = btnX + btnW - 172.0f;
                 ImGui::SetCursorPosX(confirmX);
                 if (ImGui::Button(("Yes##" + pname).c_str(), ImVec2(80.0f, 0.0f))) doDelete = true;
+                if (ImGui::IsItemHovered()) PlayHover();
                 ImGui::SameLine();
                 if (ImGui::Button(("No##"  + pname).c_str(), ImVec2(80.0f, 0.0f))) doCancel = true;
+                if (ImGui::IsItemHovered()) PlayHover();
 
                 if (doDelete) {
                     SaveData::DeleteProfile(pname);
                     RefreshProfiles();
                     pendingDeleteIndex = -1;
-                    break; // profiles vector changed — stop iterating
+                    break;
                 }
-                if (doCancel) {
-                    pendingDeleteIndex = -1;
-                }
+                if (doCancel) pendingDeleteIndex = -1;
             } else {
-                // Normal row: load button + red X
                 if (ImGui::Button(pname.c_str(), ImVec2(loadBtnW, 40.0f))) {
                     PlaySelect();
                     SaveData::current.Load(pname);
                     SceneSwitcher::Request(GameScene::MUN);
                 }
+                if (ImGui::IsItemHovered()) PlayHover();
                 ImGui::SameLine();
                 ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.55f, 0.1f, 0.1f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8f,  0.2f, 0.2f, 1.0f));
@@ -262,6 +336,7 @@ void SceneTitle::DrawGui() {
                     PlaySelect();
                     pendingDeleteIndex = i;
                 }
+                if (ImGui::IsItemHovered()) PlayHover();
                 ImGui::PopStyleColor(3);
             }
         }
@@ -275,6 +350,7 @@ void SceneTitle::DrawGui() {
             pendingDeleteIndex = -1;
             state = TitleState::MAIN;
         }
+        if (ImGui::IsItemHovered()) PlayHover();
     }
 
     ImGui::End();

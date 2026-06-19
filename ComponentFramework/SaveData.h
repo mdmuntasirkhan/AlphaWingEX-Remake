@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <utility>  // std::pair
 
 struct SaveData {
     // Profile
@@ -42,6 +43,9 @@ struct SaveData {
 
     // Lists all profile names found on disk (max kMaxProfiles)
     static std::vector<std::string> GetProfileList();
+
+    // Returns all profiles with their high scores, sorted descending
+    static std::vector<std::pair<std::string, int>> GetLeaderboard();
 
     // Permanently deletes the save file for the given profile name
     static bool DeleteProfile(const std::string& name);
