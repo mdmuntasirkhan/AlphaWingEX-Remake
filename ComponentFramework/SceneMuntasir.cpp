@@ -39,6 +39,9 @@ SceneMuntasir::SceneMuntasir() :
     musicPaused{ false },
     gamePaused{ false },
     pauseShowSettings{ false },
+    pendingResIndex{ SaveData::current.resolutionIndex },
+    pendingFullscreen{ SaveData::current.fullscreen },
+    pendingVsync{ SaveData::current.vsyncMode },
     hoverStream{ nullptr },
     uiClickSound{ nullptr },
     lastHoveredId{ 0 },
@@ -796,7 +799,7 @@ void SceneMuntasir::DrawGui() {
     if (gamePaused) {
         ImGuiIO& io   = ImGui::GetIO();
         float    panW = 380.0f;
-        float    panH = pauseShowSettings ? 415.0f : 275.0f;
+        float    panH = pauseShowSettings ? 590.0f : 275.0f;
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
@@ -831,11 +834,18 @@ void SceneMuntasir::DrawGui() {
         ImGui::SetCursorPosX(btnX);
         if (ImGui::Button(
                 pauseShowSettings ? "SETTINGS  [hide]" : "SETTINGS  [show]",
-                ImVec2(btnW, 32.0f)))
+                ImVec2(btnW, 32.0f))) {
+            if (!pauseShowSettings) {
+                pendingResIndex   = SaveData::current.resolutionIndex;
+                pendingFullscreen = SaveData::current.fullscreen;
+                pendingVsync      = SaveData::current.vsyncMode;
+            }
             pauseShowSettings = !pauseShowSettings;
+        }
         chkHov();
 
         if (pauseShowSettings) {
+            // ── Audio ──────────────────────────────────────────────────────
             ImGui::Spacing();
             ImGui::SetCursorPosX(btnX);
             ImGui::Text("Music Volume");
@@ -864,6 +874,44 @@ void SceneMuntasir::DrawGui() {
                     SDL_PauseAudioStreamDevice(audioPlayer);
                     musicPaused = true;
                 }
+            }
+            chkHov();
+
+            // ── Video ──────────────────────────────────────────────────────
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+            ImGui::SetCursorPosX(btnX);
+            ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "VIDEO");
+
+            ImGui::SetCursorPosX(btnX);
+            ImGui::Text("Resolution");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(btnW - 100.0f);
+            ImGui::Combo("##res", &pendingResIndex,
+                SaveData::kResolutionLabels, SaveData::kResolutionCount);
+
+            ImGui::SetCursorPosX(btnX);
+            ImGui::Checkbox("Fullscreen", &pendingFullscreen);
+
+            ImGui::SetCursorPosX(btnX);
+            ImGui::Text("Sync");
+            ImGui::SameLine();
+            if (ImGui::RadioButton("Adaptive##vs", pendingVsync == -1)) pendingVsync = -1;
+            ImGui::SameLine();
+            if (ImGui::RadioButton("VSync##vs",    pendingVsync ==  1)) pendingVsync =  1;
+            ImGui::SameLine();
+            if (ImGui::RadioButton("Off##vs",      pendingVsync ==  0)) pendingVsync =  0;
+
+            ImGui::Spacing();
+            ImGui::SetCursorPosX(btnX);
+            if (ImGui::Button("APPLY VIDEO", ImVec2(btnW, 30))) {
+                SaveData::current.resolutionIndex = pendingResIndex;
+                SaveData::current.fullscreen      = pendingFullscreen;
+                SaveData::current.vsyncMode       = pendingVsync;
+                int w = SaveData::kResolutionW[pendingResIndex];
+                int h = SaveData::kResolutionH[pendingResIndex];
+                SceneSwitcher::RequestVideo(pendingFullscreen, w, h, pendingVsync);
             }
             chkHov();
         }

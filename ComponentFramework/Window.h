@@ -25,9 +25,12 @@ public:
 	bool OnCreate(std::string name_, int width_, int height_);
 	void OnDestroy();
 	
-	int getWidth() const { return width; }
+	int getWidth()  const { return width; }
 	int getHeight() const { return height; }
 	SDL_Window* getWindow() const { return window; }
+
+	void SetFullscreen(bool full);
+	void SetSize(int w, int h);
 
 private: /// internal tools OpenGl versions. 
 	void setAttributes(int major_, int minor_);

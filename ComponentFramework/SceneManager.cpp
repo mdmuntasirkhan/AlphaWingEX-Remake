@@ -1,5 +1,6 @@
 #include <SDL.h>
 #include "SceneManager.h"
+#include "SaveData.h"
 #include "Timer.h"
 #include "Window.h"
 #include "SceneSTG.h"
@@ -21,9 +22,9 @@
 
 
 
-SceneManager::SceneManager(): 
+SceneManager::SceneManager():
 	currentScene{nullptr}, window{nullptr}, timer{nullptr},
-	fps(60), isRunning{false}, fullScreen{false} {
+	fps(60), isRunning{false}, fullScreen{false}, vsyncActive{false} {
 	Debug::Info("Starting the SceneManager", __FILE__, __LINE__);
 }
 
@@ -69,6 +70,8 @@ bool SceneManager::Initialize(std::string name_, int width_, int height_) {
 	ImGui_ImplSDL3_InitForOpenGL(window->getWindow(), SDL_GL_GetCurrentContext());
 	ImGui_ImplOpenGL3_Init("#version 450");
 
+	// Adaptive sync (FreeSync / G-Sync) → standard vsync → uncapped
+	ApplyVsync(SaveData::current.vsyncMode);
 
 	/********************************   Default first scene   ***********************/
 	BuildNewScene(SCENE_NUMBER::SCENETITLE);
@@ -81,6 +84,8 @@ void SceneManager::Run() {
 	timer->Start();
 	isRunning = true;
 	while (isRunning) {
+		Uint64 frameStart = SDL_GetTicks();
+
 		HandleEvents();
 		timer->UpdateFrameTicks();
 
@@ -90,12 +95,11 @@ void SceneManager::Run() {
 		ImGui::NewFrame();
 
 		currentScene->Update(timer->GetDeltaTime());
-		currentScene->RenderBackground(); // OpenGL nebula drawn before 3D
-		currentScene->Render();           // 3D scene on top of nebula
-		currentScene->DrawGui();          // HUD on top of everything
+		currentScene->RenderBackground();
+		currentScene->Render();
+		currentScene->DrawGui();
 
-		// Drain any scene-switch request made during this frame's Update/DrawGui.
-		// ImGui draw data is already captured, so it renders fine one last time.
+		// Drain scene-switch request
 		if (SceneSwitcher::hasPending) {
 			GameScene gs = SceneSwitcher::pending;
 			SceneSwitcher::hasPending = false;
@@ -107,12 +111,47 @@ void SceneManager::Run() {
 			}
 		}
 
-		// Render ImGui (stars + HUD)
+		// Drain video settings request
+		if (SceneSwitcher::hasVideoRequest) {
+			SceneSwitcher::hasVideoRequest = false;
+			if (!SceneSwitcher::videoFullscreen)
+				window->SetSize(SceneSwitcher::videoWidth, SceneSwitcher::videoHeight);
+			window->SetFullscreen(SceneSwitcher::videoFullscreen);
+			ApplyVsync(SceneSwitcher::videoVsync);
+			SaveData::current.Save(); // persist video prefs immediately
+		}
+
+		// Render ImGui
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		SDL_GL_SwapWindow(window->getWindow());
-		SDL_Delay(timer->GetSleepTime(fps));
+
+		// Frame pacing:
+		// When vsync is active, SwapWindow already blocks for the display interval.
+		// A manual sleep on top would halve the frame rate — so skip it.
+		// When vsync is off, enforce a 60 fps floor manually.
+		if (!vsyncActive) {
+			const Uint64 kFrameMs = 16; // ~60 fps
+			Uint64 elapsed = SDL_GetTicks() - frameStart;
+			if (elapsed < kFrameMs)
+				SDL_Delay(static_cast<Uint32>(kFrameMs - elapsed));
+		}
+	}
+}
+
+void SceneManager::ApplyVsync(int mode) {
+	// Try the requested mode; if adaptive (-1) isn't supported, fall back.
+	if (SDL_GL_SetSwapInterval(mode)) {
+		vsyncActive = (mode != 0);
+		SaveData::current.vsyncMode = mode;
+	} else if (mode == -1 && SDL_GL_SetSwapInterval(1)) {
+		vsyncActive = true;
+		SaveData::current.vsyncMode = 1;
+	} else {
+		SDL_GL_SetSwapInterval(0);
+		vsyncActive = false;
+		SaveData::current.vsyncMode = 0;
 	}
 }
 

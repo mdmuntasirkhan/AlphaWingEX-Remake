@@ -85,6 +85,11 @@ private:
 	bool gamePaused;
 	bool pauseShowSettings;
 
+	// Pending video settings (uncommitted until APPLY is pressed)
+	int  pendingResIndex;
+	bool pendingFullscreen;
+	int  pendingVsync;
+
 	// Hover — selectSound played on a low-gain stream
 	SDL_AudioStream* hoverStream;
 	Sound*           uiClickSound;

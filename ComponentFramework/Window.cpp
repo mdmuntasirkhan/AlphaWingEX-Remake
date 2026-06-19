@@ -57,6 +57,19 @@ bool Window::OnCreate(std::string name_, int width_, int height_) {
 	return true;
 }
 
+void Window::SetFullscreen(bool full) {
+    SDL_SetWindowFullscreen(window, full);
+    if (!full)
+        SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+}
+
+void Window::SetSize(int w, int h) {
+    width = w; height = h;
+    SDL_SetWindowSize(window, w, h);
+    SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    glViewport(0, 0, w, h);
+}
+
 void Window::OnDestroy() {
 	SDL_GL_DestroyContext(context);
 	SDL_DestroyWindow(window);

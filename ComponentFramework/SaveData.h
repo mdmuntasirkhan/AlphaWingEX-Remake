@@ -32,7 +32,20 @@ struct SaveData {
     float musicVolume = 0.10f;
     float sfxVolume   = 0.05f;
 
+    // Video preferences (machine-level, not profile-specific)
+    bool fullscreen      = false;
+    int  resolutionIndex = 0;    // index into kResolutionW / kResolutionH
+    int  vsyncMode       = -1;   // -1=adaptive sync, 1=vsync, 0=uncapped
+
     static SaveData current;
+
+    // Resolution table — shared by scenes and SceneManager
+    static constexpr int kResolutionCount = 4;
+    static constexpr const char* kResolutionLabels[kResolutionCount] = {
+        "1280 x 720", "1600 x 900", "1920 x 1080", "2560 x 1440"
+    };
+    static constexpr int kResolutionW[kResolutionCount] = { 1280, 1600, 1920, 2560 };
+    static constexpr int kResolutionH[kResolutionCount] = {  720,  900, 1080, 1440 };
 
     std::string GetFilePath() const { return "profile_" + profileName + ".dat"; }
 

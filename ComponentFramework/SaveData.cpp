@@ -28,7 +28,10 @@ bool SaveData::Save() const {
       << "lostshardposy "  << lostShardPosY  << "\n"
       << "lostshardcount " << lostShardCount << "\n"
       << "musicvolume "    << musicVolume    << "\n"
-      << "sfxvolume "      << sfxVolume      << "\n";
+      << "sfxvolume "      << sfxVolume      << "\n"
+      << "fullscreen "     << (fullscreen ? 1 : 0) << "\n"
+      << "resindex "       << resolutionIndex      << "\n"
+      << "vsyncmode "      << vsyncMode            << "\n";
     return true;
 }
 
@@ -53,6 +56,9 @@ bool SaveData::Load(const std::string& name) {
         else if (key == "lostshardcount") f >> lostShardCount;
         else if (key == "musicvolume")    f >> musicVolume;
         else if (key == "sfxvolume")      f >> sfxVolume;
+        else if (key == "fullscreen")     { int v; f >> v; fullscreen = (v != 0); }
+        else if (key == "resindex")       f >> resolutionIndex;
+        else if (key == "vsyncmode")      f >> vsyncMode;
     }
     return true;
 }

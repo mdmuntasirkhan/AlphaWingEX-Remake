@@ -9,11 +9,16 @@ SceneTitle::SceneTitle()
     : state(TitleState::MAIN)
     , showSettings(false)
     , pendingDeleteIndex(-1)
+    , bgmStream(nullptr)
+    , bgmSound(nullptr)
     , sfxStream(nullptr)
     , hoverStream(nullptr)
     , selectSound(nullptr)
     , lastHoveredId(0)
     , lastHoverTick(0)
+    , pendingResIndex(SaveData::current.resolutionIndex)
+    , pendingFullscreen(SaveData::current.fullscreen)
+    , pendingVsync(SaveData::current.vsyncMode)
 {
     memset(nameBuf, 0, sizeof(nameBuf));
 }
@@ -21,11 +26,27 @@ SceneTitle::SceneTitle()
 SceneTitle::~SceneTitle() {}
 
 bool SceneTitle::OnCreate() {
-    // Selection SFX
     SDL_AudioSpec spec;
     spec.freq     = 44100;
     spec.channels = 2;
     spec.format   = SDL_AUDIO_S16;
+
+    // BGM stream — looped in Update()
+    bgmStream = SDL_OpenAudioDeviceStream(
+        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr);
+    if (bgmStream) {
+        SDL_SetAudioStreamGain(bgmStream, SaveData::current.musicVolume);
+        SDL_ResumeAudioStreamDevice(bgmStream);
+    }
+    bgmSound = new Sound("audio/music/fuad-taray.wav");
+    bgmSound->OnCreate();
+    if (bgmStream && bgmSound->IsLoaded()) {
+        // Pre-queue two copies so the loop is seamless on first pass
+        bgmSound->Play(bgmStream);
+        bgmSound->Play(bgmStream);
+    }
+
+    // SFX stream — full volume for click/confirm
     sfxStream = SDL_OpenAudioDeviceStream(
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr);
     if (sfxStream) {
@@ -36,6 +57,7 @@ bool SceneTitle::OnCreate() {
     selectSound = new Sound("audio/sfx/Select01.wav");
     selectSound->OnCreate();
 
+    // Hover stream — quieter copy of selectSound
     hoverStream = SDL_OpenAudioDeviceStream(
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr);
     if (hoverStream) {
@@ -48,6 +70,15 @@ bool SceneTitle::OnCreate() {
 }
 
 void SceneTitle::OnDestroy() {
+    if (bgmSound) {
+        bgmSound->OnDestroy();
+        delete bgmSound;
+        bgmSound = nullptr;
+    }
+    if (bgmStream) {
+        SDL_DestroyAudioStream(bgmStream);
+        bgmStream = nullptr;
+    }
     if (selectSound) {
         selectSound->OnDestroy();
         delete selectSound;
@@ -63,7 +94,13 @@ void SceneTitle::OnDestroy() {
     }
 }
 
-void SceneTitle::Update(const float) {}
+void SceneTitle::Update(const float) {
+    // Re-queue BGM when the buffer drops below one song's worth — keeps it looping
+    if (bgmStream && bgmSound && bgmSound->IsLoaded()) {
+        if (SDL_GetAudioStreamQueued(bgmStream) < (int)bgmSound->GetLength())
+            bgmSound->Play(bgmStream);
+    }
+}
 void SceneTitle::Render() const {}
 void SceneTitle::HandleEvents(const SDL_Event&) {}
 
@@ -164,7 +201,7 @@ void SceneTitle::DrawGui() {
     // ── main panel ─────────────────────────────────────────────────────────
     bool atCap = (int)profiles.size() >= SaveData::kMaxProfiles;
     float panH = 0.0f;
-    if      (state == TitleState::MAIN)          panH = 200.0f + (showSettings ? 130.0f : 0.0f) + (atCap ? 46.0f : 0.0f);
+    if      (state == TitleState::MAIN)          panH = 200.0f + (showSettings ? 310.0f : 0.0f) + (atCap ? 46.0f : 0.0f);
     else if (state == TitleState::NEW_GAME_NAME) panH = 160.0f;
     else if (state == TitleState::LOAD_SELECT)   panH = 60.0f + (float)profiles.size() * 52.0f + 50.0f;
 
@@ -217,11 +254,18 @@ void SceneTitle::DrawGui() {
         if (ImGui::Button(showSettings ? "SETTINGS  [hide]" : "SETTINGS  [show]",
                           ImVec2(btnW, 38))) {
             PlaySelect();
+            if (!showSettings) {
+                // Sync pending video to current applied settings when panel opens
+                pendingResIndex   = SaveData::current.resolutionIndex;
+                pendingFullscreen = SaveData::current.fullscreen;
+                pendingVsync      = SaveData::current.vsyncMode;
+            }
             showSettings = !showSettings;
         }
         if (ImGui::IsItemHovered()) PlayHover();
 
         if (showSettings) {
+            // ── Audio ──────────────────────────────────────────────────────
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
@@ -229,7 +273,8 @@ void SceneTitle::DrawGui() {
             ImGui::Text("Music Volume");
             ImGui::SetCursorPosX(btnX);
             ImGui::SetNextItemWidth(btnW);
-            ImGui::SliderFloat("##mv", &SaveData::current.musicVolume, 0.0f, 1.0f);
+            if (ImGui::SliderFloat("##mv", &SaveData::current.musicVolume, 0.0f, 1.0f))
+                if (bgmStream) SDL_SetAudioStreamGain(bgmStream, SaveData::current.musicVolume);
             ImGui::SetCursorPosX(btnX);
             ImGui::Text("SFX Volume");
             ImGui::SetCursorPosX(btnX);
@@ -240,6 +285,45 @@ void SceneTitle::DrawGui() {
                 if (hoverStream)
                     SDL_SetAudioStreamGain(hoverStream, SaveData::current.sfxVolume * 0.35f);
             }
+
+            // ── Video ──────────────────────────────────────────────────────
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+            ImGui::SetCursorPosX(btnX);
+            ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "VIDEO");
+
+            ImGui::SetCursorPosX(btnX);
+            ImGui::Text("Resolution");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(btnW - 100.0f);
+            ImGui::Combo("##res", &pendingResIndex,
+                SaveData::kResolutionLabels, SaveData::kResolutionCount);
+
+            ImGui::SetCursorPosX(btnX);
+            ImGui::Checkbox("Fullscreen", &pendingFullscreen);
+
+            ImGui::SetCursorPosX(btnX);
+            ImGui::Text("Sync");
+            ImGui::SameLine();
+            if (ImGui::RadioButton("Adaptive##vs", pendingVsync == -1)) pendingVsync = -1;
+            ImGui::SameLine();
+            if (ImGui::RadioButton("VSync##vs",    pendingVsync ==  1)) pendingVsync =  1;
+            ImGui::SameLine();
+            if (ImGui::RadioButton("Off##vs",      pendingVsync ==  0)) pendingVsync =  0;
+
+            ImGui::Spacing();
+            ImGui::SetCursorPosX(btnX);
+            if (ImGui::Button("APPLY VIDEO", ImVec2(btnW, 30))) {
+                PlaySelect();
+                SaveData::current.resolutionIndex = pendingResIndex;
+                SaveData::current.fullscreen      = pendingFullscreen;
+                SaveData::current.vsyncMode       = pendingVsync;
+                int w = SaveData::kResolutionW[pendingResIndex];
+                int h = SaveData::kResolutionH[pendingResIndex];
+                SceneSwitcher::RequestVideo(pendingFullscreen, w, h, pendingVsync);
+            }
+            if (ImGui::IsItemHovered()) PlayHover();
         }
 
         ImGui::Spacing();

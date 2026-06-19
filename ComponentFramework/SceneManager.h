@@ -27,7 +27,9 @@ private:
 	unsigned int fps;
 	bool isRunning;
 	bool fullScreen;
+	bool vsyncActive;   // true when swap interval != 0; skips manual SDL_Delay
 	bool BuildNewScene(SCENE_NUMBER scene_);
+	void ApplyVsync(int mode); // tries mode, falls back gracefully
 };
 
 

@@ -26,13 +26,18 @@ private:
     std::vector<std::pair<std::string, int>> leaderboard;
 
     // Audio
-    // sfxStream   — full SFX gain for click/confirm sounds
-    // hoverStream — same selectSound at ~18 % gain for hover feedback
+    SDL_AudioStream* bgmStream;     // menu music, looped in Update()
+    Sound*           bgmSound;
     SDL_AudioStream* sfxStream;
     SDL_AudioStream* hoverStream;
     Sound*           selectSound;
     unsigned int     lastHoveredId;
     Uint64           lastHoverTick;
+
+    // Pending video settings (uncommitted until APPLY is pressed)
+    int  pendingResIndex;
+    bool pendingFullscreen;
+    int  pendingVsync;
 
     void PlaySelect();
     void PlayHover();
