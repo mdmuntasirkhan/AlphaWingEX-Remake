@@ -1,0 +1,15 @@
+profile Jessie
+shards 78
+highscore 1150
+health 100
+lives 0
+score 1150
+posx -5.5077
+posy 0.888677
+wavetime 136.292
+haslostshards 0
+lostshardposx 0
+lostshardposy 0
+lostshardcount 0
+musicvolume 0.1
+sfxvolume 0.05
