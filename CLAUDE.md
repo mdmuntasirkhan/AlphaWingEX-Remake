@@ -17,15 +17,14 @@ AlphaWingEX-Remake is a 2.5D vertical-scrolling space shooter built in C++ with 
 
 **Running:**
 - Press **F5** in Visual Studio to build and launch.
-- At startup, `SceneMuntasir` (the main game scene) loads automatically.
+- At startup, `SceneTitle` loads first (profile select / new game). From there the game transitions to `SceneMuntasir`.
 
-**Scene switching at runtime (keyboard):**
+**Scene switching at runtime (keyboard, debug shortcuts that bypass the title):**
 | Key | Scene |
 |-----|-------|
 | F1  | SceneSTG (placeholder/test) |
 | F2  | SceneJA (Jacky's test scene) |
-| F3  | SceneMuntasir (main game) |
-| F12 | Toggle wireframe mode |
+| F3  | SceneMuntasir (main game, no profile load) |
 | ESC / Q | Quit |
 
 **Gameplay controls:**
@@ -41,26 +40,60 @@ There is no automated test suite. Verification is done by running the game.
 
 `Main.cpp` → creates `SceneManager` → calls `Initialize()` then `Run()`.
 
-`SceneManager` owns the game loop: polls SDL events, drives ImGui frames, then calls `currentScene->Update()` / `Render()` / `DrawGui()` each tick. Scene switches destroy the current scene and construct the new one via `BuildNewScene()`.
+`SceneManager` owns the game loop: polls SDL events, drives ImGui frames, then calls `currentScene->Update()` / `RenderBackground()` / `Render()` / `DrawGui()` each tick. The exact order within a frame is:
+
+```
+Update(dt) → RenderBackground() → Render() → DrawGui()
+→ drain SceneSwitcher → ImGui::Render() → SDL_GL_SwapWindow
+```
+
+Scene switches are deferred: any scene calls `SceneSwitcher::Request(GameScene::X)`, and `SceneManager::Run()` drains it *after* `DrawGui()` so the current frame completes cleanly before `BuildNewScene()` destroys the old scene.
 
 ### Scene system
 
 `Scene` (abstract base in `Scene.h`) defines the interface every scene must implement:
 ```
-OnCreate() → Update(dt) → Render() → DrawGui() → OnDestroy()
+OnCreate() → Update(dt) → RenderBackground() → Render() → DrawGui() → OnDestroy()
 ```
-All three concrete scenes (`SceneMuntasir`, `SceneSTG`, `SceneJA`) inherit from it. `SceneMuntasir` is the real game; the others are stubs/experiments.
+`HandleEvents()` is called by `SceneManager::HandleEvents()` for every SDL event.
+
+Concrete scenes:
+- **`SceneTitle`** — profile selector / new-game flow. Three internal states (`MAIN`, `NEW_GAME_NAME`, `LOAD_SELECT`). On launch it calls `SceneSwitcher::Request(GameScene::MUN)` to hand off to the main game.
+- **`SceneMuntasir`** — the real game.
+- **`SceneSTG`**, **`SceneJA`** — stubs/experiments used by teammates.
+
+### SceneSwitcher
+
+`SceneSwitcher` (in `SceneSwitcher.h`) is a zero-dependency static struct that breaks the circular-include problem between scenes and `SceneManager`. Any scene calls `SceneSwitcher::Request(GameScene::X)`; `SceneManager` checks `SceneSwitcher::hasPending` each frame after `DrawGui()`. No scene header needs to `#include "SceneManager.h"`.
 
 ### Game objects in SceneMuntasir
 
 Each major game object follows the same `OnCreate / Update / Render / OnDestroy` pattern and is owned (raw pointer) by `SceneMuntasir`:
 
-- **`Player`** — ship mesh + shield mesh. Handles WASD movement with velocity/friction physics, health/lives, and a shield with sweep-glow animation.
-- **`Enemy`** — manages two enemy pools: `ASTEROID` (wave 1) and `BOT01` (wave 2). Exposes `GetAsteroidPositions()` / `GetBot01Positions()` vectors for collision checking in the scene.
+- **`Player`** — four mesh components: ship body, cockpit, attachment, and thrust flame. Handles WASD movement with velocity/friction physics, health/lives, Z-roll on W/S (5° intentional wobble — do not change without asking), shield activation with sweep-glow animation, and state-restore setters used by the save/load system.
+- **`Enemy`** — manages three enemy pools: `ASTEROID` (large, multi-hit), `smallAsteroid` (faster, lower HP), and `BOT01` (wave 2, Y-axis steering toward the player). Exposes `GetAsteroidPositions()` / `GetSmallAsteroidPositions()` / `GetBot01Positions()` for collision. Each enemy has per-instance HP and scale; `DamageAsteroid()` / `DamageSmallAsteroid()` / `DamageBot01()` return `true` when the enemy dies. Debris particles (`struct Debris`) spawn on hit and on kill with different counts.
 - **`Bullet`** — two pools: straight laser shots and homing missiles. Missiles use proportional-navigation (PN) guidance with a brief straight-flight launch phase before homing kicks in. Re-acquires nearest target if the locked one is destroyed mid-flight.
 - **`Environment`** — ImGui-drawn starfield scrolling background. Supports `SPACE` and `WATER` environment types (water adds jitter and a speed multiplier).
 
-Collision detection lives in `SceneMuntasir::Update()` — it iterates bullet/missile position vectors against enemy position vectors and removes hits manually via `RemoveAt()` / `RemoveAsteroid()` etc.
+Collision detection lives in `SceneMuntasir::Update()` — it iterates bullet/missile position vectors against enemy position vectors and calls `DamageX()` / `RemoveX()` manually by index.
+
+### RPG shard system
+
+Enemies drop `Shard` structs (pos, vel, spin) when killed. Shards drift toward the player when within `kMagnetRadius` (2.4 units) and are collected within `kCollectRadius` (0.5 units). On death the player drops a `DroppedShard` pile at their last position; the pile pulses and can be recovered once per death. `shardCount` is persisted via `SaveData`.
+
+### Save / Load system
+
+`SaveData` (in `SaveData.h/.cpp`) is a global singleton (`SaveData::current`). It stores:
+- Profile name, shard count, high score
+- Full mid-session state: health, lives, score, player position, enemy wave-progression timer
+- Lost shard pile state (position, count)
+- Audio volume preferences
+
+Save files are plain-text key-value files named `profile_<name>.dat` in the working directory. Profile discovery uses MSVC `<io.h>` (`_findfirst` / `_findnext`) — Windows-only.
+
+`SceneMuntasir` auto-saves every 10 seconds (`kAutoSaveInterval`) and saves explicitly on quit via `SaveGame()`.
+
+`SceneTitle` reads `GetProfileList()` to populate the load-game list and writes `SaveData::current` before transitioning to `SceneMuntasir`.
 
 ### Rendering pipeline
 
@@ -68,28 +101,39 @@ Single shader pair: `shaders/alphaWingVert.glsl` + `shaders/alphaWingFrag.glsl`.
 
 The fragment shader has two modes selected by the `emissive` uniform:
 - `emissive == 0` → Phong lighting (ambient + diffuse + specular).
-- `emissive > 0.5` → flat color with three animated crescent glints (shield effect). Glow points are passed as `shieldGlowPointA/B/C` uniforms computed in `Player::Update()` using `ComputeShieldGlowPoint()`.
+- `emissive > 0.5` → flat color with three animated crescent glints (shield effect). Glow points are passed as `shieldGlowPointA/B/C` uniforms computed in `Player::Update()`.
 
 Uniforms are cached by name in `Shader`'s `unordered_map<string, GLuint>` and retrieved via `GetUniformID()`.
 
-The `Environment` starfield bypasses OpenGL entirely — it renders using ImGui's background draw list (`ImGui::GetBackgroundDrawList()`).
+`RenderBackground()` runs before `Render()` each frame. `Environment` draws via `ImGui::GetBackgroundDrawList()` in `RenderBackground()`, bypassing OpenGL entirely. This is why `RenderBackground()` is a separate virtual — it keeps ImGui background drawing decoupled from the 3D pass.
 
 ### Audio
 
-SDL3 audio streams. Two separate `SDL_AudioStream` handles: one for music (looping), one for SFX (fire-and-forget). `Sound` loads a WAV file; `Sound::Play()` queues it into the given stream. Music and SFX volumes are tunable via ImGui sliders in `DrawGui()`.
+Two audio paths exist in parallel:
+
+1. **Per-scene SDL3 streams** — `SceneMuntasir` holds its own `SDL_AudioStream* audioPlayer` (music) and `SDL_AudioStream* sfxPlayer` (SFX). `Sound::Play()` queues a WAV into the given stream.
+2. **`SoundManager`** — a pooled manager with one BGM stream and 12 SFX pipes (`PIPE1`–`PIPE12`). Currently present but not wired into `SceneMuntasir`; it is the intended replacement for the per-scene streams.
+
+Music and SFX volumes are stored in `SaveData` and applied via ImGui sliders in `DrawGui()`.
+
+### Light position constraint
+
+`lightPos.Y` must stay ≥ 50 in `SceneMuntasir::Render()`. Moving the light closer causes a visible gradient color shift on the ship mesh.
 
 ### External libraries (vendored in-tree)
 
 - **ImGui** — all `imgui*.cpp/.h` files are checked in directly (SDL3 + OpenGL3 backends).
 - **tiny_obj_loader.h** — single-header OBJ loader.
 - **GameDev** — external, installed at `C:\GameDev`. Provides `MATH::Vec3`, `Matrix4`, `Quaternion`, `MMath`, etc.
+- **`Body.h`** — a physics body stub included in the project for future use; currently unused by any game object.
 
 ### Assets
 
 All runtime assets are relative paths from the working directory (the project folder):
-- `meshes/` — OBJ files (player ship, shield, bullet, missile, asteroid, bot01)
+- `meshes/` — OBJ files (player ship, cockpit, attachment, thrust, shield, bullet, missile, asteroid, bot01, bot01 thrust)
 - `shaders/` — GLSL source files
 - `audio/music/` and `audio/sfx/` — WAV files
+- `profile_<name>.dat` — plain-text save files, one per player profile
 
 ### Debug logging
 
