@@ -20,17 +20,20 @@ AlphaWingEX-Remake is a 2.5D vertical-scrolling space shooter built in C++ with 
 - At startup, `SceneTitle` loads first (profile select / new game). From there the game transitions to `SceneMuntasir`.
 
 **Scene switching at runtime (keyboard, debug shortcuts that bypass the title):**
-| Key | Scene |
-|-----|-------|
+| Key | Scene / Action |
+|-----|---------------|
 | F1  | SceneSTG (placeholder/test) |
 | F2  | SceneJA (Jacky's test scene) |
 | F3  | SceneMuntasir (main game, no profile load) |
-| ESC / Q | Quit |
+| F12 | Toggle wireframe rendering (in SceneMuntasir) |
+| Q / ESC (title) | Quit |
 
 **Gameplay controls:**
 - WASD — move player
 - Space / Left-click — fire laser
-- Right-click — launch homing missile
+- Right-click — launch homing missile (finite supply, auto-reloads)
+- E — activate shield (5 s active, 15 s cooldown)
+- ESC — toggle pause (opens in-game pause menu; does **not** quit)
 
 There is no automated test suite. Verification is done by running the game.
 
@@ -58,7 +61,7 @@ OnCreate() → Update(dt) → RenderBackground() → Render() → DrawGui() → 
 `HandleEvents()` is called by `SceneManager::HandleEvents()` for every SDL event.
 
 Concrete scenes:
-- **`SceneTitle`** — profile selector / new-game flow. Three internal states (`MAIN`, `NEW_GAME_NAME`, `LOAD_SELECT`). On launch it calls `SceneSwitcher::Request(GameScene::MUN)` to hand off to the main game.
+- **`SceneTitle`** — profile selector / new-game flow. Three internal states (`MAIN`, `NEW_GAME_NAME`, `LOAD_SELECT`). Maintains a leaderboard cache (`vector<pair<string,int>>`) sorted by high score descending, built from `SaveData::GetLeaderboard()`. On launch it calls `SceneSwitcher::Request(GameScene::MUN)` to hand off to the main game.
 - **`SceneMuntasir`** — the real game.
 - **`SceneSTG`**, **`SceneJA`** — stubs/experiments used by teammates.
 
@@ -95,6 +98,13 @@ Save files are plain-text key-value files named `profile_<name>.dat` in the work
 
 `SceneTitle` reads `GetProfileList()` to populate the load-game list and writes `SaveData::current` before transitioning to `SceneMuntasir`.
 
+### Camera
+
+Fixed perspective camera set once in `SceneMuntasir::OnCreate()`:
+- View: `MMath::lookAt(Vec3(0,0,0), Vec3(0,0,-1), Vec3(0,1,0))` — camera never moves.
+- Projection: 45° FOV, 16:9 aspect, 0.1–100 clip range.
+- Player and enemies move through the world; the camera is stationary.
+
 ### Rendering pipeline
 
 Single shader pair: `shaders/alphaWingVert.glsl` + `shaders/alphaWingFrag.glsl`.
@@ -115,6 +125,8 @@ Two audio paths exist in parallel:
 2. **`SoundManager`** — a pooled manager with one BGM stream and 12 SFX pipes (`PIPE1`–`PIPE12`). Currently present but not wired into `SceneMuntasir`; it is the intended replacement for the per-scene streams.
 
 Music and SFX volumes are stored in `SaveData` and applied via ImGui sliders in `DrawGui()`.
+
+Video settings (resolution, fullscreen, vsync) follow a **pending/apply** pattern: both `SceneTitle` and `SceneMuntasir` copy `SaveData::current` values into local `pendingResIndex` / `pendingFullscreen` / `pendingVsync` fields when the settings panel opens. Changes only commit when the user presses **APPLY** — this prevents mid-game resolution thrash. The same `SaveData::kResolutionW/H` table (4 presets: 1280×720, 1600×900, 1920×1080, 2560×1440) is shared by both scenes and `SceneManager`.
 
 ### Light position constraint
 
