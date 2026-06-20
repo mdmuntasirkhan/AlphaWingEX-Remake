@@ -70,5 +70,5 @@ How to play?
 ![Profile](ComponentFramework/screenshots/profile.png)
 ![Gameplay](ComponentFramework/screenshots/gameplay.png)
 
-Sincierly,
+Sincerely,
 Muntasir
