@@ -63,12 +63,15 @@ How to play?
 
 ---
 
-Screenshots
-(screenshots/title.png)
-(screenshots/settings.png)
-(screenshots/profile.png)
-(screenshots/gameplay.png)
+# Screenshots
 
+![Title](screenshots/title.png)
+
+![Settings](screenshots/settings.png)
+
+![Profile](screenshots/profile.png)
+
+![Gameplay](screenshots/gameplay.png)
 
 Sincierly,
 Muntasir
