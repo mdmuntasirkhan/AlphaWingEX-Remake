@@ -41,7 +41,7 @@ There is no automated test suite. Verification is done by running the game.
 
 ### Entry point & lifecycle
 
-`Main.cpp` → creates `SceneManager` → calls `Initialize()` then `Run()`.
+`Main.cpp` → creates `SceneManager` → calls `Initialize()` then `Run()`. `_CrtDumpMemoryLeaks()` runs at exit for leak detection.
 
 `SceneManager` owns the game loop: polls SDL events, drives ImGui frames, then calls `currentScene->Update()` / `RenderBackground()` / `Render()` / `DrawGui()` each tick. The exact order within a frame is:
 
@@ -73,12 +73,16 @@ Concrete scenes:
 
 Each major game object follows the same `OnCreate / Update / Render / OnDestroy` pattern and is owned (raw pointer) by `SceneMuntasir`:
 
-- **`Player`** — four mesh components: ship body, cockpit, attachment, and thrust flame. Handles WASD movement with velocity/friction physics, health/lives, Z-roll on W/S (5° intentional wobble — do not change without asking), shield activation with sweep-glow animation, and state-restore setters used by the save/load system.
-- **`Enemy`** — manages three enemy pools: `ASTEROID` (large, multi-hit), `smallAsteroid` (faster, lower HP), and `BOT01` (wave 2, Y-axis steering toward the player). Exposes `GetAsteroidPositions()` / `GetSmallAsteroidPositions()` / `GetBot01Positions()` for collision. Each enemy has per-instance HP and scale; `DamageAsteroid()` / `DamageSmallAsteroid()` / `DamageBot01()` return `true` when the enemy dies. Debris particles (`struct Debris`) spawn on hit and on kill with different counts.
-- **`Bullet`** — two pools: straight laser shots and homing missiles. Missiles use proportional-navigation (PN) guidance with a brief straight-flight launch phase before homing kicks in. Re-acquires nearest target if the locked one is destroyed mid-flight.
+- **`Player`** — four mesh components: ship body, cockpit, attachment, and thrust flame. Handles WASD movement with velocity/friction physics, health/lives, Z-roll on W/S (5° intentional wobble — do not change without asking), shield activation with Fresnel rim animation, and state-restore setters used by the save/load system.
+- **`Enemy`** — manages three enemy pools tracked as parallel `std::vector`s: large asteroids (6 HP), small asteroids (3 HP), and Bot01 (10 HP, wave 2). Note: the `EnemyType` enum only has `ASTEROID` and `BOT01` — `smallAsteroid` is a separate internal pool without its own enum value. Exposes `GetAsteroidPositions()` / `GetSmallAsteroidPositions()` / `GetBot01Positions()` for collision. `DamageX()` returns `true` on kill. Bot01 has a per-instance `bot01HitTimers` for a white-flash-on-hit effect. Debris particles (`struct Debris`) spawn on hit and on kill with different counts.
+- **`Bullet`** — two pools: straight laser shots and homing missiles. Missiles use proportional-navigation (PN) guidance (`missileNavigationGain`) with a brief straight-flight launch phase before homing kicks in. Re-acquires nearest target if the locked one is destroyed mid-flight.
 - **`Environment`** — ImGui-drawn starfield scrolling background. Supports `SPACE` and `WATER` environment types (water adds jitter and a speed multiplier).
 
 Collision detection lives in `SceneMuntasir::Update()` — it iterates bullet/missile position vectors against enemy position vectors and calls `DamageX()` / `RemoveX()` manually by index.
+
+### World coordinate space
+
+All game objects are placed at Z = -10. Enemies spawn at X = 15 and are despawned when X < -15. Player Y is bounded within roughly ±3.5 to ±5 units. Bot01 begins spawning after `totalTime > 30.0f` (the wave progression timer stored in `Enemy` and persisted in `SaveData`).
 
 ### RPG shard system
 
@@ -111,7 +115,7 @@ Single shader pair: `shaders/alphaWingVert.glsl` + `shaders/alphaWingFrag.glsl`.
 
 The fragment shader has two modes selected by the `emissive` uniform:
 - `emissive == 0` → Phong lighting (ambient + diffuse + specular).
-- `emissive > 0.5` → flat color with three animated crescent glints (shield effect). Glow points are passed as `shieldGlowPointA/B/C` uniforms computed in `Player::Update()`.
+- `emissive > 0.5` → Fresnel rim effect (transparent at center, opaque at silhouette edge). Used for the shield bubble; back faces are culled by the caller so only the outer surface renders. No extra uniforms are required beyond `color`, `lightPos`, and `viewPos`.
 
 Uniforms are cached by name in `Shader`'s `unordered_map<string, GLuint>` and retrieved via `GetUniformID()`.
 
@@ -121,8 +125,8 @@ Uniforms are cached by name in `Shader`'s `unordered_map<string, GLuint>` and re
 
 Two audio paths exist in parallel:
 
-1. **Per-scene SDL3 streams** — `SceneMuntasir` holds its own `SDL_AudioStream* audioPlayer` (music) and `SDL_AudioStream* sfxPlayer` (SFX). `Sound::Play()` queues a WAV into the given stream.
-2. **`SoundManager`** — a pooled manager with one BGM stream and 12 SFX pipes (`PIPE1`–`PIPE12`). Currently present but not wired into `SceneMuntasir`; it is the intended replacement for the per-scene streams.
+1. **Per-scene SDL3 streams** — `SceneMuntasir` holds its own `SDL_AudioStream* audioPlayer` (music) and `SDL_AudioStream* sfxPlayer` (SFX), both opened at 44100 Hz S16 stereo. `Sound::Play()` queues a WAV into the given stream.
+2. **`SoundManager`** — a pooled manager with one BGM stream and 12 SFX pipes (`PIPE1`–`PIPE12`), defaulting to 48000 Hz. Currently present but not wired into `SceneMuntasir`; it is the intended replacement for the per-scene streams.
 
 Music and SFX volumes are stored in `SaveData` and applied via ImGui sliders in `DrawGui()`.
 
