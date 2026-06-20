@@ -97,7 +97,7 @@ public:
 	std::vector<Vec3>& GetSmallAsteroidPositions() { return smallAsteroidPositions; }
 	std::vector<Vec3>& GetBot01Positions()         { return bot01Positions; }
 
-	// Getters for missile guidance (enemies only ever move along -x)
+	// Getters for missile guidance
 	float GetAsteroidSpeed()      const { return asteroidSpeed; }
 	float GetSmallAsteroidSpeed() const { return smallAsteroidSpeed; }
 	float GetBot01Speed()         const { return bot01Speed; }
@@ -106,12 +106,12 @@ public:
 	float GetTotalTime()        const { return totalTime; }
 	void  SetTotalTime(float t)       { totalTime = t; }
 
-	// Damage (bullet/missile hits — multi-hit destructible)
+	// Damage
 	bool DamageAsteroid(int index);
 	bool DamageSmallAsteroid(int index);
 	bool DamageBot01(int index);
 
-	// Remove by index (instant kill — player ram, or off-screen cleanup)
+	// Remove by index
 	void RemoveAsteroid(int index);
 	void RemoveSmallAsteroid(int index);
 	void RemoveBot01(int index);

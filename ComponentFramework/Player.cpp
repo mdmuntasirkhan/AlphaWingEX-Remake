@@ -137,7 +137,7 @@ void Player::Update(float deltaTime) {
 	if (keys[SDL_SCANCODE_A]) inputDir.x -= 1.0f;
 	if (keys[SDL_SCANCODE_D]) inputDir.x += 1.0f;
 
-	// Push the ship (function)
+	// Push the ship
 	velocity += inputDir * thrustPower * deltaTime;
 
 	// Friction
@@ -240,7 +240,7 @@ void Player::Render(Shader* shader,
 
 	// Shield Mesh
 	if (shieldActive) {
-		// Turn ON transparency; cull back faces so the dome interior is invisible
+		// Turn ON transparency;
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glDepthMask(GL_FALSE);

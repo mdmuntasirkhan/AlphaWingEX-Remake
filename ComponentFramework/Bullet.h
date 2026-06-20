@@ -28,17 +28,17 @@ private:
 	// Homing Missile
 	Mesh* missileMesh;
 	std::vector<Vec3> missilePositions;
-	std::vector<Vec3> missileVelocities; // current heading*speed - drives PN steering
+	std::vector<Vec3> missileVelocities;	// current heading*speed - drives PN steering
 	std::vector<MissileTargetType> missileTargetTypes;
 	std::vector<int> missileTargetIndices;
 	std::vector<float> missileLaunchTimers;
-	float missileLaunchDuration; // fly straight forward for this long before homing kicks in
+	float missileLaunchDuration;			// fly straight forward for this long before homing kicks in
 	float missileSpeed;
 
 	// Proportional navigation guidance tuning
-	float missileNavigationGain;	 // "N" in the PN law - higher = more aggressive turns
-	float missileMaxLateralAccel;	 // clamp so PN can't whip the missile around instantly
-	float missileTerminalRange;	 // once this close to the real target, floor the throttle
+	float missileNavigationGain;		 // "N" in the PN law - higher = more aggressive turns
+	float missileMaxLateralAccel;		 // clamp so PN can't whip the missile around instantly
+	float missileTerminalRange;			// once this close to the real target, floor the throttle
 	float missileTerminalSpeedMultiplier;
 
 	// Homing missile supply system
@@ -51,8 +51,7 @@ private:
 	float fireCooldown;
 	float fireCooldownTimer;
 
-	// Search both enemy lists for whichever is nearest to fromPosition - used to
-	// re-acquire a target after the locked one is destroyed mid-flight.
+	// Search both enemy lists for whichever is nearest to fromPosition
 	bool FindNearestTarget(const Vec3& fromPosition,
 		const std::vector<Vec3>& asteroidPositions,
 		const std::vector<Vec3>& bot01Positions,

@@ -45,7 +45,7 @@ public:
     bool OnCreate(float width, float height);
     void OnDestroy();
     void Update(float deltaTime);
-    void Render() const;  // uses ImGui background draw list
+    void Render() const;
 
     // Getters
     EnvironmentType GetType() const { return currentType; }

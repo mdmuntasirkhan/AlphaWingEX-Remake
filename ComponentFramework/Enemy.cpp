@@ -93,7 +93,7 @@ void Enemy::Update(float deltaTime, float playerY) {
 	totalTime += deltaTime;
 	thrustTimer += deltaTime;
 
-	// --- Large asteroids ---
+	// Large asteroids
 	asteroidSpawnTimer += deltaTime;
 	if (asteroidSpawnTimer >= asteroidSpawnInterval) {
 		asteroidSpawnTimer = 0.0f;
@@ -118,7 +118,7 @@ void Enemy::Update(float deltaTime, float playerY) {
 		}
 	}
 
-	// --- Small asteroids ---
+	// Small asteroids
 	smallAsteroidSpawnTimer += deltaTime;
 	if (smallAsteroidSpawnTimer >= smallAsteroidSpawnInterval) {
 		smallAsteroidSpawnTimer = 0.0f;
@@ -143,7 +143,7 @@ void Enemy::Update(float deltaTime, float playerY) {
 		}
 	}
 
-	// --- Bot01 (wave 2, after 30 s) ---
+	// Bot01 (wave 2, after 30 s)
 	if (totalTime > 30.0f) {
 		bot01SpawnTimer += deltaTime;
 		if (bot01SpawnTimer >= bot01SpawnInterval) {
@@ -183,7 +183,7 @@ void Enemy::Update(float deltaTime, float playerY) {
 		}
 	}
 
-	// --- Debris ---
+	// Debris
 	for (int i = (int)debris.size() - 1; i >= 0; i--) {
 		debris[i].pos     += debris[i].vel * deltaTime;
 		debris[i].angle   += debris[i].spinSpeed * deltaTime;
@@ -233,7 +233,7 @@ void Enemy::Render(Shader* shader,
 		bot01Mesh->Render();
 	}
 
-	// Bot01 thrust — additive blue electric pulse (faster than player's orange)
+	// Bot01 thrust — additive blue electric pulse
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 	glDepthMask(GL_FALSE);
@@ -346,7 +346,7 @@ bool Enemy::DamageSmallAsteroid(int index) {
 	return false;
 }
 
-// Bot01 takes a bullet/missile hit — no scale change, 10 HP to kill
+// Bot01 takes a bullet/missile hit
 bool Enemy::DamageBot01(int index) {
 	bot01HP[index]--;
 	if (bot01HP[index] <= 0) {
@@ -357,13 +357,13 @@ bool Enemy::DamageBot01(int index) {
 		bot01HitTimers.erase  (bot01HitTimers.begin()   + index);
 		return true;
 	}
-	// Non-kill hit: white flash + tiny yellow sparks
+	// Non kill hit with white flash + tiny yellow sparks
 	bot01HitTimers[index] = 0.12f;
 	SpawnHitDebris(bot01Positions[index], Vec3(1.0f, 0.95f, 0.3f), 3);
 	return false;
 }
 
-// Instant kill — player rams asteroid (full burst)
+// Instant kill
 void Enemy::RemoveAsteroid(int index) {
 	SpawnKillDebris(asteroidPositions[index], Vec3(1.0f, 0.5f, 0.0f), 6);
 	asteroidPositions.erase (asteroidPositions.begin()  + index);

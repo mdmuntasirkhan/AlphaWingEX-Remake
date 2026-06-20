@@ -31,7 +31,7 @@ bool SceneTitle::OnCreate() {
     spec.channels = 2;
     spec.format   = SDL_AUDIO_S16;
 
-    // BGM stream — looped in Update()
+    // BGM stream
     bgmStream = SDL_OpenAudioDeviceStream(
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr);
     if (bgmStream) {
@@ -133,7 +133,7 @@ void SceneTitle::DrawGui() {
     float    cx  = io.DisplaySize.x * 0.5f;
     float    cy  = io.DisplaySize.y * 0.5f;
 
-    // ── title banner ───────────────────────────────────────────────────────
+    // title banner
     ImGui::SetNextWindowPos(ImVec2(cx, cy * 0.32f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(500, 90), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.0f);
@@ -153,7 +153,7 @@ void SceneTitle::DrawGui() {
     ImGui::SetWindowFontScale(1.0f);
     ImGui::End();
 
-    // ── leaderboard panel (right side, always visible) ─────────────────────
+    // leaderboard panel
     {
         float lbW = 290.0f;
         float lbH = 76.0f + (float)(leaderboard.empty() ? 1 : (int)leaderboard.size()) * 21.0f;
@@ -198,7 +198,7 @@ void SceneTitle::DrawGui() {
         ImGui::End();
     }
 
-    // ── main panel ─────────────────────────────────────────────────────────
+    // main panel
     bool atCap = (int)profiles.size() >= SaveData::kMaxProfiles;
     float panH = 0.0f;
     if      (state == TitleState::MAIN)          panH = 200.0f + (showSettings ? 310.0f : 0.0f) + (atCap ? 46.0f : 0.0f);
@@ -217,7 +217,7 @@ void SceneTitle::DrawGui() {
     float btnW   = innerW - 16.0f;
     float btnX   = 8.0f;
 
-    // ── MAIN ──────────────────────────────────────────────────────────────
+    // MAIN
     if (state == TitleState::MAIN) {
         ImGui::SetCursorPosX(btnX);
         if (atCap) ImGui::BeginDisabled();
@@ -265,7 +265,7 @@ void SceneTitle::DrawGui() {
         if (ImGui::IsItemHovered()) PlayHover();
 
         if (showSettings) {
-            // ── Audio ──────────────────────────────────────────────────────
+            // Audio
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
@@ -286,7 +286,7 @@ void SceneTitle::DrawGui() {
                     SDL_SetAudioStreamGain(hoverStream, SaveData::current.sfxVolume * 0.35f);
             }
 
-            // ── Video ──────────────────────────────────────────────────────
+            // Video
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
@@ -338,7 +338,7 @@ void SceneTitle::DrawGui() {
         if (ImGui::IsItemHovered()) PlayHover();
     }
 
-    // ── NEW GAME — enter name ─────────────────────────────────────────────
+    // NEW GAME
     else if (state == TitleState::NEW_GAME_NAME) {
         ImGui::Spacing();
         ImGui::SetCursorPosX(btnX);
@@ -370,7 +370,7 @@ void SceneTitle::DrawGui() {
         if (ImGui::IsItemHovered()) PlayHover();
     }
 
-    // ── LOAD — pick profile ───────────────────────────────────────────────
+    // LOAD Profile
     else if (state == TitleState::LOAD_SELECT) {
         ImGui::SetCursorPosX(btnX);
         ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "Select pilot:");

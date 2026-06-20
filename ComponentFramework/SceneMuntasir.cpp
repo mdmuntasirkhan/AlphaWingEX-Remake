@@ -743,7 +743,7 @@ void SceneMuntasir::DrawGui() {
         uiClickSound->Play(hoverStream);
     };
 
-    // ── Game HUD (always visible) ─────────────────────────────────────────
+    // Game HUD (always visible)
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(280, 210), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.75f);
@@ -795,7 +795,7 @@ void SceneMuntasir::DrawGui() {
 
     ImGui::End();
 
-    // ── Pause Menu ────────────────────────────────────────────────────────
+    // Pause Menu
     if (gamePaused) {
         ImGuiIO& io   = ImGui::GetIO();
         float    panW = 380.0f;
@@ -845,7 +845,7 @@ void SceneMuntasir::DrawGui() {
         chkHov();
 
         if (pauseShowSettings) {
-            // ── Audio ──────────────────────────────────────────────────────
+            // Audio
             ImGui::Spacing();
             ImGui::SetCursorPosX(btnX);
             ImGui::Text("Music Volume");
@@ -877,7 +877,7 @@ void SceneMuntasir::DrawGui() {
             }
             chkHov();
 
-            // ── Video ──────────────────────────────────────────────────────
+            // Video
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
@@ -943,7 +943,7 @@ void SceneMuntasir::DrawGui() {
         ImGui::End();
     }
 
-    // ── Game Over screen ──────────────────────────────────────────────────
+    // Game Over screen
     if (gameOver) {
         ImGuiIO& io = ImGui::GetIO();
         ImGui::SetNextWindowPos(
