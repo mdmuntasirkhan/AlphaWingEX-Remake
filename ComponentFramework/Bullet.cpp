@@ -284,9 +284,15 @@ void Bullet::Render(Shader* shader,
 		mesh->Render();
 	}
 
-	// Draw Missiles
+	// Draw Missiles — rotate to face velocity direction
 	for (int i = 0; i < (int)missilePositions.size(); i++) {
+		float vx = missileVelocities[i].x;
+		float vy = missileVelocities[i].y;
+		float angleDeg = (vx * vx + vy * vy > 0.0001f)
+			? atan2f(vy, vx) * (180.0f / 3.14159265f)
+			: 0.0f;
 		Matrix4 missileMatrix = MMath::translate(missilePositions[i]) *
+								MMath::rotate(angleDeg, Vec3(0.0f, 0.0f, 1.0f)) *
 								MMath::scale(0.3f, 0.3f, 0.3f);
 		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"),
 			1, GL_FALSE, missileMatrix);
