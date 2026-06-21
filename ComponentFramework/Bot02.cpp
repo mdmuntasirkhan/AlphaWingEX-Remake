@@ -149,28 +149,32 @@ void Bot02::Render(Shader* shader,
                     MMath::scale(0.17f, 0.17f, 0.17f);
         glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
 
-        // Body — cyan, flashes white on hit
+        // Body — deep violet, flashes white on hit
         if (hitTimers[i] > 0.0f)
             glUniform4f(shader->GetUniformID("color"), 1.0f, 1.0f, 1.0f, 1.0f);
         else
-            glUniform4f(shader->GetUniformID("color"), 0.1f, 0.8f, 1.0f, 1.0f);
+            glUniform4f(shader->GetUniformID("color"), 0.45f, 0.05f, 0.9f, 1.0f);
         bodyMesh->Render();
 
-        glUniform4f(shader->GetUniformID("color"), 0.2f, 0.5f, 1.0f, 1.0f);
+        // Cockpit — vivid gold, contrasts the violet hull
+        if (hitTimers[i] <= 0.0f)
+            glUniform4f(shader->GetUniformID("color"), 1.0f, 0.72f, 0.0f, 1.0f);
         cockpitMesh->Render();
 
-        glUniform4f(shader->GetUniformID("color"), 0.1f, 0.8f, 1.0f, 1.0f);
+        // Fin — darker violet for depth
+        if (hitTimers[i] <= 0.0f)
+            glUniform4f(shader->GetUniformID("color"), 0.28f, 0.0f, 0.65f, 1.0f);
         finMesh->Render();
     }
 
-    // Thrust — additive cyan pulse
+    // Thrust — additive magenta pulse (hot pink, distinct from Bot01's blue)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     glDepthMask(GL_FALSE);
     glUniform1f(shader->GetUniformID("emissive"), 1.0f);
     float pulse = 0.65f + 0.25f * sinf(thrustTimer * 18.0f)
                         + 0.10f * sinf(thrustTimer * 31.0f);
-    glUniform4f(shader->GetUniformID("color"), 0.0f, pulse, 1.0f, pulse);
+    glUniform4f(shader->GetUniformID("color"), 1.0f, 0.0f, 0.8f * pulse, pulse);
     for (int i = 0; i < (int)positions.size(); i++) {
         Matrix4 m = MMath::translate(positions[i]) *
                     MMath::rotate(180.0f, Vec3(0.0f, 1.0f, 0.0f)) *
@@ -179,8 +183,8 @@ void Bot02::Render(Shader* shader,
         thrustMesh->Render();
     }
 
-    // Bullets — glowing cyan spheres
-    glUniform4f(shader->GetUniformID("color"), 0.2f, 1.0f, 1.0f, 1.0f);
+    // Bullets — bright gold orbs (matches cockpit accent)
+    glUniform4f(shader->GetUniformID("color"), 1.0f, 0.82f, 0.0f, 1.0f);
     for (int i = 0; i < (int)bulletPositions.size(); i++) {
         Matrix4 m = MMath::translate(bulletPositions[i]) *
                     MMath::scale(kBulletScale, kBulletScale, kBulletScale);
@@ -218,7 +222,7 @@ void Bot02::Render(Shader* shader,
 bool Bot02::DamageBot02(int index) {
     hp[index]--;
     if (hp[index] <= 0) {
-        SpawnKillDebris(positions[index], Vec3(0.1f, 0.8f, 1.0f), 8);
+        SpawnKillDebris(positions[index], Vec3(0.6f, 0.0f, 1.0f), 8);
         positions      .erase(positions.begin()       + index);
         targetPositions.erase(targetPositions.begin() + index);
         hoverPhases    .erase(hoverPhases.begin()     + index);
@@ -228,12 +232,12 @@ bool Bot02::DamageBot02(int index) {
         return true;
     }
     hitTimers[index] = 0.12f;
-    SpawnHitDebris(positions[index], Vec3(0.3f, 0.9f, 1.0f), 3);
+    SpawnHitDebris(positions[index], Vec3(1.0f, 0.8f, 0.0f), 3);  // gold sparks on hit
     return false;
 }
 
 void Bot02::RemoveBot02(int index) {
-    SpawnKillDebris(positions[index], Vec3(0.1f, 0.8f, 1.0f), 8);
+    SpawnKillDebris(positions[index], Vec3(0.6f, 0.0f, 1.0f), 8);
     positions      .erase(positions.begin()       + index);
     targetPositions.erase(targetPositions.begin() + index);
     hoverPhases    .erase(hoverPhases.begin()     + index);
