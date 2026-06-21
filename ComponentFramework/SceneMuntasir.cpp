@@ -1155,8 +1155,36 @@ void SceneMuntasir::DrawGui() {
         "PILOT: %s", SaveData::current.profileName.c_str());
     ImGui::Text("SCORE: %-8d   HI: %d", score, SaveData::current.highScore);
     ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.1f, 1.0f), "SHARDS: %d", shardCount);
-    ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.1f, 1.0f),
-        "MISSILES: %d / %d", bullet->GetMissileCount(), bullet->GetMaxMissiles());
+    // Missile slots — solid colored bars (green=ready, dark=spent) + vertical reload bar
+    ImGui::Text("MISSILES");
+    const ImVec2 slotSize(14.0f, 22.0f);
+    const float  slotGap  = 3.0f;
+    int maxM = bullet->GetMaxMissiles();
+    int curM = bullet->GetMissileCount();
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    for (int mi = 0; mi < maxM; mi++) {
+        if (mi > 0) ImGui::SameLine(0.0f, slotGap);
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        bool  ready = (mi < curM);
+        ImU32 fill  = ready ? IM_COL32(55, 210, 80, 255) : IM_COL32(28, 28, 28, 220);
+        dl->AddRectFilled(p, ImVec2(p.x + slotSize.x, p.y + slotSize.y), fill, 2.0f);
+        dl->AddRect(p, ImVec2(p.x + slotSize.x, p.y + slotSize.y), IM_COL32(160, 160, 160, 200), 2.0f);
+        ImGui::Dummy(slotSize);
+    }
+    // Vertical reload bar — fills from the bottom up while a slot reloads
+    if (curM < maxM) {
+        ImGui::SameLine(0.0f, slotGap * 2.0f);
+        float   frac    = bullet->GetReloadFraction();
+        ImVec2  p       = ImGui::GetCursorScreenPos();
+        ImVec2  barSize(7.0f, slotSize.y);
+        float   fillH   = barSize.y * frac;
+        dl->AddRectFilled(p, ImVec2(p.x + barSize.x, p.y + barSize.y), IM_COL32(28, 28, 28, 220), 2.0f);
+        dl->AddRectFilled(ImVec2(p.x, p.y + barSize.y - fillH),
+                          ImVec2(p.x + barSize.x, p.y + barSize.y),
+                          IM_COL32(255, 165, 30, 230), 2.0f);
+        dl->AddRect(p, ImVec2(p.x + barSize.x, p.y + barSize.y), IM_COL32(160, 160, 160, 200), 2.0f);
+        ImGui::Dummy(barSize);
+    }
 
     // Lives
     ImGui::Text("LIVES:");

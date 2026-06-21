@@ -37,16 +37,27 @@ private:
 	float missileSpeed;
 
 	// Proportional navigation guidance tuning
-	float missileNavigationGain;	 // "N" in the PN law - higher = more aggressive turns
-	float missileMaxLateralAccel;	 // clamp so PN can't whip the missile around instantly
-	float missileTerminalRange;	 // once this close to the real target, floor the throttle
-	float missileTerminalSpeedMultiplier;
+	float missileNavigationGain;    // "N" in the PN law
+	float missileMaxLateralAccel;   // clamp so PN can't whip the missile around instantly
+	float missileTerminalRange;     // once this close to target, switch to terminal speed
+
+	// Three-phase speed profile: burst → cruise → terminal
+	float missileLaunchSpeed;       // initial burst speed (fast, exciting)
+	float missileCruiseSpeed;       // slow hunting speed after decel (accurate, never misses)
+	float missileTerminalSpeed;     // final sprint onto the target
+	float missileDecelDuration;     // seconds to decelerate from launch to cruise speed
+
+	// Per-missile lifetime (safety cull — missiles don't die off-screen, only on timeout)
+	float                missileMaxLifetime;
+	std::vector<float>   missileLifetimers;
 
 	// Homing missile supply system
-	int missileCount;
-	int maxMissiles;
+	int   missileCount;
+	int   maxMissiles;
 	float missileReloadTimer;
 	float missileReloadInterval;
+	float missileCooldown;          // per-launch gap — prevents back-to-back firing
+	float missileCooldownTimer;
 
 	// Regular bullet fire rate limit
 	float fireCooldown;
@@ -89,9 +100,11 @@ public:
 	void RemoveAt(int index);
 	void RemoveMissileAt(int index);
 
-	// HUD query
-	int GetMissileCount() const { return missileCount; }
-	int GetMaxMissiles()  const { return maxMissiles; }
+	// HUD queries
+	int   GetMissileCount()          const { return missileCount; }
+	int   GetMaxMissiles()           const { return maxMissiles; }
+	float GetReloadFraction()        const { return (missileReloadInterval > 0.0f) ? missileReloadTimer / missileReloadInterval : 0.0f; }
+	float GetMissileCooldownFraction() const { return (missileCooldown > 0.0f) ? missileCooldownTimer / missileCooldown : 0.0f; }
 
 };
 

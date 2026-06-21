@@ -7,16 +7,22 @@
 Bullet::Bullet() :  mesh{ nullptr },
 					speed{ 10.0f },
 					missileMesh{ nullptr },
-					missileLaunchDuration{ 0.35f },
-					missileSpeed{ 3.0f },
-					missileNavigationGain{ 4.0f },
-					missileMaxLateralAccel{ 40.0f },
-					missileTerminalRange{ 3.0f },
-					missileTerminalSpeedMultiplier{ 1.6f },
-					missileCount{ 5 },
-					maxMissiles{ 5 },
+					missileLaunchDuration{ 0.4f },
+					missileSpeed{ 2.5f },
+					missileNavigationGain{ 4.5f },
+					missileMaxLateralAccel{ 35.0f },
+					missileTerminalRange{ 2.5f },
+					missileLaunchSpeed{ 8.0f },
+					missileCruiseSpeed{ 2.5f },
+					missileTerminalSpeed{ 6.0f },
+					missileDecelDuration{ 1.5f },
+					missileMaxLifetime{ 25.0f },
+					missileCount{ 3 },
+					maxMissiles{ 3 },
 					missileReloadTimer{ 0.0f },
 					missileReloadInterval{ 3.0f },
+					missileCooldown{ 1.0f },
+					missileCooldownTimer{ 0.0f },
 					fireCooldown{ 0.15f },
 					fireCooldownTimer{ 0.0f }
 {
@@ -62,6 +68,7 @@ void Bullet::OnDestroy() {
 	missileTargetTypes.clear();
 	missileTargetIndices.clear();
 	missileLaunchTimers.clear();
+	missileLifetimers.clear();
 }
 
 void Bullet::Spawn(Vec3 position) {
@@ -74,12 +81,15 @@ void Bullet::Spawn(Vec3 position) {
 
 void Bullet::SpawnHoming(Vec3 position, MissileTargetType targetType, int targetIndex) {
 	if (missileCount <= 0) return;
+	if (missileCooldownTimer > 0.0f) return;
 	missileCount--;
+	missileCooldownTimer = missileCooldown;
 	missilePositions.push_back(position);
-	missileVelocities.push_back(Vec3(missileSpeed, 0.0f, 0.0f)); // launch straight forward
+	missileVelocities.push_back(Vec3(missileLaunchSpeed, 0.0f, 0.0f));
 	missileTargetTypes.push_back(targetType);
 	missileTargetIndices.push_back(targetIndex);
 	missileLaunchTimers.push_back(0.0f);
+	missileLifetimers.push_back(0.0f);
 }
 
 bool Bullet::FindNearestTarget(const Vec3& fromPosition,
@@ -121,7 +131,10 @@ void Bullet::Update(float deltaTime,
 	// Fire rate cooldown
 	if (fireCooldownTimer > 0.0f) fireCooldownTimer -= deltaTime;
 
-	// Missile reload — one missile every missileReloadInterval seconds
+	// Per-launch cooldown
+	if (missileCooldownTimer > 0.0f) missileCooldownTimer -= deltaTime;
+
+	// Missile reload — one slot every missileReloadInterval seconds
 	if (missileCount < maxMissiles) {
 		missileReloadTimer += deltaTime;
 		if (missileReloadTimer >= missileReloadInterval) {
@@ -144,15 +157,16 @@ void Bullet::Update(float deltaTime,
 		}
 	}
 
-	// Homing missiles - proportional navigation guidance
+	// Homing missiles - three-phase proportional navigation guidance
 	for (int i = 0; i < (int)missilePositions.size(); i++) {
 		missileLaunchTimers[i] += deltaTime;
+		missileLifetimers[i]   += deltaTime;
 
 		// Re-acquire a target if the locked one is gone (destroyed mid-flight,
 		// or never had one). Never store a raw pointer into Enemy's vectors -
 		// they get resized/erased every frame and a stale pointer is undefined
 		// behaviour (this was the cause of missiles randomly flying backward).
-		int  tidx          = missileTargetIndices[i];
+		int  tidx           = missileTargetIndices[i];
 		bool lockedAsteroid = missileTargetTypes[i] == MissileTargetType::ASTEROID && tidx >= 0 && tidx < (int)asteroidPositions.size();
 		bool lockedBot01    = missileTargetTypes[i] == MissileTargetType::BOT01    && tidx >= 0 && tidx < (int)bot01Positions.size();
 		bool lockedBot02    = missileTargetTypes[i] == MissileTargetType::BOT02    && tidx >= 0 && tidx < (int)bot02Positions.size();
@@ -178,6 +192,7 @@ void Bullet::Update(float deltaTime,
 
 		const Vec3* targetPos = nullptr;
 		Vec3 targetVel(0.0f, 0.0f, 0.0f);
+		float rawDx = 0.0f, rawDy = 0.0f;
 		if (hasTarget && missileTargetTypes[i] == MissileTargetType::ASTEROID) {
 			targetPos = &asteroidPositions[missileTargetIndices[i]];
 			targetVel = asteroidVelocity;
@@ -191,76 +206,79 @@ void Bullet::Update(float deltaTime,
 			targetVel = bot02Velocity;
 		}
 
-		// Fly straight forward for the launch grace period (or if there's no
-		// target at all), THEN start guiding - this stops missiles from
-		// immediately reversing direction the instant they're fired.
+		if (targetPos) {
+			rawDx = targetPos->x - missilePositions[i].x;
+			rawDy = targetPos->y - missilePositions[i].y;
+		}
+
+		// Fly straight during the launch burst; PN guidance starts after it ends.
+		// Low cruise speed gives the PN law plenty of time to steer — the missile
+		// will curve back naturally if it overshoots, producing the near-miss feel.
 		if (missileLaunchTimers[i] >= missileLaunchDuration && targetPos != nullptr) {
 			// --- Predictive lead targeting ---
-			// First-order intercept: estimate where the target will be by the
-			// time the missile (at its current speed) closes the distance to it.
 			float currentSpeed = sqrt(missileVelocities[i].x * missileVelocities[i].x +
 									   missileVelocities[i].y * missileVelocities[i].y);
-			if (currentSpeed < 0.01f) currentSpeed = missileSpeed;
+			if (currentSpeed < 0.01f) currentSpeed = missileCruiseSpeed;
 
-			float rawDx = targetPos->x - missilePositions[i].x;
-			float rawDy = targetPos->y - missilePositions[i].y;
 			float timeToIntercept = sqrt(rawDx * rawDx + rawDy * rawDy) / currentSpeed;
-
 			float leadX = targetPos->x + targetVel.x * timeToIntercept;
 			float leadY = targetPos->y + targetVel.y * timeToIntercept;
 
 			// --- Proportional navigation toward the lead point ---
-			float dx = leadX - missilePositions[i].x;
-			float dy = leadY - missilePositions[i].y;
+			float dx    = leadX - missilePositions[i].x;
+			float dy    = leadY - missilePositions[i].y;
 			float range = sqrt(dx * dx + dy * dy);
 
 			if (range > 0.01f) {
-				// Relative velocity of the (predicted) target w.r.t. the missile
-				float relVelX = targetVel.x - missileVelocities[i].x;
-				float relVelY = targetVel.y - missileVelocities[i].y;
-
-				// Closing speed (positive = closing in) and line-of-sight
-				// rotation rate (2D cross product over range squared) - these
-				// two together are the actual proportional navigation law.
+				float relVelX      = targetVel.x - missileVelocities[i].x;
+				float relVelY      = targetVel.y - missileVelocities[i].y;
 				float closingSpeed = -(dx * relVelX + dy * relVelY) / range;
-				float losRate = (dx * relVelY - dy * relVelX) / (range * range);
+				float losRate      = (dx * relVelY - dy * relVelX) / (range * range);
 
 				float lateralAccel = missileNavigationGain * closingSpeed * losRate;
-				if (lateralAccel > missileMaxLateralAccel) lateralAccel = missileMaxLateralAccel;
+				if (lateralAccel >  missileMaxLateralAccel) lateralAccel =  missileMaxLateralAccel;
 				if (lateralAccel < -missileMaxLateralAccel) lateralAccel = -missileMaxLateralAccel;
 
-				// Apply the commanded acceleration perpendicular to the line of sight
 				float perpX = -(dy / range);
-				float perpY = (dx / range);
+				float perpY =  (dx / range);
 				missileVelocities[i].x += perpX * lateralAccel * deltaTime;
 				missileVelocities[i].y += perpY * lateralAccel * deltaTime;
 			}
-
-			// --- Terminal speed boost: floor it once close to the real target ---
-			float realRange = sqrt(rawDx * rawDx + rawDy * rawDy);
-			float desiredSpeed = (realRange < missileTerminalRange)
-				? missileSpeed * missileTerminalSpeedMultiplier
-				: missileSpeed;
-
-			// Re-normalize to the desired speed, keeping the steered direction
-			float speedNow = sqrt(missileVelocities[i].x * missileVelocities[i].x +
-								   missileVelocities[i].y * missileVelocities[i].y);
-			if (speedNow > 0.01f) {
-				missileVelocities[i].x = missileVelocities[i].x / speedNow * desiredSpeed;
-				missileVelocities[i].y = missileVelocities[i].y / speedNow * desiredSpeed;
-			}
 		}
 
-		// Integrate position from velocity (during the launch grace period
-		// velocity is still the straight-forward vector set at spawn time)
+		// --- Three-phase speed profile ---
+		// Phase 1 (launch burst): fast, straight, exciting.
+		// Phase 2 (decel/cruise): slows to hunting pace so guidance can correct any overshoot.
+		// Phase 3 (terminal): accelerates for a decisive, unavoidable hit.
+		float t = missileLaunchTimers[i];
+		float desiredSpeed;
+		if (t < missileLaunchDuration) {
+			desiredSpeed = missileLaunchSpeed;
+		} else {
+			float cruiseT  = t - missileLaunchDuration;
+			float lerpFrac = (cruiseT < missileDecelDuration) ? (cruiseT / missileDecelDuration) : 1.0f;
+			desiredSpeed   = missileLaunchSpeed + lerpFrac * (missileCruiseSpeed - missileLaunchSpeed);
+		}
+		float realRange = sqrt(rawDx * rawDx + rawDy * rawDy);
+		if (hasTarget && realRange < missileTerminalRange) {
+			desiredSpeed = missileTerminalSpeed;
+		}
+
+		float speedNow = sqrt(missileVelocities[i].x * missileVelocities[i].x +
+							   missileVelocities[i].y * missileVelocities[i].y);
+		if (speedNow > 0.01f) {
+			missileVelocities[i].x = missileVelocities[i].x / speedNow * desiredSpeed;
+			missileVelocities[i].y = missileVelocities[i].y / speedNow * desiredSpeed;
+		}
+
 		missilePositions[i].x += missileVelocities[i].x * deltaTime;
 		missilePositions[i].y += missileVelocities[i].y * deltaTime;
 	}
 
-	// Remove missiles off screen (any edge - PN guidance can curve them anywhere)
+	// Lifetime-only cull — no position bounds. Missiles that overshoot are pulled
+	// back by PN guidance at cruise speed, producing the near-miss-then-return feel.
 	for (int i = (int)missilePositions.size() - 1; i >= 0; i--) {
-		if (missilePositions[i].x > 15.0f || missilePositions[i].x < -15.0f ||
-			missilePositions[i].y > 10.0f || missilePositions[i].y < -10.0f) {
+		if (missileLifetimers[i] > missileMaxLifetime) {
 			RemoveMissileAt(i);
 		}
 	}
@@ -311,4 +329,5 @@ void Bullet::RemoveMissileAt(int index) {
 	missileTargetTypes.erase(missileTargetTypes.begin() + index);
 	missileTargetIndices.erase(missileTargetIndices.begin() + index);
 	missileLaunchTimers.erase(missileLaunchTimers.begin() + index);
+	missileLifetimers.erase(missileLifetimers.begin() + index);
 }
