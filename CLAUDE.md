@@ -32,7 +32,7 @@ AlphaWingEX-Remake is a 2.5D vertical-scrolling space shooter built in C++ with 
 - WASD — move player
 - Space / Left-click — fire laser
 - Right-click — launch homing missile (finite supply, auto-reloads)
-- E — activate shield (5 s active, 15 s cooldown)
+- E — activate shield (8 s active, 2 s cooldown)
 - ESC — toggle pause (opens in-game pause menu; does **not** quit)
 
 There is no automated test suite. Verification is done by running the game.
@@ -74,22 +74,22 @@ Concrete scenes:
 `Enemy` (`Enemy.h`) is an **abstract base class** — it is not a monolithic class managing all pools. It provides the shared `debris` vector, `SpawnHitDebris()` / `SpawnKillDebris()` helpers, and the virtual interface (`Update`, `Render`, `OnDestroy`, `Reset`). The three concrete subclasses are each owned as a separate raw pointer in `SceneMuntasir`:
 
 - **`Asteroid`** — manages two parallel pools: large asteroids (6 HP) and small asteroids (3 HP). Both share one mesh. Exposes `GetAsteroidPositions()` / `GetSmallAsteroidPositions()` for collision. `DamageAsteroid()` / `DamageSmallAsteroid()` return `true` on kill. Debris spawns on hit and on kill.
-- **`Bot01`** — wave-based enemy (10 HP). Steers toward the player's Y position. Has a `totalTime` wave-progression timer (persisted in `SaveData`). Begins spawning after `totalTime > 30.0f`. Exposes `GetBot01Positions()`. Per-instance `bot01HitTimers` drive a white-flash-on-hit effect. `PushX()` / `PushY()` apply missile knockback. `IsWaveComplete()` / `ResetWave()` control wave flow. `DamageBot01()` returns `true` on kill.
-- **`Bot02`** — mini-boss enemy (20 HP). Hovers at a fixed world-X position (`kHoverX = 6.0f`) and oscillates vertically. Max 2 active at a time. Has its own projectile pool (`GetBulletPositions()` / `GetBulletVelocities()`) and fires at the player every `kFireInterval = 3.0f` seconds. Four mesh parts: body, cockpit, fin, thrust — plus a fragment mesh (asteroid shape) and a dedicated bullet mesh. Bot02 bullets must be handled separately in collision detection. **Note:** `MissileTargetType` only covers `ASTEROID` and `BOT01` — homing missiles cannot lock onto Bot02.
+- **`Bot01`** — wave-based enemy (10 HP). Steers toward the player's Y position. Has a `totalTime` wave-progression timer (persisted in `SaveData`). Spawns in waves of 5, one every 6 seconds (`bot01SpawnInterval`), starting immediately when the scene loads. Exposes `GetBot01Positions()`. Per-instance `bot01HitTimers` drive a white-flash-on-hit effect. `PushX()` / `PushY()` apply missile knockback. `IsWaveComplete()` / `ResetWave()` control wave flow. `DamageBot01()` returns `true` on kill.
+- **`Bot02`** — mini-boss enemy (20 HP). Hovers at a fixed world-X position (`kHoverX = 6.0f`) and oscillates vertically. Max 2 active at a time. Has its own projectile pool (`GetBulletPositions()` / `GetBulletVelocities()`) and fires at the player every `kFireInterval = 3.0f` seconds. Four mesh parts: body, cockpit, fin, thrust — plus a fragment mesh (asteroid shape) and a dedicated bullet mesh. Bot02 bullets must be handled separately in collision detection. `MissileTargetType` covers `ASTEROID`, `BOT01`, and `BOT02` — homing missiles prioritise Bot02 first.
 
 ### Game objects in SceneMuntasir
 
 - **`Player`** — four mesh components: ship body, cockpit, attachment, and thrust flame. Handles WASD movement with velocity/friction physics, health/lives, Z-roll on W/S (5° intentional wobble — do not change without asking), shield activation with Fresnel rim animation, and state-restore setters used by the save/load system. Shield collision is elliptical: X half-axis 1.05, Y half-axis 0.75 world units.
-- **`Bullet`** — two pools: straight laser shots and homing missiles. Missiles use proportional-navigation (PN) guidance (`missileNavigationGain`) with a brief straight-flight launch phase before homing kicks in. Re-acquires nearest target if the locked one is destroyed mid-flight. Target acquisition priority: Bot01 first, then large asteroids.
+- **`Bullet`** — two pools: straight laser shots and homing missiles. Missiles use proportional-navigation (PN) guidance (`missileNavigationGain`) with a brief straight-flight launch phase before homing kicks in. Re-acquires nearest target if the locked one is destroyed mid-flight. Also upgrades target mid-flight if a higher-priority tier appears. Target acquisition priority: Bot02 first, then Bot01, then large asteroids.
 - **`Environment`** — ImGui-drawn starfield scrolling background. Supports `SPACE` and `WATER` environment types (water adds jitter and a speed multiplier).
 
 Collision detection lives in `SceneMuntasir::Update()` — all shapes are **ellipses**, not circles. Each enemy type uses different half-axis constants. The method iterates bullet / missile / shield position vectors against enemy position vectors and calls the appropriate `DamageX()` / `RemoveX()` by index.
 
-**Score values:** large asteroid kill = 50 pts, small asteroid kill = 25 pts, Bot01 kill = 100 pts. Shield kills score at reduced rates (10/5 pts). Shards dropped on kill: large asteroid = 3, small = 2, Bot01 = 5 (7 from missile kill), Bot01 missile non-kill hit = 2.
+**Score values:** large asteroid kill = 50 pts, small asteroid kill = 25 pts, Bot01 kill = 100 pts, Bot02 kill = 300 pts (bullet, missile, or ricochet). Shield kills score at reduced rates (10/5 pts). Shards dropped on kill: large asteroid = 3, small = 2, Bot01 = 5 (7 from missile kill), Bot01 missile non-kill hit = 2, Bot02 bullet kill = 8, Bot02 missile kill = 10, Bot02 ricochet kill = 8.
 
 ### World coordinate space
 
-All game objects are placed at Z = -10. Enemies spawn at X = 15 and are despawned when X < -15. Player Y is bounded within roughly ±3.5 to ±5 units. Bot01 begins spawning after `totalTime > 30.0f` (the wave progression timer stored in `Bot01` and persisted in `SaveData`). Firing the laser or missile applies a negative-X recoil impulse to the player.
+All game objects are placed at Z = -10. Enemies spawn at X = 15 and are despawned when X < -15. Player Y is bounded within roughly ±4.5 units (hard clamp in `Player::Update()`). Bot01 begins spawning immediately when the scene starts, one every 6 seconds. The `totalTime` counter in `Bot01` is only used for wave-progression persistence via `SaveData`. Firing the laser or missile applies a negative-X recoil impulse to the player.
 
 ### RPG shard system
 
@@ -108,7 +108,7 @@ Enemies drop `Shard` structs (pos, vel, spin) when killed. Shards drift toward t
 
 Fixed perspective camera set once in `SceneMuntasir::OnCreate()`:
 - View: `MMath::lookAt(Vec3(0,0,0), Vec3(0,0,-1), Vec3(0,1,0))` — camera never moves.
-- Projection: 45° FOV, 16:9 aspect, 0.1–100 clip range.
+- Projection: 70° FOV, aspect from active resolution, 0.1–100 clip range.
 - Player and enemies move through the world; the camera is stationary.
 
 ### Rendering pipeline
@@ -121,7 +121,7 @@ The fragment shader has two modes selected by the `emissive` uniform:
 
 Uniforms are cached by name in `Shader`'s `unordered_map<string, GLuint>` and retrieved via `GetUniformID()`.
 
-`RenderBackground()` runs before `Render()` each frame. `Environment` draws via `ImGui::GetBackgroundDrawList()` in `RenderBackground()`, bypassing OpenGL entirely. This is why `RenderBackground()` is a separate virtual — it keeps ImGui background drawing decoupled from the 3D pass.
+`RenderBackground()` runs before `Render()` each frame. It clears to black and draws the nebula gradient via GL scissor. `Environment` (the starfield) draws via `ImGui::GetBackgroundDrawList()` inside `Render()` — called after all 3D objects so the stars sit on top as small foreground dots. `RenderBackground()` is a separate virtual to keep the OpenGL clear/nebula pass decoupled from the 3D draw pass.
 
 ### Light position constraint
 
