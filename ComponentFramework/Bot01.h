@@ -25,7 +25,8 @@ private:
 	float bot01Speed;
 	float bot01SpawnTimer;
 	float bot01SpawnInterval;
-	float totalTime;			// wave-progression timer (save/load)
+	float totalTime;
+	bool  spawningEnabled;			// wave-progression timer (save/load)
 
 	int waveSize;				// bots to spawn per wave
 	int waveSpawned;			// how many have been spawned this wave
@@ -50,6 +51,7 @@ public:
 	// True once all waveSize bots have spawned AND all are gone (killed/despawned)
 	bool IsWaveComplete() const { return waveSpawned >= waveSize && bot01Positions.empty(); }
 	void ResetWave()             { waveSpawned = 0; bot01SpawnTimer = 0.0f; }
+	void SetSpawningEnabled(bool enabled) { spawningEnabled = enabled; }
 
 	bool DamageBot01(int index, int amount = 1);
 	void RemoveBot01(int index);

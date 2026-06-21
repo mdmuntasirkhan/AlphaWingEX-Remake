@@ -73,7 +73,13 @@ private:
 
 	// Auto-save
 	float autoSaveTimer;
-	static constexpr float kAutoSaveInterval = 10.0f; // save every 10 s
+	static constexpr float kAutoSaveInterval = 10.0f;
+
+	// Phase-based enemy progression timer
+	float sceneTime;
+	static constexpr float kPhase2Start = 40.0f;   // Bot01 joins
+	static constexpr float kPhase3Start = 115.0f;  // Bot02 joins, Bot01 pauses
+	static constexpr float kPhase4Start = 140.0f;  // Both active
 
 	// Explosion cooldown
 	float explosionCooldown;

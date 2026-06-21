@@ -12,7 +12,8 @@ Asteroid::Asteroid() :
 	asteroidSpawnTimer{ 0.0f },
 	asteroidSpawnInterval{ 3.2f },
 	smallAsteroidSpawnTimer{ 0.0f },
-	smallAsteroidSpawnInterval{ 2.0f }
+	smallAsteroidSpawnInterval{ 2.0f },
+	spawningEnabled{ true }
 {
 }
 
@@ -48,8 +49,8 @@ void Asteroid::OnDestroy() {
 
 void Asteroid::Update(float deltaTime, float /*playerX*/, float /*playerY*/) {
 	// Large asteroids
-	asteroidSpawnTimer += deltaTime;
-	if (asteroidSpawnTimer >= asteroidSpawnInterval) {
+	if (spawningEnabled) asteroidSpawnTimer += deltaTime;
+	if (spawningEnabled && asteroidSpawnTimer >= asteroidSpawnInterval) {
 		asteroidSpawnTimer = 0.0f;
 		float randomY = ((rand() % 25) - 12) * 0.5f; // ±6.0, matches visible Y range
 		asteroidPositions.push_back(Vec3(15.0f, randomY, -10.0f));
@@ -73,8 +74,8 @@ void Asteroid::Update(float deltaTime, float /*playerX*/, float /*playerY*/) {
 	}
 
 	// Small asteroids
-	smallAsteroidSpawnTimer += deltaTime;
-	if (smallAsteroidSpawnTimer >= smallAsteroidSpawnInterval) {
+	if (spawningEnabled) smallAsteroidSpawnTimer += deltaTime;
+	if (spawningEnabled && smallAsteroidSpawnTimer >= smallAsteroidSpawnInterval) {
 		smallAsteroidSpawnTimer = 0.0f;
 		float randomY = ((rand() % 25) - 12) * 0.5f; // ±6.0, matches visible Y range
 		smallAsteroidPositions.push_back(Vec3(15.0f, randomY, -10.0f));

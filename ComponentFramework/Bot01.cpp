@@ -18,7 +18,8 @@ Bot01::Bot01() :
 	bot01SpawnInterval{ 10.0f },
 	totalTime{ 0.0f },
 	waveSize{ 5 },
-	waveSpawned{ 0 }
+	waveSpawned{ 0 },
+	spawningEnabled{ true }
 {
 }
 
@@ -74,7 +75,7 @@ void Bot01::Update(float deltaTime, float playerX, float playerY) {
 	totalTime   += deltaTime;
 	thrustTimer += deltaTime;
 
-	if (waveSpawned < waveSize) {
+	if (spawningEnabled && waveSpawned < waveSize) {
 		bot01SpawnTimer += deltaTime;
 		if (bot01SpawnTimer >= bot01SpawnInterval) {
 			bot01SpawnTimer = 0.0f;

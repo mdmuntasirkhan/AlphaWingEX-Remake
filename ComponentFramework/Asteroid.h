@@ -26,6 +26,7 @@ private:
 	float asteroidSpawnInterval;
 	float smallAsteroidSpawnTimer;
 	float smallAsteroidSpawnInterval;
+	bool  spawningEnabled;
 
 public:
 	Asteroid();
@@ -42,6 +43,8 @@ public:
 	std::vector<Vec3>& GetSmallAsteroidPositions() { return smallAsteroidPositions; }
 	float GetAsteroidSpeed()      const { return asteroidSpeed; }
 	float GetSmallAsteroidSpeed() const { return smallAsteroidSpeed; }
+
+	void SetSpawningEnabled(bool enabled) { spawningEnabled = enabled; }
 
 	bool DamageAsteroid(int index, int amount = 1);
 	bool DamageSmallAsteroid(int index, int amount = 1);

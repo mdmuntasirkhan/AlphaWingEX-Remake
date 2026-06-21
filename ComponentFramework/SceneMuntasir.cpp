@@ -31,6 +31,7 @@ SceneMuntasir::SceneMuntasir() :
     hasLostShards{ false },
     prevLives{ 3 },
     autoSaveTimer{ 0.0f },
+    sceneTime{ 0.0f },
     explosionCooldown{ 2.0f },
     explosionCooldownTimer{ 0.0f },
     audioPlayer{ nullptr },
@@ -411,8 +412,7 @@ void SceneMuntasir::SpawnShards(const Vec3& pos, int count) {
 void SceneMuntasir::Update(const float deltaTime) {
     if (gamePaused) return;
 
-    static float totalTime = 0.0f;
-    totalTime += deltaTime;
+    sceneTime += deltaTime;
 
     // Cooldown timers
     if (explosionCooldownTimer > 0.0f)
@@ -971,11 +971,21 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Wave trigger — all 5 Bot01s killed → spawn Bot02 pair on right side
-    if (bot01->IsWaveComplete() && bot02->GetCount() == 0) {
+    // Phase-based enemy progression
+    // kPhase3Start → kPhase4Start is the "Bot02 only" window — asteroids and Bot01 both pause
+    bool bot01Spawning     = sceneTime >= kPhase2Start &&
+                             (sceneTime < kPhase3Start || sceneTime >= kPhase4Start);
+    bool bot02Spawning     = sceneTime >= kPhase3Start;
+    bool asteroidsSpawning = sceneTime < kPhase3Start || sceneTime >= kPhase4Start;
+
+    bot01->SetSpawningEnabled(bot01Spawning);
+    asteroid->SetSpawningEnabled(asteroidsSpawning);
+
+    if (bot02Spawning && bot02->GetCount() == 0)
         bot02->Spawn(player->GetPosition().y);
+
+    if (bot01->IsWaveComplete())
         bot01->ResetWave();
-    }
 
     // Life-loss detection — after all collision damage this frame.
     int currentLives = player->GetLives();
