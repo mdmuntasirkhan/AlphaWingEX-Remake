@@ -602,6 +602,73 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
+    // === Shield bubble collision — anything entering the ellipse is destroyed ===
+    // Ellipse shape matches the rendered mesh exactly: X half-axis 1.05, Y 0.75 world units.
+    if (player->IsShieldActive()) {
+        const Vec3  sp  = player->GetPosition();
+        const float srx = player->GetShieldRadiusX();
+        const float sry = player->GetShieldRadiusY();
+        const float srx2 = srx * srx;
+        const float sry2 = sry * sry;
+
+        // Large asteroids
+        for (int a = (int)asteroid->GetAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = asteroid->GetAsteroidPositions()[a].x - sp.x;
+            float dy = asteroid->GetAsteroidPositions()[a].y - sp.y;
+            if ((dx*dx)/srx2 + (dy*dy)/sry2 < 1.0f) {
+                Vec3 pos = asteroid->GetAsteroidPositions()[a];
+                if (asteroid->DamageAsteroid(a, 999)) {
+                    SpawnShards(pos, 3);
+                    score += 10;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
+                }
+            }
+        }
+        // Small asteroids
+        for (int a = (int)asteroid->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = asteroid->GetSmallAsteroidPositions()[a].x - sp.x;
+            float dy = asteroid->GetSmallAsteroidPositions()[a].y - sp.y;
+            if ((dx*dx)/srx2 + (dy*dy)/sry2 < 1.0f) {
+                Vec3 pos = asteroid->GetSmallAsteroidPositions()[a];
+                if (asteroid->DamageSmallAsteroid(a, 999)) {
+                    SpawnShards(pos, 2);
+                    score += 5;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
+                }
+            }
+        }
+        // Bot01
+        for (int e = (int)bot01->GetBot01Positions().size() - 1; e >= 0; e--) {
+            float dx = bot01->GetBot01Positions()[e].x - sp.x;
+            float dy = bot01->GetBot01Positions()[e].y - sp.y;
+            if ((dx*dx)/srx2 + (dy*dy)/sry2 < 1.0f) {
+                Vec3 pos = bot01->GetBot01Positions()[e];
+                if (bot01->DamageBot01(e, 999)) {
+                    SpawnShards(pos, 5);
+                    score += 50;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
+                }
+            }
+        }
+        // Bot02 bullets — silently deflected, no score
+        for (int b = (int)bot02->GetBulletPositions().size() - 1; b >= 0; b--) {
+            float dx = bot02->GetBulletPositions()[b].x - sp.x;
+            float dy = bot02->GetBulletPositions()[b].y - sp.y;
+            if ((dx*dx)/srx2 + (dy*dy)/sry2 < 1.0f) {
+                bot02->RemoveBullet(b);
+            }
+        }
+    }
+
     // Asteroid hits player
     for (int a = asteroid->GetAsteroidPositions().size() - 1; a >= 0; a--) {
         float dx = player->GetPosition().x - asteroid->GetAsteroidPositions()[a].x;

@@ -89,6 +89,9 @@ public:
 	bool IsShieldActive() const { return shieldActive; }
 	bool IsShieldOnCooldown() const { return shieldOnCooldown; }
 	float GetShieldCooldownPercent() const { return shieldCooldownTimer / shieldCooldown; }
+	// Elliptical collision half-axes: mesh bounds (±3.5 X, ±2.5 Y) × render scale 0.3
+	float GetShieldRadiusX() const { return 1.05f; }
+	float GetShieldRadiusY() const { return 0.75f; }
 };
 
 #endif // !PLAYER_H
