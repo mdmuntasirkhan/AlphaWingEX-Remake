@@ -13,8 +13,9 @@ private:
 	float thrustTimer;
 
 	std::vector<Vec3>  bot01Positions;
+	std::vector<float> bot01XVelocities;    // spring-based X chase velocity
 	std::vector<float> bot01YVelocities;
-	std::vector<float> bot01XKnockbackVels; // separate from march speed — decays with drag
+	std::vector<float> bot01XKnockbackVels; // missile knockback — kept separate so it doesn't fight the chase
 	std::vector<int>   bot01HP;
 	std::vector<float> bot01HitTimers;
 

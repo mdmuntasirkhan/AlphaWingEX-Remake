@@ -10,9 +10,9 @@ Bot01::Bot01() :
 	bot01ThrustMesh{ nullptr },
 	fragmentMesh{ nullptr },
 	thrustTimer{ 0.0f },
-	bot01SteerForce{ 3.0f },
-	bot01YDamping{ 4.5f },
-	bot01YMaxSpeed{ 2.5f },
+	bot01SteerForce{ 10.0f },
+	bot01YDamping{ 1.5f },
+	bot01YMaxSpeed{ 8.0f },
 	bot01Speed{ 1.2f },
 	bot01SpawnTimer{ 0.0f },
 	bot01SpawnInterval{ 10.0f },
@@ -63,6 +63,7 @@ void Bot01::OnDestroy() {
 		fragmentMesh = nullptr;
 	}
 	bot01Positions.clear();
+	bot01XVelocities.clear();
 	bot01YVelocities.clear();
 	bot01HP.clear();
 	bot01HitTimers.clear();
@@ -79,6 +80,7 @@ void Bot01::Update(float deltaTime, float playerX, float playerY) {
 			bot01SpawnTimer = 0.0f;
 			float spawnY = -3.5f + (rand() % 701) / 100.0f; // random Y in [-3.5, 3.5]
 			bot01Positions.push_back(Vec3(15.0f, spawnY, -10.0f));
+			bot01XVelocities.push_back(0.0f);
 			bot01YVelocities.push_back(0.0f);
 			bot01XKnockbackVels.push_back(0.0f);
 			bot01HP.push_back(10);
@@ -88,31 +90,45 @@ void Bot01::Update(float deltaTime, float playerX, float playerY) {
 	}
 
 	for (int i = 0; i < (int)bot01Positions.size(); i++) {
-		// Normal march + separate X knockback (decays exponentially so it doesn't
-		// fight the AI march — industry approach: keep knockback vector separate)
-		bot01Positions[i].x -= bot01Speed * deltaTime;
+		// Missile knockback — decays fast, kept separate so it doesn't fight the chase spring
 		bot01Positions[i].x += bot01XKnockbackVels[i] * deltaTime;
-		bot01XKnockbackVels[i] *= expf(-9.0f * deltaTime); // ~0.5s full decay
+		bot01XKnockbackVels[i] *= expf(-9.0f * deltaTime);
 		if (fabsf(bot01XKnockbackVels[i]) < 0.01f) bot01XKnockbackVels[i] = 0.0f;
 
-		// Phase 1 — fly straight on X until close to the player's column.
-		// Phase 2 — once within kYSteerThreshold X-units, steer toward player Y.
-		static constexpr float kYSteerThreshold = 7.0f;
-		if (fabsf(bot01Positions[i].x - playerX) <= kYSteerThreshold) {
-			float force = bot01SteerForce * (playerY - bot01Positions[i].y)
-			            - bot01YDamping  * bot01YVelocities[i];
-			bot01YVelocities[i] += force * deltaTime;
-			if (bot01YVelocities[i] >  bot01YMaxSpeed) bot01YVelocities[i] =  bot01YMaxSpeed;
-			if (bot01YVelocities[i] < -bot01YMaxSpeed) bot01YVelocities[i] = -bot01YMaxSpeed;
-		} else {
-			// Dampen any residual Y velocity so the bot holds its entry row
-			bot01YVelocities[i] *= expf(-bot01YDamping * deltaTime);
-		}
+		// Arrival behavior: rush in fast from far, decelerate to a slow tracking hover
+		// once close — classic Craig Reynolds arrival steering.
+		// kSlowingRadius defines where braking begins; kNearSpeed is the close-range cap.
+		static constexpr float kSlowingRadius = 14.0f;
+		static constexpr float kFarSpeed      = 7.0f;
+		static constexpr float kNearSpeed     = 0.6f;
+		float dx   = playerX - bot01Positions[i].x;
+		float dy   = playerY - bot01Positions[i].y;
+		float dist = sqrtf(dx * dx + dy * dy);
+		float t    = dist / kSlowingRadius;
+		if (t > 1.0f) t = 1.0f;
+		float dynamicMaxSpeed = kNearSpeed + (kFarSpeed - kNearSpeed) * t;
+
+		// X spring chase + gentle leftward drift so bots eventually leave the screen
+		float xForce = bot01SteerForce * dx
+		             - bot01YDamping   * bot01XVelocities[i]
+		             - 1.5f;
+		bot01XVelocities[i] += xForce * deltaTime;
+		if (bot01XVelocities[i] >  dynamicMaxSpeed) bot01XVelocities[i] =  dynamicMaxSpeed;
+		if (bot01XVelocities[i] < -dynamicMaxSpeed) bot01XVelocities[i] = -dynamicMaxSpeed;
+		bot01Positions[i].x += bot01XVelocities[i] * deltaTime;
+
+		// Y spring chase
+		float yForce = bot01SteerForce * dy
+		             - bot01YDamping   * bot01YVelocities[i];
+		bot01YVelocities[i] += yForce * deltaTime;
+		if (bot01YVelocities[i] >  dynamicMaxSpeed) bot01YVelocities[i] =  dynamicMaxSpeed;
+		if (bot01YVelocities[i] < -dynamicMaxSpeed) bot01YVelocities[i] = -dynamicMaxSpeed;
 		bot01Positions[i].y += bot01YVelocities[i] * deltaTime;
 	}
 	for (int i = (int)bot01Positions.size() - 1; i >= 0; i--) {
 		if (bot01Positions[i].x < -15.0f) {
 			bot01Positions      .erase(bot01Positions.begin()       + i);
+			bot01XVelocities    .erase(bot01XVelocities.begin()     + i);
 			bot01YVelocities    .erase(bot01YVelocities.begin()     + i);
 			bot01XKnockbackVels .erase(bot01XKnockbackVels.begin()  + i);
 			bot01HP             .erase(bot01HP.begin()              + i);
@@ -201,6 +217,7 @@ bool Bot01::DamageBot01(int index, int amount) {
 	if (bot01HP[index] <= 0) {
 		SpawnKillDebris(bot01Positions[index], Vec3(1.0f, 0.2f, 0.2f), amount > 1 ? 10 : 6);
 		bot01Positions      .erase(bot01Positions.begin()       + index);
+		bot01XVelocities    .erase(bot01XVelocities.begin()     + index);
 		bot01YVelocities    .erase(bot01YVelocities.begin()     + index);
 		bot01XKnockbackVels .erase(bot01XKnockbackVels.begin()  + index);
 		bot01HP             .erase(bot01HP.begin()              + index);
@@ -215,6 +232,7 @@ bool Bot01::DamageBot01(int index, int amount) {
 void Bot01::RemoveBot01(int index) {
 	SpawnKillDebris(bot01Positions[index], Vec3(1.0f, 0.2f, 0.2f), 6);
 	bot01Positions      .erase(bot01Positions.begin()       + index);
+	bot01XVelocities    .erase(bot01XVelocities.begin()     + index);
 	bot01YVelocities    .erase(bot01YVelocities.begin()     + index);
 	bot01XKnockbackVels .erase(bot01XKnockbackVels.begin()  + index);
 	bot01HP             .erase(bot01HP.begin()              + index);
@@ -223,6 +241,7 @@ void Bot01::RemoveBot01(int index) {
 
 void Bot01::Reset() {
 	bot01Positions.clear();
+	bot01XVelocities.clear();
 	bot01YVelocities.clear();
 	bot01XKnockbackVels.clear();
 	bot01HP.clear();
