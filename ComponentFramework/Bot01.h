@@ -49,8 +49,12 @@ public:
 	bool IsWaveComplete() const { return waveSpawned >= waveSize && bot01Positions.empty(); }
 	void ResetWave()             { waveSpawned = 0; bot01SpawnTimer = 0.0f; }
 
-	bool DamageBot01(int index);
+	bool DamageBot01(int index, int amount = 1);
 	void RemoveBot01(int index);
+	void PushY(int index, float impulse) {
+		if (index >= 0 && index < (int)bot01YVelocities.size())
+			bot01YVelocities[index] += impulse;
+	}
 };
 
 #endif // BOT01_H

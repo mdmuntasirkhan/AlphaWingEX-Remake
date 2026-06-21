@@ -219,10 +219,10 @@ void Bot02::Render(Shader* shader,
     }
 }
 
-bool Bot02::DamageBot02(int index) {
-    hp[index]--;
+bool Bot02::DamageBot02(int index, int amount) {
+    hp[index] -= amount;
     if (hp[index] <= 0) {
-        SpawnKillDebris(positions[index], Vec3(0.6f, 0.0f, 1.0f), 8);
+        SpawnKillDebris(positions[index], Vec3(0.6f, 0.0f, 1.0f), amount > 1 ? 14 : 8);
         positions      .erase(positions.begin()       + index);
         targetPositions.erase(targetPositions.begin() + index);
         hoverPhases    .erase(hoverPhases.begin()     + index);
@@ -231,8 +231,8 @@ bool Bot02::DamageBot02(int index) {
         fireTimers     .erase(fireTimers.begin()      + index);
         return true;
     }
-    hitTimers[index] = 0.12f;
-    SpawnHitDebris(positions[index], Vec3(1.0f, 0.8f, 0.0f), 3);  // gold sparks on hit
+    hitTimers[index] = 0.18f;
+    SpawnHitDebris(positions[index], Vec3(1.0f, 0.8f, 0.0f), amount > 1 ? 6 : 3);
     return false;
 }
 

@@ -183,19 +183,18 @@ void Bot01::Render(Shader* shader,
 	}
 }
 
-bool Bot01::DamageBot01(int index) {
-	bot01HP[index]--;
+bool Bot01::DamageBot01(int index, int amount) {
+	bot01HP[index] -= amount;
 	if (bot01HP[index] <= 0) {
-		SpawnKillDebris(bot01Positions[index], Vec3(1.0f, 0.2f, 0.2f), 6);
+		SpawnKillDebris(bot01Positions[index], Vec3(1.0f, 0.2f, 0.2f), amount > 1 ? 10 : 6);
 		bot01Positions.erase  (bot01Positions.begin()   + index);
 		bot01YVelocities.erase(bot01YVelocities.begin() + index);
 		bot01HP.erase         (bot01HP.begin()          + index);
 		bot01HitTimers.erase  (bot01HitTimers.begin()   + index);
 		return true;
 	}
-	// Non-kill hit: white flash + tiny yellow sparks
-	bot01HitTimers[index] = 0.12f;
-	SpawnHitDebris(bot01Positions[index], Vec3(1.0f, 0.95f, 0.3f), 3);
+	bot01HitTimers[index] = 0.18f;
+	SpawnHitDebris(bot01Positions[index], Vec3(1.0f, 0.95f, 0.3f), amount > 1 ? 6 : 3);
 	return false;
 }
 

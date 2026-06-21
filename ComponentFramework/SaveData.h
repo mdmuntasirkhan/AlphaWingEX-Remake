@@ -60,6 +60,11 @@ struct SaveData {
     bool Load(const std::string& name);
     void Reset();
 
+    // Machine-level video/audio prefs — stored in settings.dat, NOT per-profile.
+    // SceneManager uses these so video changes never touch a profile file.
+    void SaveMachineSettings() const;
+    void LoadMachineSettings();
+
     // Lists all profile names found on disk (max kMaxProfiles)
     static std::vector<std::string> GetProfileList();
 

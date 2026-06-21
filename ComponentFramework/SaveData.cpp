@@ -107,6 +107,30 @@ bool SaveData::DeleteProfile(const std::string& name) {
     return std::remove(path.c_str()) == 0;
 }
 
+void SaveData::SaveMachineSettings() const {
+    std::ofstream f("settings.dat");
+    if (!f) return;
+    f << "musicvolume " << musicVolume              << "\n"
+      << "sfxvolume "   << sfxVolume                << "\n"
+      << "fullscreen "  << (fullscreen ? 1 : 0)     << "\n"
+      << "resindex "    << resolutionIndex           << "\n"
+      << "vsyncmode "   << vsyncMode                 << "\n";
+}
+
+void SaveData::LoadMachineSettings() {
+    std::ifstream f("settings.dat");
+    if (!f) return;
+    std::string key;
+    while (f >> key) {
+        if      (key == "musicvolume") f >> musicVolume;
+        else if (key == "sfxvolume")   f >> sfxVolume;
+        else if (key == "fullscreen")  { int v; f >> v; fullscreen = (v != 0); }
+        else if (key == "resindex")    f >> resolutionIndex;
+        else if (key == "vsyncmode")   f >> vsyncMode;
+        else { std::string skip; f >> skip; }
+    }
+}
+
 std::vector<std::string> SaveData::GetProfileList() {
     std::vector<std::string> list;
     struct _finddata_t fd;

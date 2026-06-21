@@ -20,10 +20,16 @@ What is in this game?
     - Enemy spawn (6+ types)
         - Asteroid
         - Bot01
+        - Bot02
+        - 
     - weapon
         - Laser (done)
-        - Missiles (TBA)
+        - Missiles (done)
+        - Shield (done)
+        - 
 - Background Music
+    - Keeping the original chores with my own remix(working progress)
+    - For now Level01 has an uplift beat from dedmou5, experimenting with tempo + gameplay sync memchanic(Experiment + work in progress)
 
 ---
 
@@ -46,7 +52,7 @@ How to run this on your PC?
 
 - Download and install Visual Studio on windows (other OS!, you are on your own for now)
 - Setup GameDev library (find the GameDev.7z inside, extract it directly to your C drive "C:\GameDev")
-- Clone/Download, Open ComponentFramework.sln in VS and run in x86, "F3" for the testing scene
+- Clone/Download, Open ComponentFramework.sln in VS and run in x86
 - Enjoy
 
 ---
@@ -57,6 +63,21 @@ How to play?
 - Spacebar/M1 to shoot
 - M2 to missile
 
+---
 
-Sincierly,
+# Screenshots
+
+![Title](ComponentFramework/screenshots/title.png)
+![Settings](ComponentFramework/screenshots/settings.png)
+![Profile](ComponentFramework/screenshots/profile.png)
+![Gameplay](ComponentFramework/screenshots/gameplay01.png)
+![Gameplay](ComponentFramework/screenshots/gameplay02.png)
+![Gameplay](ComponentFramework/screenshots/gameplay03.png)
+![Gameplay](ComponentFramework/screenshots/gameplay03shield.png)
+![Gameplay](ComponentFramework/screenshots/gameplay04.png)
+![Gameplay](ComponentFramework/screenshots/pause.png)
+![Gameplay](ComponentFramework/screenshots/gameover.png)
+
+
+Sincerely,
 Muntasir

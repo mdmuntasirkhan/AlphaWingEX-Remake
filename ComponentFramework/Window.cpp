@@ -60,23 +60,38 @@ bool Window::OnCreate(std::string name_, int width_, int height_) {
 void Window::SetFullscreen(bool full) {
     SDL_SetWindowFullscreen(window, full);
     if (!full)
-        SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-    // After any fullscreen toggle, query the actual drawable pixel size and
-    // update the GL viewport — without this, the old windowed size stays in
-    // effect and rendering is clipped to the bottom-left of the screen.
-    int w = 0, h = 0;
-    SDL_GetWindowSizeInPixels(window, &w, &h);
-    width = w; height = h;
-    glViewport(0, 0, w, h);
-}
-
-void Window::SetSize(int w, int h) {
-    SDL_SetWindowSize(window, w, h);
-    SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+        CenterInWorkArea();
     int pw = 0, ph = 0;
     SDL_GetWindowSizeInPixels(window, &pw, &ph);
     width = pw; height = ph;
     glViewport(0, 0, pw, ph);
+}
+
+void Window::SetSize(int w, int h) {
+    SDL_SetWindowSize(window, w, h);
+    CenterInWorkArea();
+    int pw = 0, ph = 0;
+    SDL_GetWindowSizeInPixels(window, &pw, &ph);
+    width = pw; height = ph;
+    glViewport(0, 0, pw, ph);
+}
+
+void Window::CenterInWorkArea() {
+    // Use the usable display bounds (excludes taskbar, dock, etc.) so the
+    // window title bar is always visible when returning from fullscreen.
+    SDL_DisplayID display = SDL_GetDisplayForWindow(window);
+    SDL_Rect usable = {};
+    if (SDL_GetDisplayUsableBounds(display, &usable)) {
+        int winW = 0, winH = 0;
+        SDL_GetWindowSize(window, &winW, &winH);
+        int x = usable.x + (usable.w - winW) / 2;
+        int y = usable.y + (usable.h - winH) / 2;
+        // Clamp so the title bar never goes above the top of the work area
+        if (y < usable.y) y = usable.y;
+        SDL_SetWindowPosition(window, x, y);
+    } else {
+        SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    }
 }
 
 void Window::OnDestroy() {

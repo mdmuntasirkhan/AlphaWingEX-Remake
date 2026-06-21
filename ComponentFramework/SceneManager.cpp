@@ -70,6 +70,10 @@ bool SceneManager::Initialize(std::string name_, int width_, int height_) {
 	ImGui_ImplSDL3_InitForOpenGL(window->getWindow(), SDL_GL_GetCurrentContext());
 	ImGui_ImplOpenGL3_Init("#version 450");
 
+	// Restore machine-level video/audio prefs before the first scene starts.
+	// This must come before ApplyVsync so the loaded vsyncMode is used.
+	SaveData::current.LoadMachineSettings();
+
 	// Adaptive sync (FreeSync / G-Sync) → standard vsync → uncapped
 	ApplyVsync(SaveData::current.vsyncMode);
 
@@ -114,11 +118,17 @@ void SceneManager::Run() {
 		// Drain video settings request
 		if (SceneSwitcher::hasVideoRequest) {
 			SceneSwitcher::hasVideoRequest = false;
+			// Exit fullscreen BEFORE resizing — SDL glitches if you resize
+			// a window that is still in fullscreen mode.
+			window->SetFullscreen(SceneSwitcher::videoFullscreen);
 			if (!SceneSwitcher::videoFullscreen)
 				window->SetSize(SceneSwitcher::videoWidth, SceneSwitcher::videoHeight);
-			window->SetFullscreen(SceneSwitcher::videoFullscreen);
 			ApplyVsync(SceneSwitcher::videoVsync);
-			SaveData::current.Save(); // persist video prefs immediately
+			// Write ONLY to settings.dat — never to a profile file.
+			// Without this, the default profileName="Player" caused
+			// profile_Player.dat to be created whenever video was changed
+			// on the title screen before any profile was loaded.
+			SaveData::current.SaveMachineSettings();
 		}
 
 		// Render ImGui

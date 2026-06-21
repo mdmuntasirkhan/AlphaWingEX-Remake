@@ -157,13 +157,13 @@ void Asteroid::Render(Shader* shader,
 	}
 }
 
-bool Asteroid::DamageAsteroid(int index) {
-	asteroidHP[index]--;
-	asteroidScales[index] *= 0.85f;
-	SpawnHitDebris(asteroidPositions[index], Vec3(1.0f, 0.5f, 0.0f), 2);
+bool Asteroid::DamageAsteroid(int index, int amount) {
+	asteroidHP[index] -= amount;
+	for (int i = 0; i < amount; i++) asteroidScales[index] *= 0.88f;
+	SpawnHitDebris(asteroidPositions[index], Vec3(1.0f, 0.5f, 0.0f), amount > 1 ? 5 : 2);
 
 	if (asteroidHP[index] <= 0) {
-		SpawnKillDebris(asteroidPositions[index], Vec3(1.0f, 0.5f, 0.0f), 6);
+		SpawnKillDebris(asteroidPositions[index], Vec3(1.0f, 0.5f, 0.0f), amount > 1 ? 10 : 6);
 		asteroidPositions.erase (asteroidPositions.begin()  + index);
 		asteroidAngles.erase    (asteroidAngles.begin()     + index);
 		asteroidSpinSpeeds.erase(asteroidSpinSpeeds.begin() + index);
@@ -174,13 +174,13 @@ bool Asteroid::DamageAsteroid(int index) {
 	return false;
 }
 
-bool Asteroid::DamageSmallAsteroid(int index) {
-	smallAsteroidHP[index]--;
-	smallAsteroidScales[index] *= 0.78f;
-	SpawnHitDebris(smallAsteroidPositions[index], Vec3(0.6f, 0.6f, 0.6f), 1);
+bool Asteroid::DamageSmallAsteroid(int index, int amount) {
+	smallAsteroidHP[index] -= amount;
+	for (int i = 0; i < amount; i++) smallAsteroidScales[index] *= 0.82f;
+	SpawnHitDebris(smallAsteroidPositions[index], Vec3(0.6f, 0.6f, 0.6f), amount > 1 ? 4 : 1);
 
 	if (smallAsteroidHP[index] <= 0) {
-		SpawnKillDebris(smallAsteroidPositions[index], Vec3(0.6f, 0.6f, 0.6f), 4);
+		SpawnKillDebris(smallAsteroidPositions[index], Vec3(0.6f, 0.6f, 0.6f), amount > 1 ? 8 : 4);
 		smallAsteroidPositions.erase (smallAsteroidPositions.begin()  + index);
 		smallAsteroidAngles.erase    (smallAsteroidAngles.begin()     + index);
 		smallAsteroidSpinSpeeds.erase(smallAsteroidSpinSpeeds.begin() + index);

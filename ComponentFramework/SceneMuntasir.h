@@ -75,11 +75,16 @@ private:
 	float explosionCooldown;
 	float explosionCooldownTimer;
 
+	// Missile hit sound cooldown (separate — shorter than explosion)
+	float missileHitCooldown;
+	float missileHitCooldownTimer;
+
 	// Audio
 	SDL_AudioStream* audioPlayer;
 	SDL_AudioStream* sfxPlayer;
 	Sound* sfxLaser;
 	Sound* sfxExplosion;
+	Sound* sfxMissileHit;
 	Sound* audioTest;
 	float musicVolume;
 	float sfxVolume;

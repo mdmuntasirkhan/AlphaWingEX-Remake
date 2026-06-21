@@ -58,7 +58,7 @@ public:
     std::vector<Vec3>& GetBulletVelocities(){ return bulletVelocities; }
     int GetCount() const { return (int)positions.size(); }
 
-    bool DamageBot02(int index);
+    bool DamageBot02(int index, int amount = 1);
     void RemoveBot02(int index);
     void RemoveBullet(int index);
 };

@@ -31,10 +31,13 @@ SceneMuntasir::SceneMuntasir() :
     autoSaveTimer{ 0.0f },
     explosionCooldown{ 2.0f },
     explosionCooldownTimer{ 0.0f },
+    missileHitCooldown{ 0.15f },
+    missileHitCooldownTimer{ 0.0f },
     audioPlayer{ nullptr },
     sfxPlayer{ nullptr },
     sfxLaser{ nullptr },
     sfxExplosion{ nullptr },
+    sfxMissileHit{ nullptr },
     audioTest{ nullptr },
     musicVolume{ 0.1f },
     sfxVolume{ 0.05f },
@@ -166,6 +169,9 @@ bool SceneMuntasir::OnCreate() {
     sfxExplosion = new Sound("audio/sfx/Explosion03.wav");
     sfxExplosion->OnCreate();
 
+    sfxMissileHit = new Sound("audio/sfx/missileHit.wav");
+    sfxMissileHit->OnCreate();
+
     hoverStream = SDL_OpenAudioDeviceStream(
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &defaultSpec, nullptr, nullptr);
     if (hoverStream) {
@@ -258,6 +264,9 @@ void SceneMuntasir::OnDestroy() {
 
     sfxExplosion->OnDestroy();
     delete sfxExplosion;
+
+    sfxMissileHit->OnDestroy();
+    delete sfxMissileHit;
 
     if (uiClickSound) {
         uiClickSound->OnDestroy();
@@ -363,10 +372,11 @@ void SceneMuntasir::Update(const float deltaTime) {
     static float totalTime = 0.0f;
     totalTime += deltaTime;
 
-    // Explosion cooldown timer
-    if (explosionCooldownTimer > 0.0f) {
+    // Cooldown timers
+    if (explosionCooldownTimer > 0.0f)
         explosionCooldownTimer -= deltaTime;
-    }
+    if (missileHitCooldownTimer > 0.0f)
+        missileHitCooldownTimer -= deltaTime;
 
     // Periodic auto-save (only while alive)
     if (!gameOver) {
@@ -510,41 +520,30 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Missile hits Bot01
-    for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
-        for (int e = bot01->GetBot01Positions().size() - 1; e >= 0; e--) {
+    // Missile hits Bot01 — 4x damage, knockback, SFX+shards on every hit
+    for (int m = (int)bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
+        for (int e = (int)bot01->GetBot01Positions().size() - 1; e >= 0; e--) {
             float dx = bullet->GetMissilePositions()[m].x - bot01->GetBot01Positions()[e].x;
             float dy = bullet->GetMissilePositions()[m].y - bot01->GetBot01Positions()[e].y;
             if ((dx*dx)/(0.65f*0.65f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
+                Vec3 hitPos   = bullet->GetMissilePositions()[m];
                 Vec3 deathPos = bot01->GetBot01Positions()[e];
+                // Impact knockback: push bot off its Y track
+                float impulse = (hitPos.y >= deathPos.y ? 1.0f : -1.0f) * 4.0f;
+                bot01->PushY(e, impulse);
                 bullet->RemoveMissileAt(m);
-                if (bot01->DamageBot01(e)) {
-                    SpawnShards(deathPos, 5);
+                if (bot01->DamageBot01(e, 4)) {
+                    SpawnShards(deathPos, 7);
                     score += 100;
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
                         explosionCooldownTimer = explosionCooldown;
                     }
-                }
-                break;
-            }
-        }
-    }
-
-    // Missile hits large asteroid
-    for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
-        for (int a = asteroid->GetAsteroidPositions().size() - 1; a >= 0; a--) {
-            float dx = bullet->GetMissilePositions()[m].x - asteroid->GetAsteroidPositions()[a].x;
-            float dy = bullet->GetMissilePositions()[m].y - asteroid->GetAsteroidPositions()[a].y;
-            if ((dx*dx)/(0.9f*0.9f) + (dy*dy)/(0.75f*0.75f) < 1.0f) {
-                Vec3 deathPos = asteroid->GetAsteroidPositions()[a];
-                bullet->RemoveMissileAt(m);
-                if (asteroid->DamageAsteroid(a)) {
-                    SpawnShards(deathPos, 3);
-                    score += 50;
-                    if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
-                        explosionCooldownTimer = explosionCooldown;
+                } else {
+                    SpawnShards(deathPos, 2);
+                    if (missileHitCooldownTimer <= 0.0f) {
+                        sfxMissileHit->Play(sfxPlayer);
+                        missileHitCooldownTimer = missileHitCooldown;
                     }
                 }
                 break;
@@ -552,20 +551,53 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Missile hits small asteroid
-    for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
-        for (int a = asteroid->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
+    // Missile hits large asteroid — 3x damage, SFX+shards on every hit
+    for (int m = (int)bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
+        for (int a = (int)asteroid->GetAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = bullet->GetMissilePositions()[m].x - asteroid->GetAsteroidPositions()[a].x;
+            float dy = bullet->GetMissilePositions()[m].y - asteroid->GetAsteroidPositions()[a].y;
+            if ((dx*dx)/(0.9f*0.9f) + (dy*dy)/(0.75f*0.75f) < 1.0f) {
+                Vec3 deathPos = asteroid->GetAsteroidPositions()[a];
+                bullet->RemoveMissileAt(m);
+                if (asteroid->DamageAsteroid(a, 3)) {
+                    SpawnShards(deathPos, 5);
+                    score += 50;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
+                } else {
+                    SpawnShards(deathPos, 2);
+                    if (missileHitCooldownTimer <= 0.0f) {
+                        sfxMissileHit->Play(sfxPlayer);
+                        missileHitCooldownTimer = missileHitCooldown;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    // Missile hits small asteroid — 3x damage (instant kill), SFX+shards
+    for (int m = (int)bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
+        for (int a = (int)asteroid->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
             float dx = bullet->GetMissilePositions()[m].x - asteroid->GetSmallAsteroidPositions()[a].x;
             float dy = bullet->GetMissilePositions()[m].y - asteroid->GetSmallAsteroidPositions()[a].y;
             if ((dx*dx)/(0.5f*0.5f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
                 Vec3 deathPos = asteroid->GetSmallAsteroidPositions()[a];
                 bullet->RemoveMissileAt(m);
-                if (asteroid->DamageSmallAsteroid(a)) {
-                    SpawnShards(deathPos, 2);
+                if (asteroid->DamageSmallAsteroid(a, 3)) {
+                    SpawnShards(deathPos, 3);
                     score += 25;
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
                         explosionCooldownTimer = explosionCooldown;
+                    }
+                } else {
+                    SpawnShards(deathPos, 1);
+                    if (missileHitCooldownTimer <= 0.0f) {
+                        sfxMissileHit->Play(sfxPlayer);
+                        missileHitCooldownTimer = missileHitCooldown;
                     }
                 }
                 break;
@@ -648,20 +680,26 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Missile hits Bot02
-    for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
-        for (int e = bot02->GetPositions().size() - 1; e >= 0; e--) {
+    // Missile hits Bot02 — 4x damage, SFX+shards on every hit
+    for (int m = (int)bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
+        for (int e = (int)bot02->GetPositions().size() - 1; e >= 0; e--) {
             float dx = bullet->GetMissilePositions()[m].x - bot02->GetPositions()[e].x;
             float dy = bullet->GetMissilePositions()[m].y - bot02->GetPositions()[e].y;
             if ((dx*dx)/(0.75f*0.75f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
                 Vec3 deathPos = bot02->GetPositions()[e];
                 bullet->RemoveMissileAt(m);
-                if (bot02->DamageBot02(e)) {
-                    SpawnShards(deathPos, 8);
+                if (bot02->DamageBot02(e, 4)) {
+                    SpawnShards(deathPos, 10);
                     score += 300;
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
                         explosionCooldownTimer = explosionCooldown;
+                    }
+                } else {
+                    SpawnShards(deathPos, 3);
+                    if (missileHitCooldownTimer <= 0.0f) {
+                        sfxMissileHit->Play(sfxPlayer);
+                        missileHitCooldownTimer = missileHitCooldown;
                     }
                 }
                 break;

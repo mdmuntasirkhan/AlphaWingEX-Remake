@@ -43,8 +43,8 @@ public:
 	float GetAsteroidSpeed()      const { return asteroidSpeed; }
 	float GetSmallAsteroidSpeed() const { return smallAsteroidSpeed; }
 
-	bool DamageAsteroid(int index);
-	bool DamageSmallAsteroid(int index);
+	bool DamageAsteroid(int index, int amount = 1);
+	bool DamageSmallAsteroid(int index, int amount = 1);
 	void RemoveAsteroid(int index);
 	void RemoveSmallAsteroid(int index);
 };
