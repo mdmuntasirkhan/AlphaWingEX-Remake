@@ -699,54 +699,70 @@ void SceneMuntasir::Update(const float deltaTime) {
                 }
             }
         }
-        // Bot02 bullets — ricochet off the shield ellipse.
-        // Ellipse normal guards against double-reflect (only triggers when moving inward).
-        // After confirming the bounce, the bullet is redirected at the nearest Bot02
-        // and launched at 2.5× its original speed so the player doesn't need to
-        // aim the shield — just block and it punches back automatically.
-        static constexpr float kRicochetSpeed = 7.5f; // 2.5× kBulletSpeed
+        // Bot02 bullets — moving-reflector ricochet.
+        //
+        // Why bullets always returned to Bot02 before: Bot02 fires straight at the
+        // player, so the incoming direction is antiparallel to the ellipse normal at
+        // contact — pure elastic reflection sends it exactly back. Adding the shield's
+        // own velocity (player velocity) breaks that symmetry: the reflection is
+        // computed in the shield's moving reference frame, so lateral movement "spins"
+        // the outgoing angle, making deflection skill-based rather than automatic.
+        //
+        // Steps (moving-wall / pool-cue physics):
+        //   1. Express bullet velocity relative to the moving shield: v_rel = v - v_shield
+        //   2. Reflect v_rel elastically off the ellipse normal
+        //   3. Add the shield velocity back to return to world frame
+        //   4. Scale v_shield contribution by kVelInfluence so even slow movement
+        //      visibly steers the shot without feeling random at high speed
+        //   5. Normalize and lock to kRicochetSpeed for consistent punch
+        static constexpr float kRicochetSpeed  = 7.5f;
+        static constexpr float kVelInfluence   = 0.3f; // how much shield motion steers the shot
+        const Vec3 pVel = player->GetVelocity();
         for (int b = (int)bot02->GetBulletPositions().size() - 1; b >= 0; b--) {
             Vec3& bPos = bot02->GetBulletPositions()[b];
             Vec3& bVel = bot02->GetBulletVelocities()[b];
             float rx = bPos.x - sp.x;
             float ry = bPos.y - sp.y;
             if ((rx*rx)/srx2 + (ry*ry)/sry2 < 1.0f) {
-                // Outward ellipse normal — gradient of x²/a² + y²/b²
+                // Ellipse outward normal: gradient of x²/a² + y²/b²
                 float nx = rx / srx2;
                 float ny = ry / sry2;
                 float nlen = sqrtf(nx*nx + ny*ny);
                 if (nlen > 0.0001f) { nx /= nlen; ny /= nlen; }
 
-                if (bVel.x * nx + bVel.y * ny < 0.0f) { // moving inward — valid bounce
-                    // Aim at nearest Bot02; fall back to reflected normal if none present
-                    float aimX = nx, aimY = ny;
-                    const auto& b2pos = bot02->GetPositions();
-                    if (!b2pos.empty()) {
-                        float bestDist = -1.0f;
-                        int   bestIdx  = 0;
-                        for (int e = 0; e < (int)b2pos.size(); e++) {
-                            float ddx = b2pos[e].x - bPos.x;
-                            float ddy = b2pos[e].y - bPos.y;
-                            float dd  = ddx*ddx + ddy*ddy;
-                            if (bestDist < 0.0f || dd < bestDist) { bestDist = dd; bestIdx = e; }
-                        }
-                        float ddx  = b2pos[bestIdx].x - bPos.x;
-                        float ddy  = b2pos[bestIdx].y - bPos.y;
-                        float alen = sqrtf(ddx*ddx + ddy*ddy);
-                        if (alen > 0.001f) { aimX = ddx / alen; aimY = ddy / alen; }
+                // Bullet velocity in shield's reference frame
+                float rvx = bVel.x - pVel.x;
+                float rvy = bVel.y - pVel.y;
+                float relDotN = rvx * nx + rvy * ny;
+
+                if (relDotN < 0.0f) { // moving inward relative to shield — valid bounce
+                    // Elastic reflection in shield frame
+                    rvx -= 2.0f * relDotN * nx;
+                    rvy -= 2.0f * relDotN * ny;
+
+                    // Back to world frame, with scaled player velocity contribution
+                    float outVx = rvx + pVel.x * kVelInfluence;
+                    float outVy = rvy + pVel.y * kVelInfluence;
+
+                    // Normalize and set fixed punch speed
+                    float spd = sqrtf(outVx*outVx + outVy*outVy);
+                    if (spd > 0.001f) {
+                        bVel.x = outVx / spd * kRicochetSpeed;
+                        bVel.y = outVy / spd * kRicochetSpeed;
                     }
-                    bVel.x = aimX * kRicochetSpeed;
-                    bVel.y = aimY * kRicochetSpeed;
                     bot02->MarkBulletReflected(b);
                 }
             }
         }
     }
 
-    // Reflected Bot02 bullets hit Bot02 — 2 damage, shards, score
+    // Reflected Bot02 bullets hit any destructible — consumed on first hit
     for (int b = (int)bot02->GetBulletPositions().size() - 1; b >= 0; b--) {
         if (!bot02->IsBulletReflected(b)) continue;
-        for (int e = (int)bot02->GetPositions().size() - 1; e >= 0; e--) {
+        bool hit = false;
+
+        // Bot02 — 2 damage
+        for (int e = (int)bot02->GetPositions().size() - 1; e >= 0 && !hit; e--) {
             float dx = bot02->GetBulletPositions()[b].x - bot02->GetPositions()[e].x;
             float dy = bot02->GetBulletPositions()[b].y - bot02->GetPositions()[e].y;
             if ((dx*dx)/(0.75f*0.75f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
@@ -755,12 +771,57 @@ void SceneMuntasir::Update(const float deltaTime) {
                 if (bot02->DamageBot02(e, 2)) {
                     SpawnShards(deathPos, 8);
                     score += 300;
-                    if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
-                        explosionCooldownTimer = explosionCooldown;
-                    }
+                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
                 }
-                break;
+                hit = true;
+            }
+        }
+
+        // Bot01 — 2 damage
+        for (int e = (int)bot01->GetBot01Positions().size() - 1; e >= 0 && !hit; e--) {
+            float dx = bot02->GetBulletPositions()[b].x - bot01->GetBot01Positions()[e].x;
+            float dy = bot02->GetBulletPositions()[b].y - bot01->GetBot01Positions()[e].y;
+            if ((dx*dx)/(0.65f*0.65f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
+                Vec3 deathPos = bot01->GetBot01Positions()[e];
+                bot02->RemoveBullet(b);
+                if (bot01->DamageBot01(e, 2)) {
+                    SpawnShards(deathPos, 5);
+                    score += 100;
+                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
+                }
+                hit = true;
+            }
+        }
+
+        // Large asteroid — 3 damage
+        for (int a = (int)asteroid->GetAsteroidPositions().size() - 1; a >= 0 && !hit; a--) {
+            float dx = bot02->GetBulletPositions()[b].x - asteroid->GetAsteroidPositions()[a].x;
+            float dy = bot02->GetBulletPositions()[b].y - asteroid->GetAsteroidPositions()[a].y;
+            if ((dx*dx)/(0.9f*0.9f) + (dy*dy)/(0.75f*0.75f) < 1.0f) {
+                Vec3 deathPos = asteroid->GetAsteroidPositions()[a];
+                bot02->RemoveBullet(b);
+                if (asteroid->DamageAsteroid(a, 3)) {
+                    SpawnShards(deathPos, 3);
+                    score += 50;
+                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
+                }
+                hit = true;
+            }
+        }
+
+        // Small asteroid — 3 damage (instant kill)
+        for (int a = (int)asteroid->GetSmallAsteroidPositions().size() - 1; a >= 0 && !hit; a--) {
+            float dx = bot02->GetBulletPositions()[b].x - asteroid->GetSmallAsteroidPositions()[a].x;
+            float dy = bot02->GetBulletPositions()[b].y - asteroid->GetSmallAsteroidPositions()[a].y;
+            if ((dx*dx)/(0.5f*0.5f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
+                Vec3 deathPos = asteroid->GetSmallAsteroidPositions()[a];
+                bot02->RemoveBullet(b);
+                if (asteroid->DamageSmallAsteroid(a, 3)) {
+                    SpawnShards(deathPos, 2);
+                    score += 25;
+                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
+                }
+                hit = true;
             }
         }
     }

@@ -77,6 +77,7 @@ public:
 	// Damage and Reset
 	void TakeDamage(float amount);
 	void ApplyImpulse(const Vec3& impulse) { velocity += impulse; }
+	Vec3 GetVelocity() const { return velocity; }
 	void Reset();
 
 	// State restore (used by save/load system)
