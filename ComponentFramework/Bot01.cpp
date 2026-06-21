@@ -77,9 +77,7 @@ void Bot01::Update(float deltaTime, float /*playerX*/, float playerY) {
 		bot01SpawnTimer += deltaTime;
 		if (bot01SpawnTimer >= bot01SpawnInterval) {
 			bot01SpawnTimer = 0.0f;
-			// Fixed stack: bottom to top so the column enters as a formation
-			static const float stackY[5] = { -3.0f, -1.5f, 0.0f, 1.5f, 3.0f };
-			float spawnY = stackY[waveSpawned];
+			float spawnY = -3.5f + (rand() % 701) / 100.0f; // random Y in [-3.5, 3.5]
 			bot01Positions.push_back(Vec3(15.0f, spawnY, -10.0f));
 			bot01YVelocities.push_back(0.0f);
 			bot01XKnockbackVels.push_back(0.0f);

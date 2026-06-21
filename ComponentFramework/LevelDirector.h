@@ -49,10 +49,10 @@ private:
     // A mesh chunk currently scrolling through the scene
     struct ActiveChunk {
         Vec3   pos;
-        Mesh*  mesh;         // pointer into meshPool — not owned here
+        Mesh*  mesh        = nullptr;
         Vec3   color;
-        float  scale;
-        float  scrollSpeed;
+        float  scale       = 0.0f;
+        float  scrollSpeed = 0.0f;
     };
 
     float                        levelTime;
