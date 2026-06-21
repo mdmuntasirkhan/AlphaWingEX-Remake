@@ -43,6 +43,7 @@ public:
     ~Environment();
 
     bool OnCreate(float width, float height);
+    void OnResize(float width, float height); // call from SceneMuntasir::OnVideoChanged
     void OnDestroy();
     void Update(float deltaTime);
     void Render() const;  // uses ImGui background draw list

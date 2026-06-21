@@ -51,7 +51,7 @@ void Asteroid::Update(float deltaTime, float /*playerX*/, float /*playerY*/) {
 	asteroidSpawnTimer += deltaTime;
 	if (asteroidSpawnTimer >= asteroidSpawnInterval) {
 		asteroidSpawnTimer = 0.0f;
-		float randomY = ((rand() % 10) - 5) * 0.5f;
+		float randomY = ((rand() % 25) - 12) * 0.5f; // ±6.0, matches visible Y range
 		asteroidPositions.push_back(Vec3(15.0f, randomY, -10.0f));
 		asteroidAngles.push_back(0.0f);
 		asteroidSpinSpeeds.push_back((float)((rand() % 121) - 60));
@@ -76,7 +76,7 @@ void Asteroid::Update(float deltaTime, float /*playerX*/, float /*playerY*/) {
 	smallAsteroidSpawnTimer += deltaTime;
 	if (smallAsteroidSpawnTimer >= smallAsteroidSpawnInterval) {
 		smallAsteroidSpawnTimer = 0.0f;
-		float randomY = ((rand() % 14) - 7) * 0.5f;
+		float randomY = ((rand() % 25) - 12) * 0.5f; // ±6.0, matches visible Y range
 		smallAsteroidPositions.push_back(Vec3(15.0f, randomY, -10.0f));
 		smallAsteroidAngles.push_back(0.0f);
 		smallAsteroidSpinSpeeds.push_back((float)((rand() % 181) - 90));

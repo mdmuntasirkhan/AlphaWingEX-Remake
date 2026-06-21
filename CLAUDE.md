@@ -89,7 +89,7 @@ Collision detection lives in `SceneMuntasir::Update()` — all shapes are **elli
 
 ### World coordinate space
 
-All game objects are placed at Z = -10. Enemies spawn at X = 15 and are despawned when X < -15. Player Y is bounded within roughly ±4.5 units (hard clamp in `Player::Update()`). Bot01 begins spawning immediately when the scene starts, one every 6 seconds. The `totalTime` counter in `Bot01` is only used for wave-progression persistence via `SaveData`. Firing the laser or missile applies a negative-X recoil impulse to the player.
+All game objects are placed at Z = -10. Enemies spawn at X = 15 and are despawned when X < -15. Player is bounded at X ±11, Y ±6 (hard clamp in `Player::Update()`), derived from the 70° FOV visible area (≈ ±12.45 X, ±7.0 Y at Z=-10). Bot01 begins spawning immediately when the scene starts, one every 6 seconds. The `totalTime` counter in `Bot01` is only used for wave-progression persistence via `SaveData`. Firing the laser or missile applies a negative-X recoil impulse to the player.
 
 ### RPG shard system
 

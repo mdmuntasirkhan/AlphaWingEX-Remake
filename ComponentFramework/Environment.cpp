@@ -13,21 +13,26 @@ Environment::Environment() :
 Environment::~Environment() {}
 
 bool Environment::OnCreate(float width, float height) {
-    screenWidth = width;
+    screenWidth  = width;
     screenHeight = height;
-
-    // Generate random stars
+    // Scale star count proportional to screen area so density stays constant
+    starCount = (int)(150 * (width * height) / (1920.0f * 1080.0f));
+    if (starCount < 80)  starCount = 80;
+    if (starCount > 800) starCount = 800;
     stars.clear();
     for (int i = 0; i < starCount; i++) {
         Star star;
-        star.x = (float)(rand() % (int)screenWidth);
-        star.y = (float)(rand() % (int)screenHeight);
+        star.x     = (float)(rand() % (int)screenWidth);
+        star.y     = (float)(rand() % (int)screenHeight);
         star.speed = 20.0f + (rand() % 80);
-        star.size = 0.5f + (rand() % 2);
+        star.size  = 0.5f + (rand() % 2);
         stars.push_back(star);
     }
-
     return true;
+}
+
+void Environment::OnResize(float width, float height) {
+    OnCreate(width, height);
 }
 
 void Environment::OnDestroy() {

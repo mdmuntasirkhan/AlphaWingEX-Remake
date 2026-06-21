@@ -18,8 +18,8 @@ Player::Player() :  mesh { nullptr },
 					maxSpeed { 10.0f },
 					shieldActive { false },
 					shieldTimer { 0.0f },
-					shieldDuration { 8.0f },
-					shieldCooldown { 2.0f },
+					shieldDuration { 10.0f },
+					shieldCooldown { 5.0f },
 					shieldCooldownTimer { 0.0f },
 					shieldOnCooldown { false },
 					shieldMesh { nullptr },
@@ -152,11 +152,11 @@ void Player::Update(float deltaTime) {
 	// Move the position
 	pos += velocity * deltaTime;
 
-	// Screen Boundary
-	if (pos.x < -8.0f) { pos.x = -8.0f; velocity.x = 0.0f; }
-	if (pos.x >  8.0f) { pos.x =  8.0f; velocity.x = 0.0f; }
-	if (pos.y < -4.5f) { pos.y = -4.5f; velocity.y = 0.0f; }
-	if (pos.y >  4.5f) { pos.y =  4.5f; velocity.y = 0.0f; }
+	// Screen Boundary — derived from 70° vertical FOV at Z=-10: visible ≈ ±7.0 Y, ±12.45 X
+	if (pos.x < -11.0f) { pos.x = -11.0f; velocity.x = 0.0f; }
+	if (pos.x >  11.0f) { pos.x =  11.0f; velocity.x = 0.0f; }
+	if (pos.y < -6.0f)  { pos.y = -6.0f;  velocity.y = 0.0f; }
+	if (pos.y >  6.0f)  { pos.y =  6.0f;  velocity.y = 0.0f; }
 
 
 	thrustTimer += deltaTime;

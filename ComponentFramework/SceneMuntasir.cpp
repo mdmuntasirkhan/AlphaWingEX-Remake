@@ -106,9 +106,11 @@ bool SceneMuntasir::OnCreate() {
         return false;
     }
 
-    // Environment - starfield
+    // Environment - starfield (use actual viewport pixel size, not hardcoded 1920x1080)
+    GLint vp[4];
+    glGetIntegerv(GL_VIEWPORT, vp);
     environment = new Environment();
-    if (environment->OnCreate(1920.0f, 1080.0f) == false) {
+    if (environment->OnCreate((float)vp[2], (float)vp[3]) == false) {
         std::cout << "Environment failed to load!\n";
         return false;
     }
@@ -222,6 +224,7 @@ bool SceneMuntasir::OnCreate() {
 
 void SceneMuntasir::OnVideoChanged(int w, int h) {
     projectionMatrix = MMath::perspective(70.0f, static_cast<float>(w) / static_cast<float>(h), 0.1f, 100.0f);
+    environment->OnResize((float)w, (float)h);
 }
 
 // OnDestroy
