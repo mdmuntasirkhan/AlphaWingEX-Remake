@@ -315,7 +315,7 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
         }
         // Right click - homing missile
         if (sdlEvent.button.button == SDL_BUTTON_RIGHT) {
-            if (!ImGui::GetIO().WantCaptureMouse) {
+            if (!ImGui::GetIO().WantCaptureMouse && bullet->GetMissileCount() > 0) {
                 bool launched = false;
                 if (bot01->GetBot01Positions().size() > 0) {
                     bullet->SpawnHoming(player->GetPosition(),
