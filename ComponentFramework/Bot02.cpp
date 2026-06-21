@@ -161,9 +161,9 @@ void Bot02::Render(Shader* shader,
             glUniform4f(shader->GetUniformID("color"), 1.0f, 0.72f, 0.0f, 1.0f);
         cockpitMesh->Render();
 
-        // Fin — darker violet for depth
+        // Fin — crimson red, contrasts the violet hull
         if (hitTimers[i] <= 0.0f)
-            glUniform4f(shader->GetUniformID("color"), 0.28f, 0.0f, 0.65f, 1.0f);
+            glUniform4f(shader->GetUniformID("color"), 0.85f, 0.05f, 0.1f, 1.0f);
         finMesh->Render();
     }
 

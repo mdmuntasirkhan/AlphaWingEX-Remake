@@ -335,15 +335,32 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
         // Right click - homing missile
         if (sdlEvent.button.button == SDL_BUTTON_RIGHT) {
             if (!ImGui::GetIO().WantCaptureMouse && bullet->GetMissileCount() > 0) {
+                auto nearestIdx = [&](const std::vector<Vec3>& pool) -> int {
+                    Vec3 p = player->GetPosition();
+                    int best = 0;
+                    float bestDist = -1.0f;
+                    for (int i = 0; i < (int)pool.size(); i++) {
+                        float dx = pool[i].x - p.x, dy = pool[i].y - p.y;
+                        float d = dx*dx + dy*dy;
+                        if (bestDist < 0.0f || d < bestDist) { bestDist = d; best = i; }
+                    }
+                    return best;
+                };
+
                 bool launched = false;
-                if (bot01->GetBot01Positions().size() > 0) {
+                if (!bot02->GetPositions().empty()) {
                     bullet->SpawnHoming(player->GetPosition(),
-                        MissileTargetType::BOT01, 0);
+                        MissileTargetType::BOT02, nearestIdx(bot02->GetPositions()));
                     launched = true;
                 }
-                else if (asteroid->GetAsteroidPositions().size() > 0) {
+                else if (!bot01->GetBot01Positions().empty()) {
                     bullet->SpawnHoming(player->GetPosition(),
-                        MissileTargetType::ASTEROID, 0);
+                        MissileTargetType::BOT01, nearestIdx(bot01->GetBot01Positions()));
+                    launched = true;
+                }
+                else if (!asteroid->GetAsteroidPositions().empty()) {
+                    bullet->SpawnHoming(player->GetPosition(),
+                        MissileTargetType::ASTEROID, nearestIdx(asteroid->GetAsteroidPositions()));
                     launched = true;
                 }
                 if (launched)
@@ -416,7 +433,8 @@ void SceneMuntasir::Update(const float deltaTime) {
     player->Update(deltaTime);
     bullet->Update(deltaTime,
         asteroid->GetAsteroidPositions(), Vec3(-asteroid->GetAsteroidSpeed(), 0.0f, 0.0f),
-        bot01->GetBot01Positions(), Vec3(-bot01->GetBot01Speed(), 0.0f, 0.0f));
+        bot01->GetBot01Positions(),       Vec3(-bot01->GetBot01Speed(), 0.0f, 0.0f),
+        bot02->GetPositions(),            Vec3(0.0f, 0.0f, 0.0f));
     asteroid->Update(deltaTime);
     bot01->Update(deltaTime, 0.0f, player->GetPosition().y);
     bot02->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);

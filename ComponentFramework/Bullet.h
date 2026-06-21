@@ -10,11 +10,12 @@
 
 using namespace MATH;
 
-// What a homing missile is currently locked onto
+// What a homing missile is currently locked onto — ordered by threat (highest first)
 enum class MissileTargetType {
 	NONE,
 	ASTEROID,
-	BOT01
+	BOT01,
+	BOT02
 };
 
 class Bullet {
@@ -51,11 +52,12 @@ private:
 	float fireCooldown;
 	float fireCooldownTimer;
 
-	// Search both enemy lists for whichever is nearest to fromPosition - used to
-	// re-acquire a target after the locked one is destroyed mid-flight.
+	// Re-acquire a target after the locked one is destroyed mid-flight.
+	// Priority: Bot02 > Bot01 > Asteroid. Within a tier, picks the nearest one.
 	bool FindNearestTarget(const Vec3& fromPosition,
 		const std::vector<Vec3>& asteroidPositions,
 		const std::vector<Vec3>& bot01Positions,
+		const std::vector<Vec3>& bot02Positions,
 		MissileTargetType& outType, int& outIndex) const;
 
 public:
@@ -66,7 +68,8 @@ public:
 	void OnDestroy();
 	void Update(float deltaTime,
 		const std::vector<Vec3>& asteroidPositions, const Vec3& asteroidVelocity,
-		const std::vector<Vec3>& bot01Positions, const Vec3& bot01Velocity);
+		const std::vector<Vec3>& bot01Positions,   const Vec3& bot01Velocity,
+		const std::vector<Vec3>& bot02Positions,   const Vec3& bot02Velocity);
 	void Render(Shader* shader,
 		const Matrix4& projectionMatrix,
 		const Matrix4& viewMatrix) const;

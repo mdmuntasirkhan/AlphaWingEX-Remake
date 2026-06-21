@@ -85,41 +85,39 @@ void Bullet::SpawnHoming(Vec3 position, MissileTargetType targetType, int target
 bool Bullet::FindNearestTarget(const Vec3& fromPosition,
 	const std::vector<Vec3>& asteroidPositions,
 	const std::vector<Vec3>& bot01Positions,
+	const std::vector<Vec3>& bot02Positions,
 	MissileTargetType& outType, int& outIndex) const {
 
-	bool found = false;
-	float bestDistSq = 0.0f;
-
-	for (int a = 0; a < (int)asteroidPositions.size(); a++) {
-		float dx = asteroidPositions[a].x - fromPosition.x;
-		float dy = asteroidPositions[a].y - fromPosition.y;
-		float distSq = dx * dx + dy * dy;
-		if (!found || distSq < bestDistSq) {
-			found = true;
-			bestDistSq = distSq;
-			outType = MissileTargetType::ASTEROID;
-			outIndex = a;
+	// Priority: Bot02 (mini-boss) > Bot01 > Asteroid.
+	// Within each tier pick the nearest one; only fall through if the tier is empty.
+	auto pickNearest = [&](const std::vector<Vec3>& pool, MissileTargetType type) -> bool {
+		if (pool.empty()) return false;
+		float bestDistSq = -1.0f;
+		int   bestIdx    = 0;
+		for (int i = 0; i < (int)pool.size(); i++) {
+			float dx = pool[i].x - fromPosition.x;
+			float dy = pool[i].y - fromPosition.y;
+			float distSq = dx * dx + dy * dy;
+			if (bestDistSq < 0.0f || distSq < bestDistSq) {
+				bestDistSq = distSq;
+				bestIdx    = i;
+			}
 		}
-	}
+		outType  = type;
+		outIndex = bestIdx;
+		return true;
+	};
 
-	for (int b = 0; b < (int)bot01Positions.size(); b++) {
-		float dx = bot01Positions[b].x - fromPosition.x;
-		float dy = bot01Positions[b].y - fromPosition.y;
-		float distSq = dx * dx + dy * dy;
-		if (!found || distSq < bestDistSq) {
-			found = true;
-			bestDistSq = distSq;
-			outType = MissileTargetType::BOT01;
-			outIndex = b;
-		}
-	}
-
-	return found;
+	if (pickNearest(bot02Positions,    MissileTargetType::BOT02))    return true;
+	if (pickNearest(bot01Positions,    MissileTargetType::BOT01))    return true;
+	if (pickNearest(asteroidPositions, MissileTargetType::ASTEROID)) return true;
+	return false;
 }
 
 void Bullet::Update(float deltaTime,
 	const std::vector<Vec3>& asteroidPositions, const Vec3& asteroidVelocity,
-	const std::vector<Vec3>& bot01Positions, const Vec3& bot01Velocity) {
+	const std::vector<Vec3>& bot01Positions,   const Vec3& bot01Velocity,
+	const std::vector<Vec3>& bot02Positions,   const Vec3& bot02Velocity) {
 	// Fire rate cooldown
 	if (fireCooldownTimer > 0.0f) fireCooldownTimer -= deltaTime;
 
@@ -157,13 +155,22 @@ void Bullet::Update(float deltaTime,
 		int  tidx          = missileTargetIndices[i];
 		bool lockedAsteroid = missileTargetTypes[i] == MissileTargetType::ASTEROID && tidx >= 0 && tidx < (int)asteroidPositions.size();
 		bool lockedBot01    = missileTargetTypes[i] == MissileTargetType::BOT01    && tidx >= 0 && tidx < (int)bot01Positions.size();
-		bool hasTarget      = lockedAsteroid || lockedBot01;
+		bool lockedBot02    = missileTargetTypes[i] == MissileTargetType::BOT02    && tidx >= 0 && tidx < (int)bot02Positions.size();
+		bool hasTarget      = lockedAsteroid || lockedBot01 || lockedBot02;
+
+		// Upgrade if a higher-priority tier has appeared mid-flight:
+		// asteroid → drop it whenever any bot is on screen
+		// bot01    → drop it whenever a Bot02 is on screen
+		if (lockedAsteroid && (!bot01Positions.empty() || !bot02Positions.empty()))
+			hasTarget = false;
+		else if (lockedBot01 && !bot02Positions.empty())
+			hasTarget = false;
 
 		if (!hasTarget) {
 			MissileTargetType newType;
 			int newIndex;
-			if (FindNearestTarget(missilePositions[i], asteroidPositions, bot01Positions, newType, newIndex)) {
-				missileTargetTypes[i] = newType;
+			if (FindNearestTarget(missilePositions[i], asteroidPositions, bot01Positions, bot02Positions, newType, newIndex)) {
+				missileTargetTypes[i]   = newType;
 				missileTargetIndices[i] = newIndex;
 				hasTarget = true;
 			}
@@ -178,6 +185,10 @@ void Bullet::Update(float deltaTime,
 		else if (hasTarget && missileTargetTypes[i] == MissileTargetType::BOT01) {
 			targetPos = &bot01Positions[missileTargetIndices[i]];
 			targetVel = bot01Velocity;
+		}
+		else if (hasTarget && missileTargetTypes[i] == MissileTargetType::BOT02) {
+			targetPos = &bot02Positions[missileTargetIndices[i]];
+			targetVel = bot02Velocity;
 		}
 
 		// Fly straight forward for the launch grace period (or if there's no
