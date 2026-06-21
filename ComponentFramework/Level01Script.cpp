@@ -1,4 +1,6 @@
 #include "Level01Script.h"
+#include "EventType.h"
+#include <Vector.h>
 
 // ============================================================
 //  LEVEL 01 — Opening zone
@@ -22,7 +24,17 @@
 
 std::vector<LevelEvent> Level01Script::GetEvents() const {
     return {
-        // Add your Blender mesh events here. Example:
-        // { 5.0f, EventType::SPAWN_ENV_CHUNK, Vec3(15.0f, 2.0f, -10.0f), "meshes/your_mesh.obj", Vec3(0.6f, 0.6f, 0.7f), 1.0f, 1.2f },
+        // ---- Phase gates: drive enemy progression from the level script ----
+        // Phase 1 (t=0): asteroids only — implicit, no event needed (currentPhase starts at 1)
+        // Phase 2 (t=40): Bot01 joins the asteroid field
+        { 40.0f,  EventType::PHASE_CHANGE, {}, nullptr, {}, 0.0f, 0.0f, 2 },
+        // Phase 3 (t=115): Bot02 intro window — Bot01 and asteroids pause
+        { 115.0f, EventType::PHASE_CHANGE, {}, nullptr, {}, 0.0f, 0.0f, 3 },
+        // Phase 4 (t=140): All enemies active simultaneously
+        { 140.0f, EventType::PHASE_CHANGE, {}, nullptr, {}, 0.0f, 0.0f, 4 },
+
+        // ---- Environment geometry (hollow — add Blender .obj exports here) ----
+        // Format: { time, SPAWN_ENV_CHUNK, Vec3(15, Y, -10), "meshes/file.obj", Vec3(R,G,B), scale, speed }
+        // Example: { 5.0f, EventType::SPAWN_ENV_CHUNK, Vec3(15.0f, 0.0f, -10.0f), "meshes/level01_rock.obj", Vec3(0.5f, 0.5f, 0.6f), 1.0f, 1.5f },
     };
 }

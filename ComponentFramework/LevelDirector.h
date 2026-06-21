@@ -10,6 +10,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <functional>
 
 using namespace MATH;
 
@@ -33,6 +34,13 @@ public:
     // allowing chunks to overlap seamlessly (Elden-ring style, no dead zones).
     // Also pre-loads every mesh the script references. Takes ownership of script.
     void AddScript(LevelScript* script, float timeOffset = 0.0f);
+
+    // Register a callback invoked whenever a PHASE_CHANGE event fires.
+    // SceneMuntasir calls this once after construction to drive enemy phase logic.
+    void SetPhaseCallback(std::function<void(int)> cb);
+
+    // Current position on the master timeline (seconds).
+    float GetTime() const;
 
     // Call once per frame (not while paused).
     void Update(float deltaTime);
@@ -59,7 +67,8 @@ private:
     int                          nextEvent;
     std::vector<LevelEvent>      timeline;
     std::vector<ActiveChunk>     activeChunks;
-    std::map<std::string, Mesh*> meshPool;   // unique mesh per file path
+    std::map<std::string, Mesh*> meshPool;
+    std::function<void(int)>     phaseCallback;
 
     void FireEvent(const LevelEvent& e);
 };

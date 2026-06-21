@@ -89,6 +89,14 @@ void LevelDirector::OnDestroy() {
     nextEvent = 0;
 }
 
+void LevelDirector::SetPhaseCallback(std::function<void(int)> cb) {
+    phaseCallback = cb;
+}
+
+float LevelDirector::GetTime() const {
+    return levelTime;
+}
+
 void LevelDirector::FireEvent(const LevelEvent& e) {
     if (e.type == EventType::SPAWN_ENV_CHUNK && e.meshFile != nullptr) {
         auto it = meshPool.find(std::string(e.meshFile));
@@ -101,5 +109,8 @@ void LevelDirector::FireEvent(const LevelEvent& e) {
             chunk.scrollSpeed = e.scrollSpeed;
             activeChunks.push_back(chunk);
         }
+    }
+    else if (e.type == EventType::PHASE_CHANGE && phaseCallback) {
+        phaseCallback(e.phaseId);
     }
 }

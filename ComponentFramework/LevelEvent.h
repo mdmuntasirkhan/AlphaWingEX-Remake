@@ -17,6 +17,7 @@ struct LevelEvent {
     Vec3        color       = Vec3(0.7f, 0.7f, 0.8f);   // RGB tint applied via Phong shader
     float       scale       = 1.0f;                      // uniform scale
     float       scrollSpeed = 1.5f;                      // units/second moving left (matches asteroid feel)
+    int         phaseId     = 0;                         // used by PHASE_CHANGE events only
 };
 
 #endif // LEVELEVENT_H

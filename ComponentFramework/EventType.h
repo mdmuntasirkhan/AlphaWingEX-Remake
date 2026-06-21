@@ -6,6 +6,7 @@
 // Add new types here as the engine grows (enemy triggers, music changes, etc.)
 enum class EventType {
     SPAWN_ENV_CHUNK,    // spawn a Blender-exported mesh that scrolls through the level
+    PHASE_CHANGE,       // advance enemy progression phase (phaseId field in LevelEvent)
 };
 
 #endif // EVENTTYPE_H

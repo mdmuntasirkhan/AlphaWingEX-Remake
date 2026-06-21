@@ -6,6 +6,7 @@
 #include <SDL3/SDL_events.h>
 #include "SceneMuntasir.h"
 #include "Level01Script.h"
+#include "Level02Script.h"
 #include <MMath.h>
 #include "Debug.h"
 #include "Mesh.h"
@@ -31,7 +32,7 @@ SceneMuntasir::SceneMuntasir() :
     hasLostShards{ false },
     prevLives{ 3 },
     autoSaveTimer{ 0.0f },
-    sceneTime{ 0.0f },
+    currentPhase{ 1 },
     explosionCooldown{ 2.0f },
     explosionCooldownTimer{ 0.0f },
     audioPlayer{ nullptr },
@@ -218,7 +219,11 @@ bool SceneMuntasir::OnCreate() {
 
     // Level director — loads all environment chunk meshes up front, no runtime stutter
     levelDirector = new LevelDirector();
+    levelDirector->SetPhaseCallback([this](int id) { currentPhase = id; });
     levelDirector->AddScript(new Level01Script(), 0.0f);
+    // Level02 starts at t=180s. Bring offset down to ~158s for a 22s overlap window
+    // where both zones' chunks scroll on screen simultaneously (seamless transition).
+    levelDirector->AddScript(new Level02Script(), 180.0f);
 
     return true;
 }
@@ -411,8 +416,6 @@ void SceneMuntasir::SpawnShards(const Vec3& pos, int count) {
 // Update
 void SceneMuntasir::Update(const float deltaTime) {
     if (gamePaused) return;
-
-    sceneTime += deltaTime;
 
     // Cooldown timers
     if (explosionCooldownTimer > 0.0f)
@@ -971,12 +974,11 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Phase-based enemy progression
-    // kPhase3Start → kPhase4Start is the "Bot02 only" window — asteroids and Bot01 both pause
-    bool bot01Spawning     = sceneTime >= kPhase2Start &&
-                             (sceneTime < kPhase3Start || sceneTime >= kPhase4Start);
-    bool bot02Spawning     = sceneTime >= kPhase3Start;
-    bool asteroidsSpawning = sceneTime < kPhase3Start || sceneTime >= kPhase4Start;
+    // Phase-based enemy progression — currentPhase is set by PHASE_CHANGE events in the level script
+    // Phase 1: asteroids only | Phase 2: +Bot01 | Phase 3: Bot02 intro (asteroids+Bot01 pause) | Phase 4: all
+    bool bot01Spawning     = currentPhase >= 2 && (currentPhase < 3 || currentPhase >= 4);
+    bool bot02Spawning     = currentPhase >= 3;
+    bool asteroidsSpawning = currentPhase < 3 || currentPhase >= 4;
 
     bot01->SetSpawningEnabled(bot01Spawning);
     asteroid->SetSpawningEnabled(asteroidsSpawning);
