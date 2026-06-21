@@ -13,6 +13,7 @@
 #include "Environment.h"
 #include "SaveData.h"
 #include "SceneSwitcher.h"
+#include "LevelDirector.h"
 #include <vector>
 
 using namespace MATH;
@@ -22,6 +23,9 @@ class Shader;
 
 class SceneMuntasir : public Scene {
 private:
+	// Level scripting — environment mesh chunks, timeline events
+	LevelDirector* levelDirector;
+
 	// Game Class
 	Player* player;
 	Asteroid* asteroid;

@@ -5,6 +5,7 @@
 #include <SDL.h>
 #include <SDL3/SDL_events.h>
 #include "SceneMuntasir.h"
+#include "Level01Script.h"
 #include <MMath.h>
 #include "Debug.h"
 #include "Mesh.h"
@@ -13,6 +14,7 @@
 
 // Constructor
 SceneMuntasir::SceneMuntasir() :
+    levelDirector{ nullptr },
     player{ nullptr },
     asteroid{ nullptr },
     bot01{ nullptr },
@@ -209,6 +211,10 @@ bool SceneMuntasir::OnCreate() {
     musicVolume = SaveData::current.musicVolume;
     sfxVolume   = SaveData::current.sfxVolume;
 
+    // Level director — loads all environment chunk meshes up front, no runtime stutter
+    levelDirector = new LevelDirector();
+    levelDirector->AddScript(new Level01Script(), 0.0f);
+
     return true;
 }
 
@@ -218,6 +224,13 @@ void SceneMuntasir::OnDestroy() {
 
     // Auto-save full state on scene exit (covers quit, title-return, etc.)
     SaveGame();
+
+    // Level director
+    if (levelDirector) {
+        levelDirector->OnDestroy();
+        delete levelDirector;
+        levelDirector = nullptr;
+    }
 
     // Shards
     shards.clear();
@@ -389,6 +402,9 @@ void SceneMuntasir::Update(const float deltaTime) {
     }
 
     if (gameOver) return;
+
+    // Advance level timeline and scroll environment chunks
+    levelDirector->Update(deltaTime);
 
     // Update all classes
     player->Update(deltaTime);
@@ -900,6 +916,9 @@ void SceneMuntasir::Render() const {
     // Bullets — YELLOW
     glUniform4f(shader->GetUniformID("color"), 1.0f, 1.0f, 0.0f, 1.0f);
     bullet->Render(shader, projectionMatrix, viewMatrix);
+
+    // Environment chunks — level geometry scrolling through the scene
+    levelDirector->Render(shader, projectionMatrix, viewMatrix);
 
     asteroid->Render(shader, projectionMatrix, viewMatrix);
     bot01->Render(shader, projectionMatrix, viewMatrix);
