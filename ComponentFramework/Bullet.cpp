@@ -162,25 +162,42 @@ void Bullet::Update(float deltaTime,
 		missileLaunchTimers[i] += deltaTime;
 		missileLifetimers[i]   += deltaTime;
 
-		// Re-acquire a target if the locked one is gone (destroyed mid-flight,
-		// or never had one). Never store a raw pointer into Enemy's vectors -
-		// they get resized/erased every frame and a stale pointer is undefined
-		// behaviour (this was the cause of missiles randomly flying backward).
-		int  tidx           = missileTargetIndices[i];
-		bool lockedAsteroid = missileTargetTypes[i] == MissileTargetType::ASTEROID && tidx >= 0 && tidx < (int)asteroidPositions.size();
-		bool lockedBot01    = missileTargetTypes[i] == MissileTargetType::BOT01    && tidx >= 0 && tidx < (int)bot01Positions.size();
-		bool lockedBot02    = missileTargetTypes[i] == MissileTargetType::BOT02    && tidx >= 0 && tidx < (int)bot02Positions.size();
-		bool hasTarget      = lockedAsteroid || lockedBot01 || lockedBot02;
+		// Target resolution: pick the nearest enemy of the locked type every frame.
+		// This eliminates index staleness — when enemies die and vectors shrink,
+		// a stored index silently points to the wrong enemy. Recomputing nearest
+		// each frame is cheap and matches exactly how Bot02 guidance stays reliable.
+		// Only re-acquire to a different type when the entire locked pool is gone.
+		auto pickNearest = [&](const std::vector<Vec3>& pool) -> int {
+			if (pool.empty()) return -1;
+			float bestSq = -1.0f;
+			int   best   = 0;
+			Vec3  mp     = missilePositions[i];
+			for (int k = 0; k < (int)pool.size(); k++) {
+				float dx = pool[k].x - mp.x;
+				float dy = pool[k].y - mp.y;
+				float sq = dx*dx + dy*dy;
+				if (bestSq < 0.0f || sq < bestSq) { bestSq = sq; best = k; }
+			}
+			return best;
+		};
 
-		// Upgrade if a higher-priority tier has appeared mid-flight:
-		// asteroid → drop it whenever any bot is on screen
-		// bot01    → drop it whenever a Bot02 is on screen
-		if (lockedAsteroid && (!bot01Positions.empty() || !bot02Positions.empty()))
-			hasTarget = false;
-		else if (lockedBot01 && !bot02Positions.empty())
-			hasTarget = false;
+		bool hasTarget = false;
+		int  freshIdx  = -1;
+		switch (missileTargetTypes[i]) {
+			case MissileTargetType::BOT02:
+				freshIdx = pickNearest(bot02Positions);   break;
+			case MissileTargetType::BOT01:
+				freshIdx = pickNearest(bot01Positions);   break;
+			case MissileTargetType::ASTEROID:
+				freshIdx = pickNearest(asteroidPositions); break;
+			default: break;
+		}
 
-		if (!hasTarget) {
+		if (freshIdx >= 0) {
+			missileTargetIndices[i] = freshIdx;
+			hasTarget = true;
+		} else {
+			// Entire locked type is gone — re-acquire to highest available tier
 			MissileTargetType newType;
 			int newIndex;
 			if (FindNearestTarget(missilePositions[i], asteroidPositions, bot01Positions, bot02Positions, newType, newIndex)) {
