@@ -8,6 +8,7 @@
 #include "Player.h"
 #include "Asteroid.h"
 #include "Bot01.h"
+#include "Bot02.h"
 #include "Bullet.h"
 #include "Environment.h"
 #include "SaveData.h"
@@ -25,6 +26,7 @@ private:
 	Player* player;
 	Asteroid* asteroid;
 	Bot01* bot01;
+	Bot02* bot02;
 	Bullet* bullet;
 	Environment* environment;
 

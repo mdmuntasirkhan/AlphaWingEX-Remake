@@ -15,8 +15,10 @@ Bot01::Bot01() :
 	bot01YMaxSpeed{ 2.5f },
 	bot01Speed{ 1.2f },
 	bot01SpawnTimer{ 0.0f },
-	bot01SpawnInterval{ 4.5f },
-	totalTime{ 0.0f }
+	bot01SpawnInterval{ 6.0f },
+	totalTime{ 0.0f },
+	waveSize{ 5 },
+	waveSpawned{ 0 }
 {
 }
 
@@ -67,19 +69,22 @@ void Bot01::OnDestroy() {
 	debris.clear();
 }
 
-void Bot01::Update(float deltaTime, float playerY) {
+void Bot01::Update(float deltaTime, float /*playerX*/, float playerY) {
 	totalTime   += deltaTime;
 	thrustTimer += deltaTime;
 
-	if (totalTime > 30.0f) {
+	if (waveSpawned < waveSize) {
 		bot01SpawnTimer += deltaTime;
 		if (bot01SpawnTimer >= bot01SpawnInterval) {
 			bot01SpawnTimer = 0.0f;
-			float randomY = ((rand() % 10) - 5) * 0.5f;
-			bot01Positions.push_back(Vec3(15.0f, randomY, -10.0f));
+			// Fixed stack: bottom to top so the column enters as a formation
+			static const float stackY[5] = { -3.0f, -1.5f, 0.0f, 1.5f, 3.0f };
+			float spawnY = stackY[waveSpawned];
+			bot01Positions.push_back(Vec3(15.0f, spawnY, -10.0f));
 			bot01YVelocities.push_back(0.0f);
 			bot01HP.push_back(10);
 			bot01HitTimers.push_back(0.0f);
+			waveSpawned++;
 		}
 	}
 
@@ -210,4 +215,5 @@ void Bot01::Reset() {
 	debris.clear();
 	bot01SpawnTimer = 0.0f;
 	totalTime       = 0.0f;
+	waveSpawned     = 0;
 }

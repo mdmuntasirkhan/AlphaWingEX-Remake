@@ -30,7 +30,7 @@ protected:
 public:
 	virtual ~Enemy() = default;
 	virtual void OnDestroy() = 0;
-	virtual void Update(float deltaTime, float playerY = 0.0f) = 0;
+	virtual void Update(float deltaTime, float playerX = 0.0f, float playerY = 0.0f) = 0;
 	virtual void Render(Shader* shader,
 		const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const = 0;
 	virtual void Reset() = 0;

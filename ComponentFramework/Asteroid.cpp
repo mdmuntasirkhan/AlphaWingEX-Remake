@@ -46,7 +46,7 @@ void Asteroid::OnDestroy() {
 	debris.clear();
 }
 
-void Asteroid::Update(float deltaTime, float /*playerY*/) {
+void Asteroid::Update(float deltaTime, float /*playerX*/, float /*playerY*/) {
 	// Large asteroids
 	asteroidSpawnTimer += deltaTime;
 	if (asteroidSpawnTimer >= asteroidSpawnInterval) {

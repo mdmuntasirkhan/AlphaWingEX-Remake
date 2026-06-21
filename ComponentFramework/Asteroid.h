@@ -33,7 +33,7 @@ public:
 
 	bool OnCreate(const char* meshFile);
 	void OnDestroy() override;
-	void Update(float deltaTime, float playerY = 0.0f) override;
+	void Update(float deltaTime, float playerX = 0.0f, float playerY = 0.0f) override;
 	void Render(Shader* shader,
 		const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const override;
 	void Reset() override;

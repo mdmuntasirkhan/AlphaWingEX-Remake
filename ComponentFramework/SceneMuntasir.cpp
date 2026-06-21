@@ -16,6 +16,7 @@ SceneMuntasir::SceneMuntasir() :
     player{ nullptr },
     asteroid{ nullptr },
     bot01{ nullptr },
+    bot02{ nullptr },
     bullet{ nullptr },
     environment{ nullptr },
     shader{ nullptr },
@@ -78,6 +79,19 @@ bool SceneMuntasir::OnCreate() {
     if (bot01->OnCreate("meshes/Temp_AlphaWing_Enemy_Bot01.obj",
         "meshes/Temp_Asteroid.obj") == false) {
         std::cout << "Bot01 failed to load!\n";
+        return false;
+    }
+
+    // Bot02
+    bot02 = new Bot02();
+    if (bot02->OnCreate(
+        "meshes/Temp_AlphaWingEX_Bot02.obj",
+        "meshes/Temp_AlphaWingEX_Bot02_Cockpit.obj",
+        "meshes/Temp_AlphaWingEX_Bot02_Fin.obj",
+        "meshes/Temp_AlphaWingEX_Bot02_Thrust.obj",
+        "meshes/Temp_Asteroid.obj",
+        "meshes/Temp_AlphaWingEX_Bot02_Bullet.obj") == false) {
+        std::cout << "Bot02 failed to load!\n";
         return false;
     }
 
@@ -221,6 +235,10 @@ void SceneMuntasir::OnDestroy() {
     bot01->OnDestroy();
     delete bot01;
     bot01 = nullptr;
+
+    bot02->OnDestroy();
+    delete bot02;
+    bot02 = nullptr;
 
     bullet->OnDestroy();
     delete bullet;
@@ -367,7 +385,8 @@ void SceneMuntasir::Update(const float deltaTime) {
         asteroid->GetAsteroidPositions(), Vec3(-asteroid->GetAsteroidSpeed(), 0.0f, 0.0f),
         bot01->GetBot01Positions(), Vec3(-bot01->GetBot01Speed(), 0.0f, 0.0f));
     asteroid->Update(deltaTime);
-    bot01->Update(deltaTime, player->GetPosition().y);
+    bot01->Update(deltaTime, 0.0f, player->GetPosition().y);
+    bot02->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
     environment->Update(deltaTime);
 
     // Shard physics — drift, magnet pull, collect, cull
@@ -608,6 +627,90 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
+    // Bullet hits Bot02
+    for (int b = bullet->GetPositions().size() - 1; b >= 0; b--) {
+        for (int e = bot02->GetPositions().size() - 1; e >= 0; e--) {
+            float dx = bullet->GetPositions()[b].x - bot02->GetPositions()[e].x;
+            float dy = bullet->GetPositions()[b].y - bot02->GetPositions()[e].y;
+            if ((dx*dx)/(0.7f*0.7f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
+                Vec3 deathPos = bot02->GetPositions()[e];
+                bullet->RemoveAt(b);
+                if (bot02->DamageBot02(e)) {
+                    SpawnShards(deathPos, 8);
+                    score += 300;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    // Missile hits Bot02
+    for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
+        for (int e = bot02->GetPositions().size() - 1; e >= 0; e--) {
+            float dx = bullet->GetMissilePositions()[m].x - bot02->GetPositions()[e].x;
+            float dy = bullet->GetMissilePositions()[m].y - bot02->GetPositions()[e].y;
+            if ((dx*dx)/(0.75f*0.75f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
+                Vec3 deathPos = bot02->GetPositions()[e];
+                bullet->RemoveMissileAt(m);
+                if (bot02->DamageBot02(e)) {
+                    SpawnShards(deathPos, 8);
+                    score += 300;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    // Bot02 hits player
+    for (int e = bot02->GetPositions().size() - 1; e >= 0; e--) {
+        float dx = player->GetPosition().x - bot02->GetPositions()[e].x;
+        float dy = player->GetPosition().y - bot02->GetPositions()[e].y;
+        if ((dx*dx)/(0.8f*0.8f) + (dy*dy)/(0.45f*0.45f) < 1.0f) {
+            Vec3 deathPos = bot02->GetPositions()[e];
+            float len = sqrtf(dx*dx + dy*dy);
+            if (len > 0.001f) player->ApplyImpulse(Vec3(dx/len * 6.0f, dy/len * 6.0f, 0.0f));
+            bot02->RemoveBot02(e);
+            SpawnShards(deathPos, 8);
+            player->TakeDamage(50.0f);
+            if (explosionCooldownTimer <= 0.0f) {
+                sfxExplosion->Play(sfxPlayer);
+                explosionCooldownTimer = explosionCooldown;
+            }
+        }
+    }
+
+    // Bot02 bullet hits player — slow, precise, heavy impact
+    for (int b = (int)bot02->GetBulletPositions().size() - 1; b >= 0; b--) {
+        float dx = player->GetPosition().x - bot02->GetBulletPositions()[b].x;
+        float dy = player->GetPosition().y - bot02->GetBulletPositions()[b].y;
+        if (dx*dx + dy*dy < 0.35f * 0.35f) {
+            Vec3 vel = bot02->GetBulletVelocities()[b];
+            float vlen = sqrtf(vel.x*vel.x + vel.y*vel.y);
+            if (vlen > 0.001f)
+                player->ApplyImpulse(Vec3(vel.x/vlen * -5.0f, vel.y/vlen * -5.0f, 0.0f));
+            bot02->RemoveBullet(b);
+            player->TakeDamage(25.0f);
+            if (explosionCooldownTimer <= 0.0f) {
+                sfxExplosion->Play(sfxPlayer);
+                explosionCooldownTimer = explosionCooldown;
+            }
+        }
+    }
+
+    // Wave trigger — all 5 Bot01s killed → spawn Bot02 pair on right side
+    if (bot01->IsWaveComplete() && bot02->GetCount() == 0) {
+        bot02->Spawn(player->GetPosition().y);
+        bot01->ResetWave();
+    }
+
     // Life-loss detection — after all collision damage this frame.
     int currentLives = player->GetLives();
     if (currentLives < prevLives) {
@@ -694,6 +797,7 @@ void SceneMuntasir::Render() const {
 
     asteroid->Render(shader, projectionMatrix, viewMatrix);
     bot01->Render(shader, projectionMatrix, viewMatrix);
+    bot02->Render(shader, projectionMatrix, viewMatrix);
 
     // Energy shards + lost shard pile — additive emissive
     if (!shards.empty() || hasLostShards) {
@@ -991,6 +1095,7 @@ void SceneMuntasir::DrawGui() {
             player->Reset();
             asteroid->Reset();
             bot01->Reset();
+            bot02->Reset();
             prevLives = player->GetLives();
             SaveData::current.Reset();
             SaveData::current.Save();
