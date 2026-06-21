@@ -78,8 +78,9 @@ public:
 	void SpawnHoming(Vec3 position, MissileTargetType targetType, int targetIndex);
 
 	// Getters for collision
-	std::vector<Vec3>& GetPositions() { return positions; }
-	std::vector<Vec3>& GetMissilePositions() { return missilePositions; }
+	std::vector<Vec3>& GetPositions()         { return positions; }
+	std::vector<Vec3>& GetMissilePositions()  { return missilePositions; }
+	std::vector<Vec3>& GetMissileVelocities() { return missileVelocities; }
 
 	// Remove by index
 	void RemoveAt(int index);

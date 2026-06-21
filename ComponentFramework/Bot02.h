@@ -61,6 +61,12 @@ public:
     bool DamageBot02(int index, int amount = 1);
     void RemoveBot02(int index);
     void RemoveBullet(int index);
+    void PushPosition(int index, float dx, float dy) {
+        if (index >= 0 && index < (int)positions.size()) {
+            positions[index].x += dx;
+            positions[index].y += dy;
+        }
+    }
 };
 
 #endif // BOT02_H

@@ -14,6 +14,7 @@ private:
 
 	std::vector<Vec3>  bot01Positions;
 	std::vector<float> bot01YVelocities;
+	std::vector<float> bot01XKnockbackVels; // separate from march speed — decays with drag
 	std::vector<int>   bot01HP;
 	std::vector<float> bot01HitTimers;
 
@@ -51,6 +52,11 @@ public:
 
 	bool DamageBot01(int index, int amount = 1);
 	void RemoveBot01(int index);
+	// Knockback — kept separate from AI movement so they don't fight each other
+	void PushX(int index, float impulse) {
+		if (index >= 0 && index < (int)bot01XKnockbackVels.size())
+			bot01XKnockbackVels[index] += impulse;
+	}
 	void PushY(int index, float impulse) {
 		if (index >= 0 && index < (int)bot01YVelocities.size())
 			bot01YVelocities[index] += impulse;

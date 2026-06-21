@@ -82,6 +82,7 @@ void Bot01::Update(float deltaTime, float /*playerX*/, float playerY) {
 			float spawnY = stackY[waveSpawned];
 			bot01Positions.push_back(Vec3(15.0f, spawnY, -10.0f));
 			bot01YVelocities.push_back(0.0f);
+			bot01XKnockbackVels.push_back(0.0f);
 			bot01HP.push_back(10);
 			bot01HitTimers.push_back(0.0f);
 			waveSpawned++;
@@ -89,7 +90,12 @@ void Bot01::Update(float deltaTime, float /*playerX*/, float playerY) {
 	}
 
 	for (int i = 0; i < (int)bot01Positions.size(); i++) {
+		// Normal march + separate X knockback (decays exponentially so it doesn't
+		// fight the AI march — industry approach: keep knockback vector separate)
 		bot01Positions[i].x -= bot01Speed * deltaTime;
+		bot01Positions[i].x += bot01XKnockbackVels[i] * deltaTime;
+		bot01XKnockbackVels[i] *= expf(-9.0f * deltaTime); // ~0.5s full decay
+		if (fabsf(bot01XKnockbackVels[i]) < 0.01f) bot01XKnockbackVels[i] = 0.0f;
 
 		float force = bot01SteerForce * (playerY - bot01Positions[i].y)
 		            - bot01YDamping  * bot01YVelocities[i];
@@ -100,10 +106,11 @@ void Bot01::Update(float deltaTime, float /*playerX*/, float playerY) {
 	}
 	for (int i = (int)bot01Positions.size() - 1; i >= 0; i--) {
 		if (bot01Positions[i].x < -15.0f) {
-			bot01Positions.erase  (bot01Positions.begin()   + i);
-			bot01YVelocities.erase(bot01YVelocities.begin() + i);
-			bot01HP.erase         (bot01HP.begin()          + i);
-			bot01HitTimers.erase  (bot01HitTimers.begin()   + i);
+			bot01Positions      .erase(bot01Positions.begin()       + i);
+			bot01YVelocities    .erase(bot01YVelocities.begin()     + i);
+			bot01XKnockbackVels .erase(bot01XKnockbackVels.begin()  + i);
+			bot01HP             .erase(bot01HP.begin()              + i);
+			bot01HitTimers      .erase(bot01HitTimers.begin()       + i);
 		}
 	}
 
@@ -187,10 +194,11 @@ bool Bot01::DamageBot01(int index, int amount) {
 	bot01HP[index] -= amount;
 	if (bot01HP[index] <= 0) {
 		SpawnKillDebris(bot01Positions[index], Vec3(1.0f, 0.2f, 0.2f), amount > 1 ? 10 : 6);
-		bot01Positions.erase  (bot01Positions.begin()   + index);
-		bot01YVelocities.erase(bot01YVelocities.begin() + index);
-		bot01HP.erase         (bot01HP.begin()          + index);
-		bot01HitTimers.erase  (bot01HitTimers.begin()   + index);
+		bot01Positions      .erase(bot01Positions.begin()       + index);
+		bot01YVelocities    .erase(bot01YVelocities.begin()     + index);
+		bot01XKnockbackVels .erase(bot01XKnockbackVels.begin()  + index);
+		bot01HP             .erase(bot01HP.begin()              + index);
+		bot01HitTimers      .erase(bot01HitTimers.begin()       + index);
 		return true;
 	}
 	bot01HitTimers[index] = 0.18f;
@@ -200,15 +208,17 @@ bool Bot01::DamageBot01(int index, int amount) {
 
 void Bot01::RemoveBot01(int index) {
 	SpawnKillDebris(bot01Positions[index], Vec3(1.0f, 0.2f, 0.2f), 6);
-	bot01Positions.erase  (bot01Positions.begin()   + index);
-	bot01YVelocities.erase(bot01YVelocities.begin() + index);
-	bot01HP.erase         (bot01HP.begin()          + index);
-	bot01HitTimers.erase  (bot01HitTimers.begin()   + index);
+	bot01Positions      .erase(bot01Positions.begin()       + index);
+	bot01YVelocities    .erase(bot01YVelocities.begin()     + index);
+	bot01XKnockbackVels .erase(bot01XKnockbackVels.begin()  + index);
+	bot01HP             .erase(bot01HP.begin()              + index);
+	bot01HitTimers      .erase(bot01HitTimers.begin()       + index);
 }
 
 void Bot01::Reset() {
 	bot01Positions.clear();
 	bot01YVelocities.clear();
+	bot01XKnockbackVels.clear();
 	bot01HP.clear();
 	bot01HitTimers.clear();
 	debris.clear();

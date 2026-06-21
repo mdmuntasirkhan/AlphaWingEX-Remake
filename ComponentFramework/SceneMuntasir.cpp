@@ -527,11 +527,16 @@ void SceneMuntasir::Update(const float deltaTime) {
             float dx = bullet->GetMissilePositions()[m].x - bot01->GetBot01Positions()[e].x;
             float dy = bullet->GetMissilePositions()[m].y - bot01->GetBot01Positions()[e].y;
             if ((dx*dx)/(0.65f*0.65f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
-                Vec3 hitPos   = bullet->GetMissilePositions()[m];
                 Vec3 deathPos = bot01->GetBot01Positions()[e];
-                // Impact knockback: push bot off its Y track
-                float impulse = (hitPos.y >= deathPos.y ? 1.0f : -1.0f) * 4.0f;
-                bot01->PushY(e, impulse);
+                // Derive impact direction from missile velocity at moment of hit.
+                // normalize(vel) gives the true 3D approach angle — diagonal curve
+                // hits split force across X and Y naturally (industry standard).
+                Vec3  mVel   = bullet->GetMissileVelocities()[m];
+                float mSpd   = sqrtf(mVel.x*mVel.x + mVel.y*mVel.y);
+                float iDirX  = (mSpd > 0.001f) ? mVel.x / mSpd : 1.0f;
+                float iDirY  = (mSpd > 0.001f) ? mVel.y / mSpd : 0.0f;
+                bot01->PushX(e, iDirX * 3.0f); // backward push proportional to X angle
+                bot01->PushY(e, iDirY * 5.5f); // Y push proportional to actual curve angle
                 bullet->RemoveMissileAt(m);
                 if (bot01->DamageBot01(e, 4)) {
                     SpawnShards(deathPos, 7);
@@ -679,6 +684,13 @@ void SceneMuntasir::Update(const float deltaTime) {
             float dy = bullet->GetMissilePositions()[m].y - bot02->GetPositions()[e].y;
             if ((dx*dx)/(0.75f*0.75f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
                 Vec3 deathPos = bot02->GetPositions()[e];
+                Vec3  mVel2  = bullet->GetMissileVelocities()[m];
+                float mSpd2  = sqrtf(mVel2.x*mVel2.x + mVel2.y*mVel2.y);
+                float iDirX2 = (mSpd2 > 0.001f) ? mVel2.x / mSpd2 : 1.0f;
+                float iDirY2 = (mSpd2 > 0.001f) ? mVel2.y / mSpd2 : 0.0f;
+                // Stagger Bot02 position — hover system pulls it back, creating
+                // a visible recoil-and-recover motion proportional to impact angle
+                bot02->PushPosition(e, iDirX2 * 0.55f, iDirY2 * 0.35f);
                 bullet->RemoveMissileAt(m);
                 if (bot02->DamageBot02(e, 4)) {
                     SpawnShards(deathPos, 10);
