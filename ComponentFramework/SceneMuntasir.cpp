@@ -31,8 +31,6 @@ SceneMuntasir::SceneMuntasir() :
     autoSaveTimer{ 0.0f },
     explosionCooldown{ 2.0f },
     explosionCooldownTimer{ 0.0f },
-    missileHitCooldown{ 0.15f },
-    missileHitCooldownTimer{ 0.0f },
     audioPlayer{ nullptr },
     sfxPlayer{ nullptr },
     sfxLaser{ nullptr },
@@ -318,14 +316,19 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
         // Right click - homing missile
         if (sdlEvent.button.button == SDL_BUTTON_RIGHT) {
             if (!ImGui::GetIO().WantCaptureMouse) {
+                bool launched = false;
                 if (bot01->GetBot01Positions().size() > 0) {
                     bullet->SpawnHoming(player->GetPosition(),
                         MissileTargetType::BOT01, 0);
+                    launched = true;
                 }
                 else if (asteroid->GetAsteroidPositions().size() > 0) {
                     bullet->SpawnHoming(player->GetPosition(),
                         MissileTargetType::ASTEROID, 0);
+                    launched = true;
                 }
+                if (launched)
+                    player->ApplyImpulse(Vec3(-3.5f, 0.0f, 0.0f)); // heavier recoil than laser
             }
         }
         break;
@@ -375,8 +378,6 @@ void SceneMuntasir::Update(const float deltaTime) {
     // Cooldown timers
     if (explosionCooldownTimer > 0.0f)
         explosionCooldownTimer -= deltaTime;
-    if (missileHitCooldownTimer > 0.0f)
-        missileHitCooldownTimer -= deltaTime;
 
     // Periodic auto-save (only while alive)
     if (!gameOver) {
@@ -541,10 +542,7 @@ void SceneMuntasir::Update(const float deltaTime) {
                     }
                 } else {
                     SpawnShards(deathPos, 2);
-                    if (missileHitCooldownTimer <= 0.0f) {
-                        sfxMissileHit->Play(sfxPlayer);
-                        missileHitCooldownTimer = missileHitCooldown;
-                    }
+                    sfxMissileHit->Play(sfxPlayer);
                 }
                 break;
             }
@@ -568,10 +566,7 @@ void SceneMuntasir::Update(const float deltaTime) {
                     }
                 } else {
                     SpawnShards(deathPos, 2);
-                    if (missileHitCooldownTimer <= 0.0f) {
-                        sfxMissileHit->Play(sfxPlayer);
-                        missileHitCooldownTimer = missileHitCooldown;
-                    }
+                    sfxMissileHit->Play(sfxPlayer);
                 }
                 break;
             }
@@ -595,10 +590,7 @@ void SceneMuntasir::Update(const float deltaTime) {
                     }
                 } else {
                     SpawnShards(deathPos, 1);
-                    if (missileHitCooldownTimer <= 0.0f) {
-                        sfxMissileHit->Play(sfxPlayer);
-                        missileHitCooldownTimer = missileHitCooldown;
-                    }
+                    sfxMissileHit->Play(sfxPlayer);
                 }
                 break;
             }
@@ -697,10 +689,7 @@ void SceneMuntasir::Update(const float deltaTime) {
                     }
                 } else {
                     SpawnShards(deathPos, 3);
-                    if (missileHitCooldownTimer <= 0.0f) {
-                        sfxMissileHit->Play(sfxPlayer);
-                        missileHitCooldownTimer = missileHitCooldown;
-                    }
+                    sfxMissileHit->Play(sfxPlayer);
                 }
                 break;
             }
