@@ -54,6 +54,7 @@ void Bot02::OnDestroy() {
     fireTimers.clear();
     bulletPositions.clear();
     bulletVelocities.clear();
+    bulletReflected.clear();
     debris.clear();
 }
 
@@ -112,6 +113,7 @@ void Bot02::Update(float deltaTime, float playerX, float playerY) {
                 }
                 bulletPositions .push_back(positions[i]);
                 bulletVelocities.push_back(Vec3(vx * kBulletSpeed, vy * kBulletSpeed, 0.0f));
+                bulletReflected .push_back(false);
             }
         }
     }
@@ -123,6 +125,7 @@ void Bot02::Update(float deltaTime, float playerX, float playerY) {
             bulletPositions[i].y < -10.0f || bulletPositions[i].y >  10.0f) {
             bulletPositions .erase(bulletPositions.begin()  + i);
             bulletVelocities.erase(bulletVelocities.begin() + i);
+            bulletReflected .erase(bulletReflected.begin()  + i);
         }
     }
 
@@ -249,6 +252,7 @@ void Bot02::RemoveBot02(int index) {
 void Bot02::RemoveBullet(int index) {
     bulletPositions .erase(bulletPositions.begin()  + index);
     bulletVelocities.erase(bulletVelocities.begin() + index);
+    bulletReflected .erase(bulletReflected.begin()  + index);
 }
 
 void Bot02::Reset() {
@@ -260,6 +264,7 @@ void Bot02::Reset() {
     fireTimers.clear();
     bulletPositions.clear();
     bulletVelocities.clear();
+    bulletReflected.clear();
     debris.clear();
     thrustTimer = 0.0f;
     hoverTimer  = 0.0f;

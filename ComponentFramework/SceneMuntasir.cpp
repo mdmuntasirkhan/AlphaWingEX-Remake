@@ -699,12 +699,68 @@ void SceneMuntasir::Update(const float deltaTime) {
                 }
             }
         }
-        // Bot02 bullets — silently deflected, no score
+        // Bot02 bullets — ricochet off the shield ellipse.
+        // Ellipse normal guards against double-reflect (only triggers when moving inward).
+        // After confirming the bounce, the bullet is redirected at the nearest Bot02
+        // and launched at 2.5× its original speed so the player doesn't need to
+        // aim the shield — just block and it punches back automatically.
+        static constexpr float kRicochetSpeed = 7.5f; // 2.5× kBulletSpeed
         for (int b = (int)bot02->GetBulletPositions().size() - 1; b >= 0; b--) {
-            float dx = bot02->GetBulletPositions()[b].x - sp.x;
-            float dy = bot02->GetBulletPositions()[b].y - sp.y;
-            if ((dx*dx)/srx2 + (dy*dy)/sry2 < 1.0f) {
+            Vec3& bPos = bot02->GetBulletPositions()[b];
+            Vec3& bVel = bot02->GetBulletVelocities()[b];
+            float rx = bPos.x - sp.x;
+            float ry = bPos.y - sp.y;
+            if ((rx*rx)/srx2 + (ry*ry)/sry2 < 1.0f) {
+                // Outward ellipse normal — gradient of x²/a² + y²/b²
+                float nx = rx / srx2;
+                float ny = ry / sry2;
+                float nlen = sqrtf(nx*nx + ny*ny);
+                if (nlen > 0.0001f) { nx /= nlen; ny /= nlen; }
+
+                if (bVel.x * nx + bVel.y * ny < 0.0f) { // moving inward — valid bounce
+                    // Aim at nearest Bot02; fall back to reflected normal if none present
+                    float aimX = nx, aimY = ny;
+                    const auto& b2pos = bot02->GetPositions();
+                    if (!b2pos.empty()) {
+                        float bestDist = -1.0f;
+                        int   bestIdx  = 0;
+                        for (int e = 0; e < (int)b2pos.size(); e++) {
+                            float ddx = b2pos[e].x - bPos.x;
+                            float ddy = b2pos[e].y - bPos.y;
+                            float dd  = ddx*ddx + ddy*ddy;
+                            if (bestDist < 0.0f || dd < bestDist) { bestDist = dd; bestIdx = e; }
+                        }
+                        float ddx  = b2pos[bestIdx].x - bPos.x;
+                        float ddy  = b2pos[bestIdx].y - bPos.y;
+                        float alen = sqrtf(ddx*ddx + ddy*ddy);
+                        if (alen > 0.001f) { aimX = ddx / alen; aimY = ddy / alen; }
+                    }
+                    bVel.x = aimX * kRicochetSpeed;
+                    bVel.y = aimY * kRicochetSpeed;
+                    bot02->MarkBulletReflected(b);
+                }
+            }
+        }
+    }
+
+    // Reflected Bot02 bullets hit Bot02 — 2 damage, shards, score
+    for (int b = (int)bot02->GetBulletPositions().size() - 1; b >= 0; b--) {
+        if (!bot02->IsBulletReflected(b)) continue;
+        for (int e = (int)bot02->GetPositions().size() - 1; e >= 0; e--) {
+            float dx = bot02->GetBulletPositions()[b].x - bot02->GetPositions()[e].x;
+            float dy = bot02->GetBulletPositions()[b].y - bot02->GetPositions()[e].y;
+            if ((dx*dx)/(0.75f*0.75f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
+                Vec3 deathPos = bot02->GetPositions()[e];
                 bot02->RemoveBullet(b);
+                if (bot02->DamageBot02(e, 2)) {
+                    SpawnShards(deathPos, 8);
+                    score += 300;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
+                }
+                break;
             }
         }
     }

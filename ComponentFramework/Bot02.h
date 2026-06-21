@@ -25,8 +25,9 @@ private:
     std::vector<float> fireTimers;   // per-instance fire cooldown
 
     // Projectile pool
-    std::vector<Vec3> bulletPositions;
-    std::vector<Vec3> bulletVelocities;
+    std::vector<Vec3>  bulletPositions;
+    std::vector<Vec3>  bulletVelocities;
+    std::vector<bool>  bulletReflected;
 
     static constexpr float kHoverX         = 6.0f;
     static constexpr float kHoverYOffset   = 3.0f;
@@ -61,6 +62,8 @@ public:
     bool DamageBot02(int index, int amount = 1);
     void RemoveBot02(int index);
     void RemoveBullet(int index);
+    void MarkBulletReflected(int index) { if (index >= 0 && index < (int)bulletReflected.size()) bulletReflected[index] = true; }
+    bool IsBulletReflected(int index)   const { return index >= 0 && index < (int)bulletReflected.size() && bulletReflected[index]; }
     void PushPosition(int index, float dx, float dy) {
         if (index >= 0 && index < (int)positions.size()) {
             positions[index].x += dx;
