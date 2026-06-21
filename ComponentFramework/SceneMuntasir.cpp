@@ -14,7 +14,8 @@
 // Constructor
 SceneMuntasir::SceneMuntasir() :
     player{ nullptr },
-    enemy{ nullptr },
+    asteroid{ nullptr },
+    bot01{ nullptr },
     bullet{ nullptr },
     environment{ nullptr },
     shader{ nullptr },
@@ -65,11 +66,18 @@ bool SceneMuntasir::OnCreate() {
         return false;
     }
 
-    // Enemy - handles asteroids and Bot01
-    enemy = new Enemy();
-    if (enemy->OnCreate("meshes/Temp_Asteroid.obj",
-        "meshes/Temp_AlphaWing_Enemy_Bot01.obj") == false) {
-        std::cout << "Enemy failed to load!\n";
+    // Asteroid
+    asteroid = new Asteroid();
+    if (asteroid->OnCreate("meshes/Temp_Asteroid.obj") == false) {
+        std::cout << "Asteroid failed to load!\n";
+        return false;
+    }
+
+    // Bot01
+    bot01 = new Bot01();
+    if (bot01->OnCreate("meshes/Temp_AlphaWing_Enemy_Bot01.obj",
+        "meshes/Temp_Asteroid.obj") == false) {
+        std::cout << "Bot01 failed to load!\n";
         return false;
     }
 
@@ -164,7 +172,7 @@ bool SceneMuntasir::OnCreate() {
     player->SetLives   (SaveData::current.lives);
     player->SetPosition(SaveData::current.posX, SaveData::current.posY);
 
-    enemy->SetTotalTime(SaveData::current.waveTime);
+    bot01->SetTotalTime(SaveData::current.waveTime);
 
     // Restore lost shard pile
     hasLostShards = SaveData::current.hasLostShards;
@@ -206,9 +214,13 @@ void SceneMuntasir::OnDestroy() {
     delete player;
     player = nullptr;
 
-    enemy->OnDestroy();
-    delete enemy;
-    enemy = nullptr;
+    asteroid->OnDestroy();
+    delete asteroid;
+    asteroid = nullptr;
+
+    bot01->OnDestroy();
+    delete bot01;
+    bot01 = nullptr;
 
     bullet->OnDestroy();
     delete bullet;
@@ -279,11 +291,11 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
         // Right click - homing missile
         if (sdlEvent.button.button == SDL_BUTTON_RIGHT) {
             if (!ImGui::GetIO().WantCaptureMouse) {
-                if (enemy->GetBot01Positions().size() > 0) {
+                if (bot01->GetBot01Positions().size() > 0) {
                     bullet->SpawnHoming(player->GetPosition(),
                         MissileTargetType::BOT01, 0);
                 }
-                else if (enemy->GetAsteroidPositions().size() > 0) {
+                else if (asteroid->GetAsteroidPositions().size() > 0) {
                     bullet->SpawnHoming(player->GetPosition(),
                         MissileTargetType::ASTEROID, 0);
                 }
@@ -301,7 +313,7 @@ void SceneMuntasir::SaveGame() {
     SaveData::current.lives           = player->GetLives();
     SaveData::current.posX            = player->GetPosition().x;
     SaveData::current.posY            = player->GetPosition().y;
-    SaveData::current.waveTime        = enemy->GetTotalTime();
+    SaveData::current.waveTime        = bot01->GetTotalTime();
     SaveData::current.hasLostShards   = hasLostShards;
     SaveData::current.lostShardPosX   = hasLostShards ? lostShards.pos.x : 0.0f;
     SaveData::current.lostShardPosY   = hasLostShards ? lostShards.pos.y : 0.0f;
@@ -352,9 +364,10 @@ void SceneMuntasir::Update(const float deltaTime) {
     // Update all classes
     player->Update(deltaTime);
     bullet->Update(deltaTime,
-        enemy->GetAsteroidPositions(), Vec3(-enemy->GetAsteroidSpeed(), 0.0f, 0.0f),
-        enemy->GetBot01Positions(), Vec3(-enemy->GetBot01Speed(), 0.0f, 0.0f));
-    enemy->Update(deltaTime, player->GetPosition().y);
+        asteroid->GetAsteroidPositions(), Vec3(-asteroid->GetAsteroidSpeed(), 0.0f, 0.0f),
+        bot01->GetBot01Positions(), Vec3(-bot01->GetBot01Speed(), 0.0f, 0.0f));
+    asteroid->Update(deltaTime);
+    bot01->Update(deltaTime, player->GetPosition().y);
     environment->Update(deltaTime);
 
     // Shard physics — drift, magnet pull, collect, cull
@@ -417,13 +430,13 @@ void SceneMuntasir::Update(const float deltaTime) {
 
     // Bullet hits Bot01
     for (int b = bullet->GetPositions().size() - 1; b >= 0; b--) {
-        for (int e = enemy->GetBot01Positions().size() - 1; e >= 0; e--) {
-            float dx = bullet->GetPositions()[b].x - enemy->GetBot01Positions()[e].x;
-            float dy = bullet->GetPositions()[b].y - enemy->GetBot01Positions()[e].y;
+        for (int e = bot01->GetBot01Positions().size() - 1; e >= 0; e--) {
+            float dx = bullet->GetPositions()[b].x - bot01->GetBot01Positions()[e].x;
+            float dy = bullet->GetPositions()[b].y - bot01->GetBot01Positions()[e].y;
             if ((dx*dx)/(0.6f*0.6f) + (dy*dy)/(0.32f*0.32f) < 1.0f) {
-                Vec3 deathPos = enemy->GetBot01Positions()[e];
+                Vec3 deathPos = bot01->GetBot01Positions()[e];
                 bullet->RemoveAt(b);
-                if (enemy->DamageBot01(e)) {
+                if (bot01->DamageBot01(e)) {
                     SpawnShards(deathPos, 5);
                     score += 100;
                     if (explosionCooldownTimer <= 0.0f) {
@@ -438,13 +451,13 @@ void SceneMuntasir::Update(const float deltaTime) {
 
     // Bullet hits large asteroid
     for (int b = bullet->GetPositions().size() - 1; b >= 0; b--) {
-        for (int a = enemy->GetAsteroidPositions().size() - 1; a >= 0; a--) {
-            float dx = bullet->GetPositions()[b].x - enemy->GetAsteroidPositions()[a].x;
-            float dy = bullet->GetPositions()[b].y - enemy->GetAsteroidPositions()[a].y;
+        for (int a = asteroid->GetAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = bullet->GetPositions()[b].x - asteroid->GetAsteroidPositions()[a].x;
+            float dy = bullet->GetPositions()[b].y - asteroid->GetAsteroidPositions()[a].y;
             if ((dx*dx)/(0.85f*0.85f) + (dy*dy)/(0.7f*0.7f) < 1.0f) {
-                Vec3 deathPos = enemy->GetAsteroidPositions()[a];
+                Vec3 deathPos = asteroid->GetAsteroidPositions()[a];
                 bullet->RemoveAt(b);
-                if (enemy->DamageAsteroid(a)) {
+                if (asteroid->DamageAsteroid(a)) {
                     SpawnShards(deathPos, 3);
                     score += 50;
                     if (explosionCooldownTimer <= 0.0f) {
@@ -459,13 +472,13 @@ void SceneMuntasir::Update(const float deltaTime) {
 
     // Bullet hits small asteroid
     for (int b = bullet->GetPositions().size() - 1; b >= 0; b--) {
-        for (int a = enemy->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
-            float dx = bullet->GetPositions()[b].x - enemy->GetSmallAsteroidPositions()[a].x;
-            float dy = bullet->GetPositions()[b].y - enemy->GetSmallAsteroidPositions()[a].y;
+        for (int a = asteroid->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = bullet->GetPositions()[b].x - asteroid->GetSmallAsteroidPositions()[a].x;
+            float dy = bullet->GetPositions()[b].y - asteroid->GetSmallAsteroidPositions()[a].y;
             if ((dx*dx)/(0.45f*0.45f) + (dy*dy)/(0.38f*0.38f) < 1.0f) {
-                Vec3 deathPos = enemy->GetSmallAsteroidPositions()[a];
+                Vec3 deathPos = asteroid->GetSmallAsteroidPositions()[a];
                 bullet->RemoveAt(b);
-                if (enemy->DamageSmallAsteroid(a)) {
+                if (asteroid->DamageSmallAsteroid(a)) {
                     SpawnShards(deathPos, 2);
                     score += 25;
                     if (explosionCooldownTimer <= 0.0f) {
@@ -480,13 +493,13 @@ void SceneMuntasir::Update(const float deltaTime) {
 
     // Missile hits Bot01
     for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
-        for (int e = enemy->GetBot01Positions().size() - 1; e >= 0; e--) {
-            float dx = bullet->GetMissilePositions()[m].x - enemy->GetBot01Positions()[e].x;
-            float dy = bullet->GetMissilePositions()[m].y - enemy->GetBot01Positions()[e].y;
+        for (int e = bot01->GetBot01Positions().size() - 1; e >= 0; e--) {
+            float dx = bullet->GetMissilePositions()[m].x - bot01->GetBot01Positions()[e].x;
+            float dy = bullet->GetMissilePositions()[m].y - bot01->GetBot01Positions()[e].y;
             if ((dx*dx)/(0.65f*0.65f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
-                Vec3 deathPos = enemy->GetBot01Positions()[e];
+                Vec3 deathPos = bot01->GetBot01Positions()[e];
                 bullet->RemoveMissileAt(m);
-                if (enemy->DamageBot01(e)) {
+                if (bot01->DamageBot01(e)) {
                     SpawnShards(deathPos, 5);
                     score += 100;
                     if (explosionCooldownTimer <= 0.0f) {
@@ -501,13 +514,13 @@ void SceneMuntasir::Update(const float deltaTime) {
 
     // Missile hits large asteroid
     for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
-        for (int a = enemy->GetAsteroidPositions().size() - 1; a >= 0; a--) {
-            float dx = bullet->GetMissilePositions()[m].x - enemy->GetAsteroidPositions()[a].x;
-            float dy = bullet->GetMissilePositions()[m].y - enemy->GetAsteroidPositions()[a].y;
+        for (int a = asteroid->GetAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = bullet->GetMissilePositions()[m].x - asteroid->GetAsteroidPositions()[a].x;
+            float dy = bullet->GetMissilePositions()[m].y - asteroid->GetAsteroidPositions()[a].y;
             if ((dx*dx)/(0.9f*0.9f) + (dy*dy)/(0.75f*0.75f) < 1.0f) {
-                Vec3 deathPos = enemy->GetAsteroidPositions()[a];
+                Vec3 deathPos = asteroid->GetAsteroidPositions()[a];
                 bullet->RemoveMissileAt(m);
-                if (enemy->DamageAsteroid(a)) {
+                if (asteroid->DamageAsteroid(a)) {
                     SpawnShards(deathPos, 3);
                     score += 50;
                     if (explosionCooldownTimer <= 0.0f) {
@@ -522,13 +535,13 @@ void SceneMuntasir::Update(const float deltaTime) {
 
     // Missile hits small asteroid
     for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
-        for (int a = enemy->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
-            float dx = bullet->GetMissilePositions()[m].x - enemy->GetSmallAsteroidPositions()[a].x;
-            float dy = bullet->GetMissilePositions()[m].y - enemy->GetSmallAsteroidPositions()[a].y;
+        for (int a = asteroid->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = bullet->GetMissilePositions()[m].x - asteroid->GetSmallAsteroidPositions()[a].x;
+            float dy = bullet->GetMissilePositions()[m].y - asteroid->GetSmallAsteroidPositions()[a].y;
             if ((dx*dx)/(0.5f*0.5f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
-                Vec3 deathPos = enemy->GetSmallAsteroidPositions()[a];
+                Vec3 deathPos = asteroid->GetSmallAsteroidPositions()[a];
                 bullet->RemoveMissileAt(m);
-                if (enemy->DamageSmallAsteroid(a)) {
+                if (asteroid->DamageSmallAsteroid(a)) {
                     SpawnShards(deathPos, 2);
                     score += 25;
                     if (explosionCooldownTimer <= 0.0f) {
@@ -542,14 +555,14 @@ void SceneMuntasir::Update(const float deltaTime) {
     }
 
     // Asteroid hits player
-    for (int a = enemy->GetAsteroidPositions().size() - 1; a >= 0; a--) {
-        float dx = player->GetPosition().x - enemy->GetAsteroidPositions()[a].x;
-        float dy = player->GetPosition().y - enemy->GetAsteroidPositions()[a].y;
+    for (int a = asteroid->GetAsteroidPositions().size() - 1; a >= 0; a--) {
+        float dx = player->GetPosition().x - asteroid->GetAsteroidPositions()[a].x;
+        float dy = player->GetPosition().y - asteroid->GetAsteroidPositions()[a].y;
         if ((dx*dx)/(1.0f*1.0f) + (dy*dy)/(0.5f*0.5f) < 1.0f) {
-            Vec3 deathPos = enemy->GetAsteroidPositions()[a];
+            Vec3 deathPos = asteroid->GetAsteroidPositions()[a];
             float len = sqrtf(dx*dx + dy*dy);
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx/len * 4.0f, dy/len * 4.0f, 0.0f));
-            enemy->RemoveAsteroid(a);
+            asteroid->RemoveAsteroid(a);
             SpawnShards(deathPos, 3);
             player->TakeDamage(25.0f);
             if (explosionCooldownTimer <= 0.0f) {
@@ -560,14 +573,14 @@ void SceneMuntasir::Update(const float deltaTime) {
     }
 
     // Small asteroid hits player
-    for (int a = enemy->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
-        float dx = player->GetPosition().x - enemy->GetSmallAsteroidPositions()[a].x;
-        float dy = player->GetPosition().y - enemy->GetSmallAsteroidPositions()[a].y;
+    for (int a = asteroid->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
+        float dx = player->GetPosition().x - asteroid->GetSmallAsteroidPositions()[a].x;
+        float dy = player->GetPosition().y - asteroid->GetSmallAsteroidPositions()[a].y;
         if ((dx*dx)/(0.65f*0.65f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
-            Vec3 deathPos = enemy->GetSmallAsteroidPositions()[a];
+            Vec3 deathPos = asteroid->GetSmallAsteroidPositions()[a];
             float len = sqrtf(dx*dx + dy*dy);
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx/len * 2.5f, dy/len * 2.5f, 0.0f));
-            enemy->RemoveSmallAsteroid(a);
+            asteroid->RemoveSmallAsteroid(a);
             SpawnShards(deathPos, 2);
             player->TakeDamage(10.0f);
             if (explosionCooldownTimer <= 0.0f) {
@@ -578,14 +591,14 @@ void SceneMuntasir::Update(const float deltaTime) {
     }
 
     // Bot01 hits player
-    for (int e = enemy->GetBot01Positions().size() - 1; e >= 0; e--) {
-        float dx = player->GetPosition().x - enemy->GetBot01Positions()[e].x;
-        float dy = player->GetPosition().y - enemy->GetBot01Positions()[e].y;
+    for (int e = bot01->GetBot01Positions().size() - 1; e >= 0; e--) {
+        float dx = player->GetPosition().x - bot01->GetBot01Positions()[e].x;
+        float dy = player->GetPosition().y - bot01->GetBot01Positions()[e].y;
         if ((dx*dx)/(0.75f*0.75f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
-            Vec3 deathPos = enemy->GetBot01Positions()[e];
+            Vec3 deathPos = bot01->GetBot01Positions()[e];
             float len = sqrtf(dx*dx + dy*dy);
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx/len * 5.0f, dy/len * 5.0f, 0.0f));
-            enemy->RemoveBot01(e);
+            bot01->RemoveBot01(e);
             SpawnShards(deathPos, 5);
             player->TakeDamage(40.0f);
             if (explosionCooldownTimer <= 0.0f) {
@@ -679,7 +692,8 @@ void SceneMuntasir::Render() const {
     glUniform4f(shader->GetUniformID("color"), 1.0f, 1.0f, 0.0f, 1.0f);
     bullet->Render(shader, projectionMatrix, viewMatrix);
 
-    enemy->Render(shader, projectionMatrix, viewMatrix);
+    asteroid->Render(shader, projectionMatrix, viewMatrix);
+    bot01->Render(shader, projectionMatrix, viewMatrix);
 
     // Energy shards + lost shard pile — additive emissive
     if (!shards.empty() || hasLostShards) {
@@ -975,7 +989,8 @@ void SceneMuntasir::DrawGui() {
             shards.clear();
             autoSaveTimer = 0.0f;
             player->Reset();
-            enemy->Reset();
+            asteroid->Reset();
+            bot01->Reset();
             prevLives = player->GetLives();
             SaveData::current.Reset();
             SaveData::current.Save();

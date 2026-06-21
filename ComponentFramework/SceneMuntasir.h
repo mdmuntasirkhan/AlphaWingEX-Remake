@@ -6,7 +6,8 @@
 #include <Matrix.h>
 #include "Sound.h"
 #include "Player.h"
-#include "Enemy.h"
+#include "Asteroid.h"
+#include "Bot01.h"
 #include "Bullet.h"
 #include "Environment.h"
 #include "SaveData.h"
@@ -22,7 +23,8 @@ class SceneMuntasir : public Scene {
 private:
 	// Game Class
 	Player* player;
-	Enemy* enemy;
+	Asteroid* asteroid;
+	Bot01* bot01;
 	Bullet* bullet;
 	Environment* environment;
 
@@ -38,10 +40,10 @@ private:
 
 	// Energy shards — RPG currency dropped by enemies
 	struct Shard {
-		Vec3  pos;
-		Vec3  vel;
-		float angle;
-		float spinSpeed;
+		Vec3  pos{};
+		Vec3  vel{};
+		float angle     = 0.0f;
+		float spinSpeed = 0.0f;
 	};
 	std::vector<Shard> shards;
 	int   shardCount;
