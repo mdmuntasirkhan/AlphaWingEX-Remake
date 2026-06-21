@@ -439,7 +439,7 @@ void SceneMuntasir::Update(const float deltaTime) {
         bot01->GetBot01Positions(),       Vec3(-bot01->GetBot01Speed(), 0.0f, 0.0f),
         bot02->GetPositions(),            Vec3(0.0f, 0.0f, 0.0f));
     asteroid->Update(deltaTime);
-    bot01->Update(deltaTime, 0.0f, player->GetPosition().y);
+    bot01->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
     bot02->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
     environment->Update(deltaTime);
 

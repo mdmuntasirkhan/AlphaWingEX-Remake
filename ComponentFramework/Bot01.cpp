@@ -15,7 +15,7 @@ Bot01::Bot01() :
 	bot01YMaxSpeed{ 2.5f },
 	bot01Speed{ 1.2f },
 	bot01SpawnTimer{ 0.0f },
-	bot01SpawnInterval{ 6.0f },
+	bot01SpawnInterval{ 10.0f },
 	totalTime{ 0.0f },
 	waveSize{ 5 },
 	waveSpawned{ 0 }
@@ -69,7 +69,7 @@ void Bot01::OnDestroy() {
 	debris.clear();
 }
 
-void Bot01::Update(float deltaTime, float /*playerX*/, float playerY) {
+void Bot01::Update(float deltaTime, float playerX, float playerY) {
 	totalTime   += deltaTime;
 	thrustTimer += deltaTime;
 
@@ -95,11 +95,19 @@ void Bot01::Update(float deltaTime, float /*playerX*/, float playerY) {
 		bot01XKnockbackVels[i] *= expf(-9.0f * deltaTime); // ~0.5s full decay
 		if (fabsf(bot01XKnockbackVels[i]) < 0.01f) bot01XKnockbackVels[i] = 0.0f;
 
-		float force = bot01SteerForce * (playerY - bot01Positions[i].y)
-		            - bot01YDamping  * bot01YVelocities[i];
-		bot01YVelocities[i] += force * deltaTime;
-		if (bot01YVelocities[i] >  bot01YMaxSpeed) bot01YVelocities[i] =  bot01YMaxSpeed;
-		if (bot01YVelocities[i] < -bot01YMaxSpeed) bot01YVelocities[i] = -bot01YMaxSpeed;
+		// Phase 1 — fly straight on X until close to the player's column.
+		// Phase 2 — once within kYSteerThreshold X-units, steer toward player Y.
+		static constexpr float kYSteerThreshold = 7.0f;
+		if (fabsf(bot01Positions[i].x - playerX) <= kYSteerThreshold) {
+			float force = bot01SteerForce * (playerY - bot01Positions[i].y)
+			            - bot01YDamping  * bot01YVelocities[i];
+			bot01YVelocities[i] += force * deltaTime;
+			if (bot01YVelocities[i] >  bot01YMaxSpeed) bot01YVelocities[i] =  bot01YMaxSpeed;
+			if (bot01YVelocities[i] < -bot01YMaxSpeed) bot01YVelocities[i] = -bot01YMaxSpeed;
+		} else {
+			// Dampen any residual Y velocity so the bot holds its entry row
+			bot01YVelocities[i] *= expf(-bot01YDamping * deltaTime);
+		}
 		bot01Positions[i].y += bot01YVelocities[i] * deltaTime;
 	}
 	for (int i = (int)bot01Positions.size() - 1; i >= 0; i--) {

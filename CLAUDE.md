@@ -32,7 +32,7 @@ AlphaWingEX-Remake is a 2.5D vertical-scrolling space shooter built in C++ with 
 - WASD — move player
 - Space / Left-click — fire laser
 - Right-click — launch homing missile (finite supply, auto-reloads)
-- E — activate shield (8 s active, 2 s cooldown)
+- E — activate shield (10 s active, 5 s cooldown)
 - ESC — toggle pause (opens in-game pause menu; does **not** quit)
 
 There is no automated test suite. Verification is done by running the game.
@@ -74,7 +74,7 @@ Concrete scenes:
 `Enemy` (`Enemy.h`) is an **abstract base class** — it is not a monolithic class managing all pools. It provides the shared `debris` vector, `SpawnHitDebris()` / `SpawnKillDebris()` helpers, and the virtual interface (`Update`, `Render`, `OnDestroy`, `Reset`). The three concrete subclasses are each owned as a separate raw pointer in `SceneMuntasir`:
 
 - **`Asteroid`** — manages two parallel pools: large asteroids (6 HP) and small asteroids (3 HP). Both share one mesh. Exposes `GetAsteroidPositions()` / `GetSmallAsteroidPositions()` for collision. `DamageAsteroid()` / `DamageSmallAsteroid()` return `true` on kill. Debris spawns on hit and on kill.
-- **`Bot01`** — wave-based enemy (10 HP). Steers toward the player's Y position. Has a `totalTime` wave-progression timer (persisted in `SaveData`). Spawns in waves of 5, one every 6 seconds (`bot01SpawnInterval`), starting immediately when the scene loads. Exposes `GetBot01Positions()`. Per-instance `bot01HitTimers` drive a white-flash-on-hit effect. `PushX()` / `PushY()` apply missile knockback. `IsWaveComplete()` / `ResetWave()` control wave flow. `DamageBot01()` returns `true` on kill.
+- **`Bot01`** — wave-based enemy (10 HP). Two-phase AI: flies straight on entry (Phase 1) until within 7 world-units of the player's X, then steers toward the player's Y (Phase 2). Has a `totalTime` wave-progression timer (persisted in `SaveData`). Spawns in waves of 5, one every 6 seconds (`bot01SpawnInterval`), starting immediately when the scene loads. Exposes `GetBot01Positions()`. Per-instance `bot01HitTimers` drive a white-flash-on-hit effect. `PushX()` / `PushY()` apply missile knockback. `IsWaveComplete()` / `ResetWave()` control wave flow. `DamageBot01()` returns `true` on kill.
 - **`Bot02`** — mini-boss enemy (20 HP). Hovers at a fixed world-X position (`kHoverX = 6.0f`) and oscillates vertically. Max 2 active at a time. Has its own projectile pool (`GetBulletPositions()` / `GetBulletVelocities()`) and fires at the player every `kFireInterval = 3.0f` seconds. Four mesh parts: body, cockpit, fin, thrust — plus a fragment mesh (asteroid shape) and a dedicated bullet mesh. Bot02 bullets must be handled separately in collision detection. `MissileTargetType` covers `ASTEROID`, `BOT01`, and `BOT02` — homing missiles prioritise Bot02 first.
 
 ### Game objects in SceneMuntasir
