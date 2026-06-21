@@ -133,7 +133,9 @@ bool SceneMuntasir::OnCreate() {
         Vec3(0.0f, 0.0f, -1.0f),
         Vec3(0.0f, 1.0f, 0.0f)
     );
-    projectionMatrix = MMath::perspective(45.0f, 16.0f / 9.0f, 0.1f, 100.0f);
+    float aspect = static_cast<float>(SaveData::kResolutionW[SaveData::current.resolutionIndex]) /
+                   static_cast<float>(SaveData::kResolutionH[SaveData::current.resolutionIndex]);
+    projectionMatrix = MMath::perspective(45.0f, aspect, 0.1f, 100.0f);
 
     // Audio Setup
     SDL_AudioSpec defaultSpec;
@@ -216,6 +218,10 @@ bool SceneMuntasir::OnCreate() {
     levelDirector->AddScript(new Level01Script(), 0.0f);
 
     return true;
+}
+
+void SceneMuntasir::OnVideoChanged(int w, int h) {
+    projectionMatrix = MMath::perspective(45.0f, static_cast<float>(w) / static_cast<float>(h), 0.1f, 100.0f);
 }
 
 // OnDestroy

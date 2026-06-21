@@ -129,6 +129,7 @@ void SceneManager::Run() {
 			// profile_Player.dat to be created whenever video was changed
 			// on the title screen before any profile was loaded.
 			SaveData::current.SaveMachineSettings();
+			currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
 		}
 
 		// Render ImGui

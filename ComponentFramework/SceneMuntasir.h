@@ -115,6 +115,7 @@ public:
 	virtual void RenderBackground() override;
 	virtual void Render() const override;
 	virtual void HandleEvents(const SDL_Event& sdlEvent) override;
+	virtual void OnVideoChanged(int w, int h) override;
 
 	// ImGui
 	virtual void DrawGui() override;

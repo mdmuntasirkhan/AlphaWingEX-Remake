@@ -13,6 +13,7 @@ public:
 	
 
 	virtual void RenderBackground() {}
+	virtual void OnVideoChanged(int /*w*/, int /*h*/) {}
 
 	// ImGui
 	virtual void DrawGui() {}
