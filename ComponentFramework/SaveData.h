@@ -40,12 +40,18 @@ struct SaveData {
     static SaveData current;
 
     // Resolution table — shared by scenes and SceneManager
-    static constexpr int kResolutionCount = 4;
+    static constexpr int kResolutionCount = 7;
     static constexpr const char* kResolutionLabels[kResolutionCount] = {
-        "1280 x 720", "1600 x 900", "1920 x 1080", "2560 x 1440"
+        "1280 x 720",
+        "1600 x 900",
+        "1920 x 1080",
+        "2560 x 1440",
+        "3840 x 2160  (4K)",
+        "5120 x 2160  (5K2K)",
+        "7680 x 2160  (8K2K)"
     };
-    static constexpr int kResolutionW[kResolutionCount] = { 1280, 1600, 1920, 2560 };
-    static constexpr int kResolutionH[kResolutionCount] = {  720,  900, 1080, 1440 };
+    static constexpr int kResolutionW[kResolutionCount] = { 1280, 1600, 1920, 2560, 3840, 5120, 7680 };
+    static constexpr int kResolutionH[kResolutionCount] = {  720,  900, 1080, 1440, 2160, 2160, 2160 };
 
     std::string GetFilePath() const { return "profile_" + profileName + ".dat"; }
 
