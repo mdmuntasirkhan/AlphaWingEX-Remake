@@ -267,6 +267,7 @@ void Player::Render(Shader* shader,
 
 void Player::TakeDamage(float amount) {
 	if (shieldActive) return;
+	if (lives <= 0) return;
 
 	health -= amount;
 	if (health <= 0.0f) {

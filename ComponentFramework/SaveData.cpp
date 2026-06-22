@@ -65,6 +65,7 @@ bool SaveData::Load(const std::string& name) {
 
 void SaveData::Reset() {
     shardCount      = 0;
+    highScore       = 0;
     health          = 100.0f;
     lives           = 3;
     score           = 0;

@@ -65,6 +65,8 @@ Concrete scenes:
 - **`SceneMuntasir`** — the real game.
 - **`SceneSTG`**, **`SceneJA`** — stubs/experiments used by teammates.
 
+`OnVideoChanged(int w, int h)` is a Scene virtual (default no-op) that `SceneManager` calls after applying a resolution change. `SceneMuntasir` overrides it to recompute the projection matrix for the new aspect ratio.
+
 ### SceneSwitcher
 
 `SceneSwitcher` (in `SceneSwitcher.h`) is a zero-dependency static struct that breaks the circular-include problem between scenes and `SceneManager`. Any scene calls `SceneSwitcher::Request(GameScene::X)`; `SceneManager` checks `SceneSwitcher::hasPending` each frame after `DrawGui()`. No scene header needs to `#include "SceneManager.h"`.
@@ -74,6 +76,14 @@ Concrete scenes:
 `LevelDirector` owns the master level timeline. It merges any number of `LevelScript` chunks into one sorted `vector<LevelEvent>`, pre-loads every mesh they reference at startup, fires events as `levelTime` advances, scrolls active environment chunks left, and culls them when off-screen. It does **not** touch enemies, bullets, the player, or save data.
 
 `LevelScript` is an abstract base — one `GetEvents()` override per concrete subclass returning a list of `LevelEvent`s with **local** timestamps (starting at 0). `LevelDirector::AddScript(script, timeOffset)` shifts all local times to absolute time on the master timeline, enabling seamless level-zone transitions.
+
+**`LevelDirector` callback wiring** — `SceneMuntasir::OnCreate()` registers four lambdas after construction, one per event category:
+- `SetPhaseCallback(fn)` — called on `PHASE_CHANGE`; sets `currentPhase`
+- `SetBot01Callback(fn)` — called on `SPAWN_BOT01_GROUP` / `SPAWN_BOT01_SHIELDED`; signature `(count, spawnInterval, isShielded)` → `Bot01::TriggerWave`
+- `SetBot02Callback(fn)` — called on `SPAWN_BOT02`; triggers the Bot02 pair spawn
+- `SetAsteroidCallback(fn)` — called on `SET_ASTEROID_RATE`; signature `(largeInterval, smallInterval)`
+
+**`LevelDirector::Reset()`** — rewinds the timeline to t=0 without reloading meshes. Used by Try Again to replay the level from the start.
 
 Currently registered scripts in `SceneMuntasir::OnCreate()`:
 - **`Level01Script`** — offset 0 (starts immediately)
@@ -112,8 +122,8 @@ Currently registered scripts in `SceneMuntasir::OnCreate()`:
 
 ### Game objects in SceneMuntasir
 
-- **`Player`** — four mesh components: ship body, cockpit, attachment, and thrust flame. Handles WASD movement with velocity/friction physics, health/lives, Z-roll on W/S (5° intentional wobble — do not change without asking), shield activation with Fresnel rim animation, and state-restore setters used by the save/load system. Shield collision is elliptical: X half-axis 1.05, Y half-axis 0.75 world units.
-- **`Bullet`** — two pools: straight laser shots and homing missiles. Missiles use proportional-navigation (PN) guidance (`missileNavigationGain`) with a brief straight-flight launch phase before homing kicks in. Re-acquires nearest target if the locked one is destroyed mid-flight. Also upgrades target mid-flight if a higher-priority tier appears. Target acquisition priority: Bot02 first, then Bot01, then large asteroids.
+- **`Player`** — four mesh components: ship body, cockpit, attachment, and thrust flame. Handles WASD movement with velocity/friction physics, health/lives, Z-roll on W/S (5° intentional wobble — do not change without asking), shield activation with Fresnel rim animation, and state-restore setters used by the save/load system. Shield collision is elliptical: X half-axis 1.05, Y half-axis 0.75 world units. Shield recharge uses tiered penalty rates locked in at deactivation: < 80% charge used → 1.0× (fast), ≥ 80% → 0.5× (medium penalty), ≥ 90% or fully expired → 0.15× (heavy penalty).
+- **`Bullet`** — two pools: straight laser shots and homing missiles. Missiles use proportional-navigation (PN) guidance (`missileNavigationGain`) with a brief straight-flight launch phase before homing kicks in. Three-phase speed profile: launch burst → decelerate to cruise speed → terminal sprint once within `missileTerminalRange`. Missiles are culled by `missileMaxLifetime` timeout — they do **not** die when leaving the screen. Re-acquires nearest target if the locked one is destroyed mid-flight. Also upgrades target mid-flight if a higher-priority tier appears. Target acquisition priority: Bot02 first, then Bot01, then large asteroids.
 - **`Environment`** — ImGui-drawn starfield scrolling background. Supports `SPACE` and `WATER` environment types (water adds jitter and a speed multiplier).
 
 **Impact knockback system:** all three enemy types support physics-based knockback applied at collision time. Bot01 uses `PushX(index, impulse)` / `PushY(index, impulse)`; Bot02 uses `PushBot02(index, dx, dy)`; Asteroid uses `PushAsteroid(index, dx, dy)` / `PushSmallAsteroid(index, dx, dy)`. All accumulate into per-instance knockback velocity vectors that decay via `expf(-8 or -9 × deltaTime)` each frame, independent of the enemy's normal movement logic. Missile impacts derive direction from `GetMissileVelocities()[m]` normalized; bullet impacts use a fixed +X direction since lasers travel horizontally. Missile forces are roughly 2–4× larger than bullet forces.

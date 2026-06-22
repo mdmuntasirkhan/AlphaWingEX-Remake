@@ -266,8 +266,17 @@ void SceneMuntasir::OnVideoChanged(int w, int h) {
 void SceneMuntasir::OnDestroy() {
     Debug::Info("Deleting assets SceneMuntasir: ", __FILE__, __LINE__);
 
-    // Auto-save full state on scene exit (covers quit, title-return, etc.)
-    SaveGame();
+    // On a complete death, write a clean-slate save so the next load starts fresh.
+    // highScore was already committed when gameOver was set.
+    // On a normal exit (pause-quit, window close mid-run), save the full mid-session state.
+    if (gameOver) {
+        int hs = SaveData::current.highScore;
+        SaveData::current.Reset();
+        SaveData::current.highScore = hs;
+        SaveData::current.Save();
+    } else {
+        SaveGame();
+    }
 
     // Level director
     if (levelDirector) {
@@ -431,8 +440,6 @@ void SceneMuntasir::SaveGame() {
     SaveData::current.lostShardCount  = hasLostShards ? lostShards.count : 0;
     SaveData::current.musicVolume     = musicVolume;
     SaveData::current.sfxVolume       = sfxVolume;
-    if (score > SaveData::current.highScore)
-        SaveData::current.highScore   = score;
     SaveData::current.Save();
 }
 
@@ -537,6 +544,8 @@ void SceneMuntasir::Update(const float deltaTime) {
 
     // Check game over
     if (player->IsGameOver()) {
+        if (score > SaveData::current.highScore)
+            SaveData::current.highScore = score;
         gameOver = true;
     }
 
@@ -1506,7 +1515,9 @@ void SceneMuntasir::DrawGui() {
             bot02->Reset();
             levelDirector->Reset();
             prevLives = player->GetLives();
+            int prevHighScore = SaveData::current.highScore;
             SaveData::current.Reset();
+            SaveData::current.highScore = prevHighScore;
             SaveData::current.Save();
         }
         chkHov();
