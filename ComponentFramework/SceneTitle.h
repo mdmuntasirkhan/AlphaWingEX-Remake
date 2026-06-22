@@ -38,6 +38,7 @@ private:
     int  pendingResIndex;
     bool pendingFullscreen;
     int  pendingVsync;
+    int  pendingTargetFPS;
 
     void PlaySelect();
     void PlayHover();

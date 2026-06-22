@@ -19,6 +19,7 @@ SceneTitle::SceneTitle()
     , pendingResIndex(SaveData::current.resolutionIndex)
     , pendingFullscreen(SaveData::current.fullscreen)
     , pendingVsync(SaveData::current.vsyncMode)
+    , pendingTargetFPS(SaveData::current.targetFPS)
 {
     memset(nameBuf, 0, sizeof(nameBuf));
 }
@@ -201,7 +202,7 @@ void SceneTitle::DrawGui() {
     // ── main panel ─────────────────────────────────────────────────────────
     bool atCap = (int)profiles.size() >= SaveData::kMaxProfiles;
     float panH = 0.0f;
-    if      (state == TitleState::MAIN)          panH = 200.0f + (showSettings ? 310.0f : 0.0f) + (atCap ? 46.0f : 0.0f);
+    if      (state == TitleState::MAIN)          panH = 200.0f + (showSettings ? 345.0f : 0.0f) + (atCap ? 46.0f : 0.0f);
     else if (state == TitleState::NEW_GAME_NAME) panH = 160.0f;
     else if (state == TitleState::LOAD_SELECT)   panH = 60.0f + (float)profiles.size() * 52.0f + 50.0f;
 
@@ -259,6 +260,7 @@ void SceneTitle::DrawGui() {
                 pendingResIndex   = SaveData::current.resolutionIndex;
                 pendingFullscreen = SaveData::current.fullscreen;
                 pendingVsync      = SaveData::current.vsyncMode;
+                pendingTargetFPS  = SaveData::current.targetFPS;
             }
             showSettings = !showSettings;
         }
@@ -312,6 +314,20 @@ void SceneTitle::DrawGui() {
             ImGui::SameLine();
             if (ImGui::RadioButton("Off##vs",      pendingVsync ==  0)) pendingVsync =  0;
 
+            // Frame Cap (applies when Sync is Off)
+            ImGui::SetCursorPosX(btnX);
+            ImGui::Text("Frame Cap");
+            ImGui::SameLine();
+            {
+                static const char* capLabels[] = { "Uncapped", "240 FPS", "144 FPS", "120 FPS", "60 FPS" };
+                static const int   capValues[] = { 0, 240, 144, 120, 60 };
+                int capIdx = 0;
+                for (int ci = 0; ci < 5; ci++) if (capValues[ci] == pendingTargetFPS) { capIdx = ci; break; }
+                ImGui::SetNextItemWidth(btnW - 100.0f);
+                if (ImGui::Combo("##cap", &capIdx, capLabels, 5))
+                    pendingTargetFPS = capValues[capIdx];
+            }
+
             ImGui::Spacing();
             ImGui::SetCursorPosX(btnX);
             if (ImGui::Button("APPLY VIDEO", ImVec2(btnW, 30))) {
@@ -319,6 +335,7 @@ void SceneTitle::DrawGui() {
                 SaveData::current.resolutionIndex = pendingResIndex;
                 SaveData::current.fullscreen      = pendingFullscreen;
                 SaveData::current.vsyncMode       = pendingVsync;
+                SaveData::current.targetFPS       = pendingTargetFPS;
                 int w = SaveData::kResolutionW[pendingResIndex];
                 int h = SaveData::kResolutionH[pendingResIndex];
                 SceneSwitcher::RequestVideo(pendingFullscreen, w, h, pendingVsync);

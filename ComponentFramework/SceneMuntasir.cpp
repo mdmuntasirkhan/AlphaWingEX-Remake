@@ -56,7 +56,7 @@ SceneMuntasir::SceneMuntasir() :
     pendingVsync{ SaveData::current.vsyncMode },
     pendingTargetFPS{ SaveData::current.targetFPS },
     debugOverlay{ nullptr },
-    showDebugOverlay{ false },
+    showDebugOverlay{ true },
     hoverStream{ nullptr },
     uiClickSound{ nullptr },
     lastHoveredId{ 0 },
@@ -393,7 +393,14 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
             if (!gameOver) gamePaused = !gamePaused;
             break;
         case SDL_SCANCODE_F9:
-            showDebugOverlay = !showDebugOverlay;
+            if (!showDebugOverlay) {
+                showDebugOverlay = true;
+                debugOverlay->SetMode(DebugOverlay::Mode::MINIMAL);
+            } else if (debugOverlay->GetMode() == DebugOverlay::Mode::MINIMAL) {
+                debugOverlay->SetMode(DebugOverlay::Mode::DETAILED);
+            } else {
+                showDebugOverlay = false;
+            }
             break;
         case SDL_SCANCODE_F12:
             drawInWireMode = !drawInWireMode;
@@ -1259,7 +1266,7 @@ void SceneMuntasir::PlayHoverSound() {
 }
 
 void SceneMuntasir::DrawGui() {
-    if (showDebugOverlay) debugOverlay->Draw();
+    if (showDebugOverlay) debugOverlay->Draw();  // Draw() is non-const — mode button can flip inside
     DrawHUD();
     DrawPauseMenu();
     DrawGameOver();
