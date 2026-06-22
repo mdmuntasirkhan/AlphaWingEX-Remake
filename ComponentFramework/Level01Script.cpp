@@ -42,6 +42,7 @@ std::vector<LevelEvent> Level01Script::GetEvents() const {
         { 40.0f,  EventType::SPAWN_BOT01_GROUP,    {}, nullptr, {}, 5.0f, 10.0f, 0 }, // 5 bots, one every 10 s
         { 95.0f,  EventType::SPAWN_BOT01_SHIELDED, {}, nullptr, {}, 1.0f,  0.0f, 0 }, // 1 shielded bot
         { 145.0f, EventType::SPAWN_BOT01_GROUP,    {}, nullptr, {}, 3.0f,  8.0f, 0 }, // 3 bots, one every 8 s
+        { 165.0f, EventType::SPAWN_BOT01_SHIELDED, {}, nullptr, {}, 1.0f,  0.0f, 0 }, // 1 shielded bot
 
         // ============================================================
         //  BOT02
