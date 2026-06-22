@@ -59,6 +59,8 @@ SceneMuntasir::SceneMuntasir() :
     showDebugOverlay{ true },
     f11Held{ false },
     f11HoldTimer{ 0.0f },
+    prevWarping{ false },
+    postWarpTimer{ 0.0f },
     hoverStream{ nullptr },
     uiClickSound{ nullptr },
     lastHoveredId{ 0 },
@@ -548,8 +550,8 @@ void SceneMuntasir::Update(const float deltaTime) {
 
     // Trigger warp animations requested by the level script
     if (levelDirector->PopWarpEnterRequest()) environment->TriggerWarpEnter(6.0f);
-    if (levelDirector->PopWarpExitRequest())  environment->TriggerWarpExit(6.0f);
-    if (levelDirector->PopWarpFullRequest())  environment->TriggerWarp(6.0f);
+    if (levelDirector->PopWarpExitRequest())  environment->TriggerWarpExit(8.0f);
+    if (levelDirector->PopWarpFullRequest())  environment->TriggerWarp(8.0f);
 
     // F11 hold-to-warp — charge for 3 s then fire
     if (f11Held && !environment->IsWarpActive()) {
@@ -566,8 +568,24 @@ void SceneMuntasir::Update(const float deltaTime) {
     // During a hyperspace warp the world freezes — enemies and bullets pause
     bool warping = environment->IsWarpActive();
 
-    // Player movement is dampened (20% speed) so the world feels fast around them
-    player->Update(warping ? deltaTime * 0.35f : deltaTime);
+    // Detect warp end — kick off the post-warp ease-in timer
+    if (prevWarping && !warping) postWarpTimer = kPostWarpEaseDuration;
+    prevWarping = warping;
+
+    // Compute player speed multiplier: dampened during warp, smoothly eases to full after
+    float dtMult;
+    if (warping) {
+        dtMult = 0.35f;
+    } else if (postWarpTimer > 0.0f) {
+        postWarpTimer -= deltaTime;
+        if (postWarpTimer < 0.0f) postWarpTimer = 0.0f;
+        float t    = 1.0f - (postWarpTimer / kPostWarpEaseDuration); // 0 → 1
+        float ease = t * t * (3.0f - 2.0f * t);                     // smoothstep
+        dtMult = 0.35f + ease * 0.65f;                               // 0.35 → 1.0
+    } else {
+        dtMult = 1.0f;
+    }
+    player->Update(dtMult * deltaTime);
 
     if (!warping) {
         bullet->Update(deltaTime,
@@ -1231,42 +1249,32 @@ void SceneMuntasir::RenderBackground() {
 
 // Render
 void SceneMuntasir::Render() const {
-    // Full warp (F11): black screen + streaking stars only — no 3D objects visible
-    if (environment->IsFullWarp()) {
-        environment->Render();
-        return;
-    }
+    bool fullWarp = environment->IsFullWarp();
 
     glEnable(GL_DEPTH_TEST);
     glClear(GL_DEPTH_BUFFER_BIT); // color already set by RenderBackground
 
-    // Wireframe
-    if (drawInWireMode) {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    }
-    else {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    }
+    if (drawInWireMode) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    else                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     glUseProgram(shader->GetProgram());
 
-    // Light and camera position (sent to frag shader)
     glUniform3f(shader->GetUniformID("lightPos"), 0.0f, 50.0f, 10.0f);
-    glUniform3f(shader->GetUniformID("viewPos"), 0.0f, 0.0f, 10.0f);
+    glUniform3f(shader->GetUniformID("viewPos"),  0.0f,  0.0f, 10.0f);
 
-    // Player — colors set per-part inside Player::Render()
+    // Player always visible — even during full warp
     player->Render(shader, projectionMatrix, viewMatrix);
 
-    // Bullets — YELLOW
-    glUniform4f(shader->GetUniformID("color"), 1.0f, 1.0f, 0.0f, 1.0f);
-    bullet->Render(shader, projectionMatrix, viewMatrix);
+    // Enemies, bullets and level geometry hidden during full warp cinematic
+    if (!fullWarp) {
+        glUniform4f(shader->GetUniformID("color"), 1.0f, 1.0f, 0.0f, 1.0f);
+        bullet->Render(shader, projectionMatrix, viewMatrix);
 
-    // Environment chunks — level geometry scrolling through the scene
-    levelDirector->Render(shader, projectionMatrix, viewMatrix);
-
-    asteroid->Render(shader, projectionMatrix, viewMatrix);
-    bot01->Render(shader, projectionMatrix, viewMatrix);
-    bot02->Render(shader, projectionMatrix, viewMatrix);
+        levelDirector->Render(shader, projectionMatrix, viewMatrix);
+        asteroid->Render(shader, projectionMatrix, viewMatrix);
+        bot01->Render(shader, projectionMatrix, viewMatrix);
+        bot02->Render(shader, projectionMatrix, viewMatrix);
+    }
 
     // Energy shards — additive emissive spinning orbs
     if (!shards.empty()) {
@@ -1310,40 +1318,6 @@ void SceneMuntasir::PlayHoverSound() {
 void SceneMuntasir::DrawGui() {
     if (showDebugOverlay) debugOverlay->Draw();  // Draw() is non-const — mode button can flip inside
 
-    // F11 warp charge bar — visible while holding, disappears on fire or release
-    if (f11Held && !environment->IsWarpActive() && f11HoldTimer > 0.0f) {
-        float progress = f11HoldTimer / 3.0f;
-
-        ImGuiIO& io = ImGui::GetIO();
-        ImGui::SetNextWindowPos(
-            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.72f),
-            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowBgAlpha(0.0f);
-        ImGui::Begin("##warpcharge", nullptr,
-            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
-            ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
-            ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav |
-            ImGuiWindowFlags_NoMove);
-
-        // Label — pulses brighter as charge fills
-        ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize("WARP DRIVE CHARGING").x) * 0.5f);
-        ImGui::TextColored(ImVec4(0.4f + progress * 0.6f, 0.7f + progress * 0.3f, 1.0f, 1.0f),
-                           "WARP DRIVE CHARGING");
-
-        // Bar — shifts from dim blue to bright cyan
-        ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
-            ImVec4(0.0f + progress * 0.2f, 0.4f + progress * 0.6f, 1.0f, 1.0f));
-        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.05f, 0.05f, 0.15f, 0.8f));
-        ImGui::ProgressBar(progress, ImVec2(320.0f, 16.0f), "");
-        ImGui::PopStyleColor(2);
-
-        // Hint
-        ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize("release to cancel").x) * 0.5f);
-        ImGui::TextDisabled("release to cancel");
-
-        ImGui::End();
-    }
-
     if (environment->IsFullWarp()) return;       // hide all HUD during cinematic warp
     DrawHUD();
     DrawPauseMenu();
@@ -1355,7 +1329,7 @@ void SceneMuntasir::DrawHUD() {
 
     // ── Game HUD (always visible) ─────────────────────────────────────────
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(280, 210), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(318, 292), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.75f);
     ImGui::Begin("##hud", nullptr,
         ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoMove        |
@@ -1410,7 +1384,7 @@ void SceneMuntasir::DrawHUD() {
                  : hp > 0.3f ? ImVec4(1.0f, 1.0f, 0.0f, 1.0f)
                              : ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
     ImGui::PushStyleColor(ImGuiCol_PlotHistogram, hpCol);
-    ImGui::ProgressBar(hp, ImVec2(250, 18), "");
+    ImGui::ProgressBar(hp, ImVec2(-1.0f, 20.0f), "");
     ImGui::PopStyleColor();
 
     // Shield — single continuous charge bar.
@@ -1434,7 +1408,7 @@ void SceneMuntasir::DrawHUD() {
         }
 
         ImGui::PushStyleColor(ImGuiCol_PlotHistogram, barCol);
-        ImGui::ProgressBar(charge, ImVec2(200.0f, 10.0f), "");
+        ImGui::ProgressBar(charge, ImVec2(-1.0f, 12.0f), "");
         ImGui::PopStyleColor();
 
         // Threshold ticks — visible whenever the bar isn't fully charged
@@ -1462,6 +1436,51 @@ void SceneMuntasir::DrawHUD() {
     } else if (shardBeacon->IsActive()) {
         ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.05f, 1.0f),
             ">> RECOVER %d LOST SHARDS", shardBeacon->GetCount());
+    }
+
+    // Warp Drive charge — always visible in HUD
+    ImGui::Separator();
+    {
+        bool  charging = f11Held && !environment->IsWarpActive();
+        float progress = charging ? (f11HoldTimer / 3.0f) : 0.0f;
+        float t        = (float)ImGui::GetTime();
+
+        // Label left, hint right-aligned to avoid border clipping
+        ImVec4 labelCol = charging
+            ? ImVec4(0.4f + progress * 0.6f, 0.7f + progress * 0.3f, 1.0f, 1.0f)
+            : ImVec4(0.55f, 0.80f, 1.0f, 0.95f);
+        ImGui::TextColored(labelCol, "WARP DRIVE");
+        const char* hint = charging ? "release to cancel" : "HOLD F11";
+        float hintW = ImGui::CalcTextSize(hint).x;
+        ImGui::SameLine(0, 0);
+        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - hintW - ImGui::GetStyle().WindowPadding.x);
+        ImGui::TextDisabled("%s", hint);
+
+        // Full-width bar
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.04f, 0.04f, 0.12f, 0.95f));
+        if (charging) {
+            // Charging: dark-blue → bright cyan fill
+            ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
+                ImVec4(progress * 0.15f, 0.35f + progress * 0.65f, 1.0f, 1.0f));
+            ImGui::ProgressBar(progress, ImVec2(-1.0f, 16.0f), "");
+            ImGui::PopStyleColor(2);
+        } else {
+            // Idle: full bar with animated electric-blue → violet gradient
+            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.05f, 0.08f, 0.18f, 1.0f));
+            ImGui::ProgressBar(1.0f, ImVec2(-1.0f, 16.0f), "");
+            ImGui::PopStyleColor(2);
+            float  pulse = 0.70f + 0.30f * sinf(t * 1.4f);
+            int    a     = (int)(248 * pulse);
+            ImVec2 bMin  = ImGui::GetItemRectMin();
+            ImVec2 bMax  = ImGui::GetItemRectMax();
+            ImGui::GetWindowDrawList()->AddRectFilledMultiColor(
+                bMin, bMax,
+                IM_COL32(0,   195, 255, a),   // electric blue (left)
+                IM_COL32(160,  35, 255, a),   // violet (right)
+                IM_COL32(160,  35, 255, a),
+                IM_COL32(0,   195, 255, a)
+            );
+        }
     }
 
     ImGui::TextDisabled("ESC  Pause");

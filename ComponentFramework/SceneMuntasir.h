@@ -121,6 +121,11 @@ private:
 	bool  f11Held;
 	float f11HoldTimer;
 
+	// Post-warp control ease-in — smoothly restores full player speed after warp ends
+	bool  prevWarping;
+	float postWarpTimer;
+	static constexpr float kPostWarpEaseDuration = 2.5f;
+
 	// Hover — selectSound played on a low-gain stream
 	SDL_AudioStream* hoverStream;
 	Sound*           uiClickSound;
