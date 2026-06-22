@@ -93,6 +93,24 @@ void LevelDirector::SetPhaseCallback(std::function<void(int)> cb) {
     phaseCallback = cb;
 }
 
+void LevelDirector::SetBot01Callback(std::function<void(int, float, bool)> cb) {
+    bot01Callback = cb;
+}
+
+void LevelDirector::SetBot02Callback(std::function<void()> cb) {
+    bot02Callback = cb;
+}
+
+void LevelDirector::SetAsteroidCallback(std::function<void(float, float)> cb) {
+    asteroidCallback = cb;
+}
+
+void LevelDirector::Reset() {
+    levelTime = 0.0f;
+    nextEvent = 0;
+    activeChunks.clear();
+}
+
 float LevelDirector::GetTime() const {
     return levelTime;
 }
@@ -112,5 +130,18 @@ void LevelDirector::FireEvent(const LevelEvent& e) {
     }
     else if (e.type == EventType::PHASE_CHANGE && phaseCallback) {
         phaseCallback(e.phaseId);
+    }
+    else if (e.type == EventType::SPAWN_BOT01_GROUP && bot01Callback) {
+        bot01Callback((int)e.scale, e.scrollSpeed, false);
+    }
+    else if (e.type == EventType::SPAWN_BOT01_SHIELDED && bot01Callback) {
+        int cnt = (int)e.scale > 0 ? (int)e.scale : 1;
+        bot01Callback(cnt, e.scrollSpeed, true);
+    }
+    else if (e.type == EventType::SPAWN_BOT02 && bot02Callback) {
+        bot02Callback();
+    }
+    else if (e.type == EventType::SET_ASTEROID_RATE && asteroidCallback) {
+        asteroidCallback(e.scale, e.scrollSpeed);
     }
 }

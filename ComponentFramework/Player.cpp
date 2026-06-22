@@ -17,6 +17,7 @@ Player::Player() :  mesh { nullptr },
 					friction { 8.0f },
 					maxSpeed { 10.0f },
 					shieldActive { false },
+					shieldPaused { false },
 					shieldTimer { 0.0f },
 					shieldDuration { 10.0f },
 					shieldCooldown { 5.0f },
@@ -169,12 +170,12 @@ void Player::Update(float deltaTime) {
 				  MMath::rotate(rollAngle, Vec3(0.0f, 0.0f, 1.0f)) *
 				  MMath::scale(0.3f, 0.3f, 0.3f);
 
-	// Shield active countdown
-	if (shieldActive) {
+	// Shield active countdown (paused = timer frozen, shield stays up)
+	if (shieldActive && !shieldPaused) {
 		shieldTimer += deltaTime;
 		if (shieldTimer >= shieldDuration) {
-			// Shield ran out
 			shieldActive = false;
+			shieldPaused = false;
 			shieldOnCooldown = true;
 			shieldCooldownTimer = 0.0f;
 		}
@@ -239,7 +240,7 @@ void Player::Render(Shader* shader,
 	glDisable(GL_BLEND);
 
 	// Shield Mesh
-	if (shieldActive) {
+	if (shieldActive && !shieldPaused) {
 		// Turn ON transparency; cull back faces so the dome interior is invisible
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -285,11 +286,15 @@ void Player::TakeDamage(float amount) {
 }
 
 void Player::ActivateShield() {
-	// Only active if not already active and not on cooldown
-	if (!shieldActive && !shieldOnCooldown) {
+	if (shieldActive) {
+		shieldPaused = !shieldPaused;  // E while active: toggle pause/resume
+		return;
+	}
+	if (!shieldOnCooldown) {
 		shieldActive = true;
+		shieldPaused = false;
 		shieldTimer = 0.0f;
-		shieldSweepTimer = 0.0f; // sweep restarts from the top each activation
+		shieldSweepTimer = 0.0f;
 	}
 }
 
@@ -301,6 +306,7 @@ void Player::Reset() {
 	rollAngle = 0.0f;
 	rollVelocity = 0.0f;
 	shieldActive = false;
+	shieldPaused = false;
 	shieldTimer = 0.0f;
 	shieldOnCooldown = false;
 	shieldCooldownTimer = 0.0f;

@@ -39,6 +39,21 @@ public:
     // SceneMuntasir calls this once after construction to drive enemy phase logic.
     void SetPhaseCallback(std::function<void(int)> cb);
 
+    // Register a callback invoked whenever a SPAWN_BOT01_GROUP or SPAWN_BOT01_SHIELDED event fires.
+    // SceneMuntasir wires this to bot01->TriggerWave() so the level script owns wave timing.
+    // Signature: (count, spawnInterval, isShielded)
+    void SetBot01Callback(std::function<void(int, float, bool)> cb);
+
+    // Register a callback invoked whenever a SPAWN_BOT02 event fires.
+    void SetBot02Callback(std::function<void()> cb);
+
+    // Register a callback invoked whenever a SET_ASTEROID_RATE event fires.
+    // Signature: (largeInterval, smallInterval)
+    void SetAsteroidCallback(std::function<void(float, float)> cb);
+
+    // Reset the timeline back to t=0 (for Try Again). Meshes stay loaded.
+    void Reset();
+
     // Current position on the master timeline (seconds).
     float GetTime() const;
 
@@ -68,7 +83,10 @@ private:
     std::vector<LevelEvent>      timeline;
     std::vector<ActiveChunk>     activeChunks;
     std::map<std::string, Mesh*> meshPool;
-    std::function<void(int)>     phaseCallback;
+    std::function<void(int)>            phaseCallback;
+    std::function<void(int,float,bool)> bot01Callback;
+    std::function<void()>               bot02Callback;
+    std::function<void(float,float)>    asteroidCallback;
 
     void FireEvent(const LevelEvent& e);
 };

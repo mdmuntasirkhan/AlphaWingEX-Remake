@@ -69,6 +69,35 @@ Concrete scenes:
 
 `SceneSwitcher` (in `SceneSwitcher.h`) is a zero-dependency static struct that breaks the circular-include problem between scenes and `SceneManager`. Any scene calls `SceneSwitcher::Request(GameScene::X)`; `SceneManager` checks `SceneSwitcher::hasPending` each frame after `DrawGui()`. No scene header needs to `#include "SceneManager.h"`.
 
+### Level scripting system
+
+`LevelDirector` owns the master level timeline. It merges any number of `LevelScript` chunks into one sorted `vector<LevelEvent>`, pre-loads every mesh they reference at startup, fires events as `levelTime` advances, scrolls active environment chunks left, and culls them when off-screen. It does **not** touch enemies, bullets, the player, or save data.
+
+`LevelScript` is an abstract base — one `GetEvents()` override per concrete subclass returning a list of `LevelEvent`s with **local** timestamps (starting at 0). `LevelDirector::AddScript(script, timeOffset)` shifts all local times to absolute time on the master timeline, enabling seamless level-zone transitions.
+
+Currently registered scripts in `SceneMuntasir::OnCreate()`:
+- **`Level01Script`** — offset 0 (starts immediately)
+- **`Level02Script`** — offset 180 s (3 min in; Level02's first chunk enters exactly as Level01's last exits)
+
+**To add a new environment chunk:** export an OBJ from Blender into `meshes/`, then add one `LevelEvent` of type `SPAWN_ENV_CHUNK` inside the relevant `LevelXXScript.cpp`. No other file changes are required.
+
+**Two `EventType` values** are defined in `EventType.h`:
+- `SPAWN_ENV_CHUNK` — spawns a mesh that scrolls left at `scrollSpeed` units/second.
+- `PHASE_CHANGE` — fires `phaseCallback(phaseId)` in `SceneMuntasir`, advancing enemy progression.
+
+### Phase-based enemy progression
+
+`SceneMuntasir` holds a `currentPhase` int. `LevelDirector::SetPhaseCallback()` is called once in `OnCreate()` to wire up a lambda that sets `currentPhase`. Phase gates are declared as `PHASE_CHANGE` events in the level script:
+
+| Phase | Trigger time | Active enemies |
+|-------|-------------|----------------|
+| 1 | t=0 (implicit) | Asteroids only |
+| 2 | t=40 s | + Bot01 waves |
+| 3 | t=115 s | Bot02 intro — Bot01 and asteroids pause |
+| 4 | t=140 s | All enemies simultaneously |
+
+`SceneMuntasir::Update()` gates each enemy's `Update()` and spawn calls behind `currentPhase` checks. To add a new phase or adjust timing, only `Level01Script.cpp` needs to change.
+
 ### Enemy class hierarchy
 
 `Enemy` (`Enemy.h`) is an **abstract base class** — it is not a monolithic class managing all pools. It provides the shared `debris` vector, `SpawnHitDebris()` / `SpawnKillDebris()` helpers, and the virtual interface (`Update`, `Render`, `OnDestroy`, `Reset`). The three concrete subclasses are each owned as a separate raw pointer in `SceneMuntasir`:

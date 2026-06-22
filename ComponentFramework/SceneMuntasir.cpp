@@ -220,6 +220,17 @@ bool SceneMuntasir::OnCreate() {
     // Level director — loads all environment chunk meshes up front, no runtime stutter
     levelDirector = new LevelDirector();
     levelDirector->SetPhaseCallback([this](int id) { currentPhase = id; });
+    levelDirector->SetBot01Callback([this](int count, float interval, bool shielded) {
+        bot01->TriggerWave(shielded ? Bot01WaveType::SHIELDED : Bot01WaveType::STANDARD,
+                           count, interval);
+    });
+    levelDirector->SetBot02Callback([this]() {
+        if (bot02->GetCount() == 0)
+            bot02->Spawn(player->GetPosition().y);
+    });
+    levelDirector->SetAsteroidCallback([this](float largeInterval, float smallInterval) {
+        asteroid->SetSpawnRates(largeInterval, smallInterval);
+    });
     levelDirector->AddScript(new Level01Script(), 0.0f);
     // Level02 starts at t=180s. Bring offset down to ~158s for a 22s overlap window
     // where both zones' chunks scroll on screen simultaneously (seamless transition).
@@ -443,6 +454,7 @@ void SceneMuntasir::Update(const float deltaTime) {
         bot02->GetPositions(),            Vec3(0.0f, 0.0f, 0.0f));
     asteroid->Update(deltaTime);
     bot01->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
+    bot01->UpdateShields(deltaTime, bullet->GetMissilePositions());
     bot02->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
     environment->Update(deltaTime);
 
@@ -568,11 +580,16 @@ void SceneMuntasir::Update(const float deltaTime) {
     }
 
     // Missile hits Bot01 — 4x damage, knockback, SFX+shards on every hit
+    // Shielded bots absorb the missile without taking damage (shield blocks it)
     for (int m = (int)bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
         for (int e = (int)bot01->GetBot01Positions().size() - 1; e >= 0; e--) {
             float dx = bullet->GetMissilePositions()[m].x - bot01->GetBot01Positions()[e].x;
             float dy = bullet->GetMissilePositions()[m].y - bot01->GetBot01Positions()[e].y;
             if ((dx*dx)/(0.65f*0.65f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
+                if (bot01->IsBot01ShieldActive(e)) {
+                    bullet->RemoveMissileAt(m);
+                    break;
+                }
                 Vec3 deathPos = bot01->GetBot01Positions()[e];
                 // Derive impact direction from missile velocity at moment of hit.
                 // normalize(vel) gives the true 3D approach angle — diagonal curve
@@ -974,20 +991,11 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Phase-based enemy progression — currentPhase is set by PHASE_CHANGE events in the level script
-    // Phase 1: asteroids only | Phase 2: +Bot01 | Phase 3: Bot02 intro (asteroids+Bot01 pause) | Phase 4: all
-    bool bot01Spawning     = currentPhase >= 2 && (currentPhase < 3 || currentPhase >= 4);
-    bool bot02Spawning     = currentPhase >= 3;
+    // All spawning is driven by the level script.
+    // The only phase gates remaining are the Bot02 intro window (phase 3) pause flags.
     bool asteroidsSpawning = currentPhase < 3 || currentPhase >= 4;
-
-    bot01->SetSpawningEnabled(bot01Spawning);
+    bot01->SetSpawningEnabled(currentPhase != 3);
     asteroid->SetSpawningEnabled(asteroidsSpawning);
-
-    if (bot02Spawning && bot02->GetCount() == 0)
-        bot02->Spawn(player->GetPosition().y);
-
-    if (bot01->IsWaveComplete())
-        bot01->ResetWave();
 
     // Life-loss detection — after all collision damage this frame.
     int currentLives = player->GetLives();
@@ -1202,12 +1210,19 @@ void SceneMuntasir::DrawGui() {
     ImGui::ProgressBar(hp, ImVec2(250, 18), "");
     ImGui::PopStyleColor();
 
-    // Shield status
+    // Shield status — active shows duration bar (smaller than health bar), cooldown shows recharge
     if (player->IsShieldActive()) {
-        ImGui::TextColored(ImVec4(0.0f, 0.5f, 1.0f, 1.0f), "SHIELD ACTIVE!");
+        float rem = 1.0f - player->GetShieldDurationPercent();
+        if (player->IsShieldPaused())
+            ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "SHIELD [PAUSED]  [E]");
+        else
+            ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "SHIELD ACTIVE  [E pause]");
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.0f, 0.7f, 1.0f, 1.0f));
+        ImGui::ProgressBar(rem, ImVec2(200.0f, 10.0f), "");
+        ImGui::PopStyleColor();
     } else if (player->IsShieldOnCooldown()) {
-        ImGui::Text("Shield Recharging...");
-        ImGui::ProgressBar(player->GetShieldCooldownPercent(), ImVec2(250, 12), "");
+        ImGui::Text("SHIELD RECHARGING...");
+        ImGui::ProgressBar(player->GetShieldCooldownPercent(), ImVec2(200.0f, 10.0f), "");
     } else {
         ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "SHIELD READY  [E]");
     }
@@ -1401,10 +1416,12 @@ void SceneMuntasir::DrawGui() {
             hasLostShards = false;
             shards.clear();
             autoSaveTimer = 0.0f;
+            currentPhase  = 1;
             player->Reset();
             asteroid->Reset();
             bot01->Reset();
             bot02->Reset();
+            levelDirector->Reset();
             prevLives = player->GetLives();
             SaveData::current.Reset();
             SaveData::current.Save();

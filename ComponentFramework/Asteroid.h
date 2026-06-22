@@ -45,6 +45,10 @@ public:
 	float GetSmallAsteroidSpeed() const { return smallAsteroidSpeed; }
 
 	void SetSpawningEnabled(bool enabled) { spawningEnabled = enabled; }
+	void SetSpawnRates(float largeInterval, float smallInterval) {
+		asteroidSpawnInterval      = largeInterval;
+		smallAsteroidSpawnInterval = smallInterval;
+	}
 
 	bool DamageAsteroid(int index, int amount = 1);
 	bool DamageSmallAsteroid(int index, int amount = 1);

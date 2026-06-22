@@ -5,10 +5,19 @@
 #include <cmath>
 #include <iostream>
 
+// Wave cycle table — STANDARD (5-bot) → PINCER (top+bottom pair) → SHIELDED (missile-blocker)
+static constexpr Bot01WaveDesc kWaves[] = {
+    { Bot01WaveType::STANDARD, 5, 10.0f },
+    { Bot01WaveType::PINCER,   2,  0.0f },
+    { Bot01WaveType::SHIELDED, 1,  0.0f },
+};
+static constexpr int kWaveCount = 3;
+
 Bot01::Bot01() :
 	bot01Mesh{ nullptr },
 	bot01ThrustMesh{ nullptr },
 	fragmentMesh{ nullptr },
+	shieldMesh{ nullptr },
 	thrustTimer{ 0.0f },
 	bot01SteerForce{ 10.0f },
 	bot01YDamping{ 1.5f },
@@ -17,8 +26,10 @@ Bot01::Bot01() :
 	bot01SpawnTimer{ 0.0f },
 	bot01SpawnInterval{ 10.0f },
 	totalTime{ 0.0f },
-	waveSize{ 5 },
+	waveSize{ 0 },
 	waveSpawned{ 0 },
+	currentWaveIndex{ 0 },
+	currentWaveType{ Bot01WaveType::STANDARD },
 	spawningEnabled{ true }
 {
 }
@@ -44,6 +55,12 @@ bool Bot01::OnCreate(const char* meshFile, const char* fragmentMeshFile) {
 		return false;
 	}
 
+	shieldMesh = new Mesh("meshes/Temp_AlphaWing_Shield.obj");
+	if (shieldMesh->OnCreate() == false) {
+		std::cout << "Bot01 shield mesh not found!\n";
+		return false;
+	}
+
 	return true;
 }
 
@@ -63,12 +80,37 @@ void Bot01::OnDestroy() {
 		delete fragmentMesh;
 		fragmentMesh = nullptr;
 	}
+	if (shieldMesh) {
+		shieldMesh->OnDestroy();
+		delete shieldMesh;
+		shieldMesh = nullptr;
+	}
 	bot01Positions.clear();
 	bot01XVelocities.clear();
 	bot01YVelocities.clear();
+	bot01XKnockbackVels.clear();
 	bot01HP.clear();
 	bot01HitTimers.clear();
+	bot01HasShield.clear();
+	bot01ShieldActive.clear();
+	bot01ShieldOnCooldown.clear();
+	bot01ShieldTimer.clear();
+	bot01ShieldCooldownTimer.clear();
 	debris.clear();
+}
+
+void Bot01::SpawnBot01(float x, float y, bool hasShield) {
+	bot01Positions.push_back(Vec3(x, y, -10.0f));
+	bot01XVelocities.push_back(0.0f);
+	bot01YVelocities.push_back(0.0f);
+	bot01XKnockbackVels.push_back(0.0f);
+	bot01HP.push_back(10);
+	bot01HitTimers.push_back(0.0f);
+	bot01HasShield.push_back(hasShield);
+	bot01ShieldActive.push_back(false);
+	bot01ShieldOnCooldown.push_back(false);
+	bot01ShieldTimer.push_back(0.0f);
+	bot01ShieldCooldownTimer.push_back(0.0f);
 }
 
 void Bot01::Update(float deltaTime, float playerX, float playerY) {
@@ -76,17 +118,28 @@ void Bot01::Update(float deltaTime, float playerX, float playerY) {
 	thrustTimer += deltaTime;
 
 	if (spawningEnabled && waveSpawned < waveSize) {
-		bot01SpawnTimer += deltaTime;
-		if (bot01SpawnTimer >= bot01SpawnInterval) {
-			bot01SpawnTimer = 0.0f;
-			float spawnY = -3.5f + (rand() % 701) / 100.0f; // random Y in [-3.5, 3.5]
-			bot01Positions.push_back(Vec3(15.0f, spawnY, -10.0f));
-			bot01XVelocities.push_back(0.0f);
-			bot01YVelocities.push_back(0.0f);
-			bot01XKnockbackVels.push_back(0.0f);
-			bot01HP.push_back(10);
-			bot01HitTimers.push_back(0.0f);
-			waveSpawned++;
+		if (currentWaveType == Bot01WaveType::PINCER) {
+			// Spawn top and bottom simultaneously on first tick of the wave
+			if (waveSpawned == 0) {
+				SpawnBot01(15.0f,  4.5f, false);
+				SpawnBot01(15.0f, -4.5f, false);
+				waveSpawned = 2;
+			}
+		} else if (currentWaveType == Bot01WaveType::SHIELDED) {
+			if (waveSpawned == 0) {
+				float spawnY = -3.5f + (rand() % 701) / 100.0f;
+				SpawnBot01(15.0f, spawnY, true);
+				waveSpawned = 1;
+			}
+		} else {
+			// STANDARD: timer-based, one bot per interval
+			bot01SpawnTimer += deltaTime;
+			if (bot01SpawnTimer >= bot01SpawnInterval) {
+				bot01SpawnTimer = 0.0f;
+				float spawnY = -3.5f + (rand() % 701) / 100.0f;
+				SpawnBot01(15.0f, spawnY, false);
+				waveSpawned++;
+			}
 		}
 	}
 
@@ -128,12 +181,17 @@ void Bot01::Update(float deltaTime, float playerX, float playerY) {
 	}
 	for (int i = (int)bot01Positions.size() - 1; i >= 0; i--) {
 		if (bot01Positions[i].x < -15.0f) {
-			bot01Positions      .erase(bot01Positions.begin()       + i);
-			bot01XVelocities    .erase(bot01XVelocities.begin()     + i);
-			bot01YVelocities    .erase(bot01YVelocities.begin()     + i);
-			bot01XKnockbackVels .erase(bot01XKnockbackVels.begin()  + i);
-			bot01HP             .erase(bot01HP.begin()              + i);
-			bot01HitTimers      .erase(bot01HitTimers.begin()       + i);
+			bot01Positions          .erase(bot01Positions.begin()          + i);
+			bot01XVelocities        .erase(bot01XVelocities.begin()        + i);
+			bot01YVelocities        .erase(bot01YVelocities.begin()        + i);
+			bot01XKnockbackVels     .erase(bot01XKnockbackVels.begin()     + i);
+			bot01HP                 .erase(bot01HP.begin()                 + i);
+			bot01HitTimers          .erase(bot01HitTimers.begin()          + i);
+			bot01HasShield          .erase(bot01HasShield.begin()          + i);
+			bot01ShieldActive       .erase(bot01ShieldActive.begin()       + i);
+			bot01ShieldOnCooldown   .erase(bot01ShieldOnCooldown.begin()   + i);
+			bot01ShieldTimer        .erase(bot01ShieldTimer.begin()        + i);
+			bot01ShieldCooldownTimer.erase(bot01ShieldCooldownTimer.begin() + i);
 		}
 	}
 
@@ -150,6 +208,40 @@ void Bot01::Update(float deltaTime, float playerX, float playerY) {
 		debris[i].lifetime -= deltaTime;
 		if (debris[i].lifetime <= 0.0f)
 			debris.erase(debris.begin() + i);
+	}
+}
+
+void Bot01::UpdateShields(float deltaTime, const std::vector<Vec3>& missilePositions) {
+	for (int i = 0; i < (int)bot01Positions.size(); i++) {
+		if (!bot01HasShield[i]) continue;
+
+		if (bot01ShieldActive[i]) {
+			bot01ShieldTimer[i] += deltaTime;
+			if (bot01ShieldTimer[i] >= kShieldDuration) {
+				bot01ShieldActive[i]        = false;
+				bot01ShieldOnCooldown[i]    = true;
+				bot01ShieldCooldownTimer[i] = 0.0f;
+				bot01ShieldTimer[i]         = 0.0f;
+			}
+		} else if (bot01ShieldOnCooldown[i]) {
+			bot01ShieldCooldownTimer[i] += deltaTime;
+			if (bot01ShieldCooldownTimer[i] >= kShieldCooldown) {
+				bot01ShieldOnCooldown[i]    = false;
+				bot01ShieldCooldownTimer[i] = 0.0f;
+			}
+		} else {
+			// Activate when any missile enters proximity range
+			const Vec3& pos = bot01Positions[i];
+			for (const Vec3& mPos : missilePositions) {
+				float dx = mPos.x - pos.x;
+				float dy = mPos.y - pos.y;
+				if (dx * dx + dy * dy < kShieldProximity * kShieldProximity) {
+					bot01ShieldActive[i] = true;
+					bot01ShieldTimer[i]  = 0.0f;
+					break;
+				}
+			}
+		}
 	}
 }
 
@@ -190,6 +282,33 @@ void Bot01::Render(Shader* shader,
 	glDepthMask(GL_TRUE);
 	glDisable(GL_BLEND);
 
+	// Shielded bot shields — Fresnel emissive bubble in orange (distinct from player's cyan)
+	bool anyShield = false;
+	for (int i = 0; i < (int)bot01ShieldActive.size(); i++)
+		if (bot01ShieldActive[i]) { anyShield = true; break; }
+
+	if (anyShield) {
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glDepthMask(GL_FALSE);
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+		glUniform1f(shader->GetUniformID("emissive"), 1.0f);
+		glUniform4f(shader->GetUniformID("color"), 1.0f, 0.35f, 0.0f, 1.0f);
+		for (int i = 0; i < (int)bot01Positions.size(); i++) {
+			if (!bot01ShieldActive[i]) continue;
+			Matrix4 sm = MMath::translate(bot01Positions[i]) *
+			             MMath::rotate(180.0f, Vec3(0.0f, 1.0f, 0.0f)) *
+			             MMath::scale(0.17f, 0.17f, 0.17f);
+			glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, sm);
+			shieldMesh->Render();
+		}
+		glUniform1f(shader->GetUniformID("emissive"), 0.0f);
+		glDisable(GL_CULL_FACE);
+		glDisable(GL_BLEND);
+		glDepthMask(GL_TRUE);
+	}
+
 	// Debris
 	if (!debris.empty()) {
 		glEnable(GL_BLEND);
@@ -217,12 +336,17 @@ bool Bot01::DamageBot01(int index, int amount) {
 	bot01HP[index] -= amount;
 	if (bot01HP[index] <= 0) {
 		SpawnKillDebris(bot01Positions[index], Vec3(1.0f, 0.2f, 0.2f), amount > 1 ? 10 : 6);
-		bot01Positions      .erase(bot01Positions.begin()       + index);
-		bot01XVelocities    .erase(bot01XVelocities.begin()     + index);
-		bot01YVelocities    .erase(bot01YVelocities.begin()     + index);
-		bot01XKnockbackVels .erase(bot01XKnockbackVels.begin()  + index);
-		bot01HP             .erase(bot01HP.begin()              + index);
-		bot01HitTimers      .erase(bot01HitTimers.begin()       + index);
+		bot01Positions          .erase(bot01Positions.begin()          + index);
+		bot01XVelocities        .erase(bot01XVelocities.begin()        + index);
+		bot01YVelocities        .erase(bot01YVelocities.begin()        + index);
+		bot01XKnockbackVels     .erase(bot01XKnockbackVels.begin()     + index);
+		bot01HP                 .erase(bot01HP.begin()                 + index);
+		bot01HitTimers          .erase(bot01HitTimers.begin()          + index);
+		bot01HasShield          .erase(bot01HasShield.begin()          + index);
+		bot01ShieldActive       .erase(bot01ShieldActive.begin()       + index);
+		bot01ShieldOnCooldown   .erase(bot01ShieldOnCooldown.begin()   + index);
+		bot01ShieldTimer        .erase(bot01ShieldTimer.begin()        + index);
+		bot01ShieldCooldownTimer.erase(bot01ShieldCooldownTimer.begin() + index);
 		return true;
 	}
 	bot01HitTimers[index] = 0.18f;
@@ -232,12 +356,26 @@ bool Bot01::DamageBot01(int index, int amount) {
 
 void Bot01::RemoveBot01(int index) {
 	SpawnKillDebris(bot01Positions[index], Vec3(1.0f, 0.2f, 0.2f), 6);
-	bot01Positions      .erase(bot01Positions.begin()       + index);
-	bot01XVelocities    .erase(bot01XVelocities.begin()     + index);
-	bot01YVelocities    .erase(bot01YVelocities.begin()     + index);
-	bot01XKnockbackVels .erase(bot01XKnockbackVels.begin()  + index);
-	bot01HP             .erase(bot01HP.begin()              + index);
-	bot01HitTimers      .erase(bot01HitTimers.begin()       + index);
+	bot01Positions          .erase(bot01Positions.begin()          + index);
+	bot01XVelocities        .erase(bot01XVelocities.begin()        + index);
+	bot01YVelocities        .erase(bot01YVelocities.begin()        + index);
+	bot01XKnockbackVels     .erase(bot01XKnockbackVels.begin()     + index);
+	bot01HP                 .erase(bot01HP.begin()                 + index);
+	bot01HitTimers          .erase(bot01HitTimers.begin()          + index);
+	bot01HasShield          .erase(bot01HasShield.begin()          + index);
+	bot01ShieldActive       .erase(bot01ShieldActive.begin()       + index);
+	bot01ShieldOnCooldown   .erase(bot01ShieldOnCooldown.begin()   + index);
+	bot01ShieldTimer        .erase(bot01ShieldTimer.begin()        + index);
+	bot01ShieldCooldownTimer.erase(bot01ShieldCooldownTimer.begin() + index);
+}
+
+void Bot01::ResetWave() {
+	currentWaveIndex = (currentWaveIndex + 1) % kWaveCount;
+	const Bot01WaveDesc& w = kWaves[currentWaveIndex];
+	currentWaveType = w.type;
+	waveSize        = w.count;
+	waveSpawned     = 0;
+	bot01SpawnTimer = 0.0f;
 }
 
 void Bot01::Reset() {
@@ -247,8 +385,24 @@ void Bot01::Reset() {
 	bot01XKnockbackVels.clear();
 	bot01HP.clear();
 	bot01HitTimers.clear();
+	bot01HasShield.clear();
+	bot01ShieldActive.clear();
+	bot01ShieldOnCooldown.clear();
+	bot01ShieldTimer.clear();
+	bot01ShieldCooldownTimer.clear();
 	debris.clear();
-	bot01SpawnTimer = 0.0f;
-	totalTime       = 0.0f;
-	waveSpawned     = 0;
+	bot01SpawnTimer  = 0.0f;
+	totalTime        = 0.0f;
+	waveSpawned      = 0;
+	currentWaveIndex = 0;
+	currentWaveType  = Bot01WaveType::STANDARD;
+	waveSize         = 0;
+}
+
+void Bot01::TriggerWave(Bot01WaveType type, int count, float interval) {
+	currentWaveType    = type;
+	waveSize           = count;
+	waveSpawned        = 0;
+	bot01SpawnTimer    = 0.0f;
+	bot01SpawnInterval = interval;
 }

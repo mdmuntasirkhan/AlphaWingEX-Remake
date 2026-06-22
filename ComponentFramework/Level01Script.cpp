@@ -24,17 +24,44 @@
 
 std::vector<LevelEvent> Level01Script::GetEvents() const {
     return {
-        // ---- Phase gates: drive enemy progression from the level script ----
-        // Phase 1 (t=0): asteroids only — implicit, no event needed (currentPhase starts at 1)
-        // Phase 2 (t=40): Bot01 joins the asteroid field
-        { 40.0f,  EventType::PHASE_CHANGE, {}, nullptr, {}, 0.0f, 0.0f, 2 },
-        // Phase 3 (t=115): Bot02 intro window — Bot01 and asteroids pause
-        { 115.0f, EventType::PHASE_CHANGE, {}, nullptr, {}, 0.0f, 0.0f, 3 },
-        // Phase 4 (t=140): All enemies active simultaneously
-        { 140.0f, EventType::PHASE_CHANGE, {}, nullptr, {}, 0.0f, 0.0f, 4 },
 
-        // ---- Environment geometry (hollow — add Blender .obj exports here) ----
-        // Format: { time, SPAWN_ENV_CHUNK, Vec3(15, Y, -10), "meshes/file.obj", Vec3(R,G,B), scale, speed }
-        // Example: { 5.0f, EventType::SPAWN_ENV_CHUNK, Vec3(15.0f, 0.0f, -10.0f), "meshes/level01_rock.obj", Vec3(0.5f, 0.5f, 0.6f), 1.0f, 1.5f },
+        // ============================================================
+        //  ASTEROIDS
+        //  SET_ASTEROID_RATE — scale=large spawn interval (s), scrollSpeed=small spawn interval (s)
+        //  Lower number = more asteroids. Change mid-level to ramp up density.
+        // ============================================================
+        { 0.0f, EventType::SET_ASTEROID_RATE, {}, nullptr, {}, 3.2f, 2.0f, 0 }, // opening density
+
+        // ============================================================
+        //  BOT01 WAVES
+        //  SPAWN_BOT01_GROUP    — standard bots (no shield)
+        //  SPAWN_BOT01_SHIELDED — shielded bots (activate shield when missile is near)
+        //  scale       = number of bots to spawn
+        //  scrollSpeed = seconds between each individual spawn (0 = all at once)
+        // ============================================================
+        { 40.0f,  EventType::SPAWN_BOT01_GROUP,    {}, nullptr, {}, 5.0f, 10.0f, 0 }, // 5 bots, one every 10 s
+        { 95.0f,  EventType::SPAWN_BOT01_SHIELDED, {}, nullptr, {}, 1.0f,  0.0f, 0 }, // 1 shielded bot
+        { 145.0f, EventType::SPAWN_BOT01_GROUP,    {}, nullptr, {}, 3.0f,  8.0f, 0 }, // 3 bots, one every 8 s
+
+        // ============================================================
+        //  BOT02
+        //  SPAWN_BOT02 — spawns a Bot02 pair at the given time.
+        //  Pair stays until both are killed. Add another SPAWN_BOT02
+        //  below if you want a second appearance later in the level.
+        //  The PHASE_CHANGE events at 115/140 pause Bot01+asteroids
+        //  during the Bot02 intro window — adjust them together.
+        // ============================================================
+        { 115.0f, EventType::PHASE_CHANGE, {}, nullptr, {}, 0.0f, 0.0f, 3 }, // pause Bot01+asteroids
+        { 115.0f, EventType::SPAWN_BOT02,  {}, nullptr, {}, 0.0f, 0.0f, 0 }, // Bot02 appears
+        { 140.0f, EventType::PHASE_CHANGE, {}, nullptr, {}, 0.0f, 0.0f, 4 }, // resume Bot01+asteroids
+
+        // ============================================================
+        //  ENVIRONMENT GEOMETRY
+        //  SPAWN_ENV_CHUNK — a Blender OBJ mesh that scrolls left through the scene.
+        //  position.y  = vertical spawn position (±6 = top/bottom of screen)
+        //  color       = Vec3(R, G, B) tint   scale = visual size   scrollSpeed = units/s leftward
+        // ============================================================
+        // { 5.0f, EventType::SPAWN_ENV_CHUNK, Vec3(15.0f, 0.0f, -10.0f), "meshes/level01_rock.obj", Vec3(0.5f, 0.5f, 0.6f), 1.0f, 1.5f },
+
     };
 }
