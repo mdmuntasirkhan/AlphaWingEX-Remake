@@ -36,15 +36,15 @@ private:
 	// Shield
 	Mesh* shieldMesh;
 	bool  shieldActive;
-	bool  shieldPaused;         // true = retracting (timer counts back, shield invisible)
-	bool  shieldPenaltyQueued;  // true if retracted after ≥90% usage → penalty cooldown on full retract
-	float shieldTimer;
-	float shieldDuration;
-	float shieldCooldown;
-	float shieldCooldownTimer;
-	bool  shieldOnCooldown;
-
-	static constexpr float kPenaltyCooldown = 12.0f; // cooldown when shield expires or retracted after ≥90%
+	float shieldTimer;       // 0 = full charge; counts up while active, down while recharging
+	float shieldDuration;    // seconds to fully deplete from full charge
+	float shieldRechargeRate; // multiplier on recharge speed; locked in when shield turns off
+	//  < 80% used → kBaseRechargeRate  (fast)
+	// ≥ 80% used → kRecharge80Rate    (medium penalty)
+	// ≥ 90% or expired → kRecharge90Rate (heavy penalty)
+	static constexpr float kBaseRechargeRate  = 1.0f;
+	static constexpr float kRecharge80Rate    = 0.5f;
+	static constexpr float kRecharge90Rate    = 0.15f;
 
 	float shieldSweepTimer;
 	float shieldSweepPeriod;
@@ -90,15 +90,10 @@ public:
 	void SetPosition(float x, float y){ pos    = Vec3(x, y, -10.0f); velocity = Vec3(0,0,0); }
 
 	// Shield
-	void ActivateShield();
-	bool  IsShieldActive()     const { return shieldActive && !shieldPaused; }
-	bool  IsShieldRetracting() const { return shieldActive &&  shieldPaused; }
-	bool  IsShieldPaused()     const { return shieldPaused; }
-	bool  IsShieldOnCooldown() const { return shieldOnCooldown; }
-	float GetShieldCooldownPercent()  const { return shieldCooldownTimer / shieldCooldown; }
-	float GetShieldDurationPercent()  const { return shieldTimer / shieldDuration; }
-	// 0=full charge, increases as shield drains; used by HUD and retract bar
-	float GetShieldChargeFraction()   const { return 1.0f - (shieldTimer / shieldDuration); }
+	void  ActivateShield();
+	bool  IsShieldActive()     const { return shieldActive; }
+	bool  IsShieldRecharging() const { return !shieldActive && shieldTimer > 0.0f; }
+	float GetShieldChargeFraction()  const { return 1.0f - (shieldTimer / shieldDuration); }
 	// Elliptical collision half-axes: mesh bounds (±3.5 X, ±2.5 Y) × render scale 0.3
 	float GetShieldRadiusX() const { return 1.05f; }
 	float GetShieldRadiusY() const { return 0.75f; }

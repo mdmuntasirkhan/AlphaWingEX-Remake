@@ -17,13 +17,9 @@ Player::Player() :  mesh { nullptr },
 					friction { 8.0f },
 					maxSpeed { 10.0f },
 					shieldActive { false },
-					shieldPaused { false },
-					shieldPenaltyQueued { false },
 					shieldTimer { 0.0f },
 					shieldDuration { 10.0f },
-					shieldCooldown { 5.0f },
-					shieldCooldownTimer { 0.0f },
-					shieldOnCooldown { false },
+					shieldRechargeRate { 1.0f },
 					shieldMesh { nullptr },
 					shieldSweepTimer { 0.0f },
 					shieldSweepPeriod { 1.2f },
@@ -172,43 +168,17 @@ void Player::Update(float deltaTime) {
 				  MMath::scale(0.3f, 0.3f, 0.3f);
 
 	if (shieldActive) {
-		if (shieldPaused) {
-			// Retracting — timer counts back toward 0, shield is invisible
-			shieldTimer -= deltaTime;
-			if (shieldTimer <= 0.0f) {
-				shieldTimer  = 0.0f;
-				shieldActive = false;
-				shieldPaused = false;
-				if (shieldPenaltyQueued) {
-					// Used ≥90% before retracting — penalty cooldown
-					shieldOnCooldown    = true;
-					shieldCooldownTimer = 0.0f;
-					shieldCooldown      = kPenaltyCooldown;
-					shieldPenaltyQueued = false;
-				}
-				// else: retracted cleanly — no cooldown, shield is immediately available
-			}
-		} else {
-			// Active — timer counts up toward duration
-			shieldTimer += deltaTime;
-			if (shieldTimer >= shieldDuration) {
-				// Expired — always a penalty cooldown
-				shieldActive        = false;
-				shieldPaused        = false;
-				shieldOnCooldown    = true;
-				shieldCooldownTimer = 0.0f;
-				shieldCooldown      = kPenaltyCooldown;
-				shieldPenaltyQueued = false;
-			}
+		shieldTimer += deltaTime;
+		if (shieldTimer >= shieldDuration) {
+			shieldTimer        = shieldDuration;
+			shieldActive       = false;
+			shieldRechargeRate = kRecharge90Rate; // expired = worst penalty
 		}
-	}
-
-	// Shield cooldown countdown
-	if (shieldOnCooldown) {
-		shieldCooldownTimer += deltaTime;
-		if (shieldCooldownTimer >= shieldCooldown) {
-			shieldOnCooldown    = false;
-			shieldCooldownTimer = 0.0f;
+	} else if (shieldTimer > 0.0f) {
+		shieldTimer -= deltaTime * shieldRechargeRate;
+		if (shieldTimer <= 0.0f) {
+			shieldTimer        = 0.0f;
+			shieldRechargeRate = kBaseRechargeRate; // fully recharged — reset rate
 		}
 	}
 }
@@ -261,7 +231,7 @@ void Player::Render(Shader* shader,
 	glDisable(GL_BLEND);
 
 	// Shield Mesh
-	if (shieldActive && !shieldPaused) {
+	if (shieldActive) {
 		// Turn ON transparency; cull back faces so the dome interior is invisible
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -296,7 +266,7 @@ void Player::Render(Shader* shader,
 }
 
 void Player::TakeDamage(float amount) {
-	if (shieldActive && !shieldPaused) return; // retracting shield does not block
+	if (shieldActive) return;
 
 	health -= amount;
 	if (health <= 0.0f) {
@@ -307,23 +277,16 @@ void Player::TakeDamage(float amount) {
 
 void Player::ActivateShield() {
 	if (shieldActive) {
-		if (!shieldPaused) {
-			// Start retracting — flag penalty if already ≥90% used
-			shieldPenaltyQueued = (shieldTimer / shieldDuration >= 0.9f);
-			shieldPaused = true;
-		} else {
-			// Already retracting — re-deploy
-			shieldPaused        = false;
-			shieldPenaltyQueued = false;
-		}
-		return;
-	}
-	if (!shieldOnCooldown) {
-		shieldActive        = true;
-		shieldPaused        = false;
-		shieldPenaltyQueued = false;
-		shieldTimer         = 0.0f;
-		shieldSweepTimer    = 0.0f;
+		// Deactivate — lock in recharge rate based on usage at this moment
+		float usagePct = shieldTimer / shieldDuration;
+		if      (usagePct >= 0.9f) shieldRechargeRate = kRecharge90Rate;
+		else if (usagePct >= 0.8f) shieldRechargeRate = kRecharge80Rate;
+		else                       shieldRechargeRate = kBaseRechargeRate;
+		shieldActive = false;
+	} else if (shieldTimer < shieldDuration) {
+		// Activate — any charge remaining is enough
+		shieldActive     = true;
+		shieldSweepTimer = 0.0f;
 	}
 }
 
@@ -334,12 +297,8 @@ void Player::Reset() {
 	velocity = Vec3(0.0f, 0.0f, 0.0f);
 	rollAngle = 0.0f;
 	rollVelocity = 0.0f;
-	shieldActive        = false;
-	shieldPaused        = false;
-	shieldPenaltyQueued = false;
-	shieldTimer         = 0.0f;
-	shieldCooldown      = 5.0f;
-	shieldOnCooldown    = false;
-	shieldCooldownTimer = 0.0f;
+	shieldActive       = false;
+	shieldTimer        = 0.0f;
+	shieldRechargeRate = kBaseRechargeRate;
 	thrustTimer = 0.0f;
 }
