@@ -57,6 +57,8 @@ SceneMuntasir::SceneMuntasir() :
     pendingTargetFPS{ SaveData::current.targetFPS },
     debugOverlay{ nullptr },
     showDebugOverlay{ true },
+    f11Held{ false },
+    f11HoldTimer{ 0.0f },
     hoverStream{ nullptr },
     uiClickSound{ nullptr },
     lastHoveredId{ 0 },
@@ -403,7 +405,7 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
             }
             break;
         case SDL_SCANCODE_F11:
-            environment->TriggerWarp(10.0f);   // test warp without waiting for level event
+            f11Held = true;
             break;
         case SDL_SCANCODE_F12:
             drawInWireMode = !drawInWireMode;
@@ -416,6 +418,13 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
         default:
             player->HandleEvents(sdlEvent);
             break;
+        }
+        break;
+
+    case SDL_EVENT_KEY_UP:
+        if (sdlEvent.key.scancode == SDL_SCANCODE_F11) {
+            f11Held      = false;
+            f11HoldTimer = 0.0f;   // release before 3 s cancels the charge
         }
         break;
 
@@ -542,11 +551,23 @@ void SceneMuntasir::Update(const float deltaTime) {
     if (levelDirector->PopWarpExitRequest())  environment->TriggerWarpExit(10.0f);
     if (levelDirector->PopWarpFullRequest())  environment->TriggerWarp(10.0f);
 
+    // F11 hold-to-warp — charge for 3 s then fire
+    if (f11Held && !environment->IsWarpActive()) {
+        f11HoldTimer += deltaTime;
+        if (f11HoldTimer >= 3.0f) {
+            environment->TriggerWarp(10.0f);
+            f11Held      = false;
+            f11HoldTimer = 0.0f;
+        }
+    } else if (!f11Held) {
+        f11HoldTimer = 0.0f;
+    }
+
     // During a hyperspace warp the world freezes — enemies and bullets pause
     bool warping = environment->IsWarpActive();
 
     // Player movement is dampened (20% speed) so the world feels fast around them
-    player->Update(warping ? deltaTime * 0.2f : deltaTime);
+    player->Update(warping ? deltaTime * 0.35f : deltaTime);
 
     if (!warping) {
         bullet->Update(deltaTime,
@@ -1210,6 +1231,12 @@ void SceneMuntasir::RenderBackground() {
 
 // Render
 void SceneMuntasir::Render() const {
+    // Full warp (F11): black screen + streaking stars only — no 3D objects visible
+    if (environment->IsFullWarp()) {
+        environment->Render();
+        return;
+    }
+
     glEnable(GL_DEPTH_TEST);
     glClear(GL_DEPTH_BUFFER_BIT); // color already set by RenderBackground
 
@@ -1282,6 +1309,42 @@ void SceneMuntasir::PlayHoverSound() {
 
 void SceneMuntasir::DrawGui() {
     if (showDebugOverlay) debugOverlay->Draw();  // Draw() is non-const — mode button can flip inside
+
+    // F11 warp charge bar — visible while holding, disappears on fire or release
+    if (f11Held && !environment->IsWarpActive() && f11HoldTimer > 0.0f) {
+        float progress = f11HoldTimer / 3.0f;
+
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(
+            ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.72f),
+            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowBgAlpha(0.0f);
+        ImGui::Begin("##warpcharge", nullptr,
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
+            ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav |
+            ImGuiWindowFlags_NoMove);
+
+        // Label — pulses brighter as charge fills
+        ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize("WARP DRIVE CHARGING").x) * 0.5f);
+        ImGui::TextColored(ImVec4(0.4f + progress * 0.6f, 0.7f + progress * 0.3f, 1.0f, 1.0f),
+                           "WARP DRIVE CHARGING");
+
+        // Bar — shifts from dim blue to bright cyan
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
+            ImVec4(0.0f + progress * 0.2f, 0.4f + progress * 0.6f, 1.0f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.05f, 0.05f, 0.15f, 0.8f));
+        ImGui::ProgressBar(progress, ImVec2(320.0f, 16.0f), "");
+        ImGui::PopStyleColor(2);
+
+        // Hint
+        ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize("release to cancel").x) * 0.5f);
+        ImGui::TextDisabled("release to cancel");
+
+        ImGui::End();
+    }
+
+    if (environment->IsFullWarp()) return;       // hide all HUD during cinematic warp
     DrawHUD();
     DrawPauseMenu();
     DrawGameOver();

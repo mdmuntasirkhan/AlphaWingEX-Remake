@@ -117,6 +117,10 @@ private:
 	DebugOverlay* debugOverlay;
 	bool          showDebugOverlay;
 
+	// F11 warp charge — hold 3 s to trigger full warp
+	bool  f11Held;
+	float f11HoldTimer;
+
 	// Hover — selectSound played on a low-gain stream
 	SDL_AudioStream* hoverStream;
 	Sound*           uiClickSound;

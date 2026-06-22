@@ -75,6 +75,7 @@ public:
     // WARP_FULL  — full 3-phase: ramp-up → hold → ramp-down (F11 test).
     void TriggerWarp(float duration = 10.0f);
     bool IsWarpActive() const { return warpActive; }
+    bool IsFullWarp()   const { return warpActive && warpMode == WarpMode::FULL; }
 };
 
 #endif
