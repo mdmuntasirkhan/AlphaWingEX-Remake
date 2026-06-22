@@ -33,12 +33,14 @@ SceneMuntasir::SceneMuntasir() :
     prevLives{ 3 },
     autoSaveTimer{ 0.0f },
     currentPhase{ 1 },
-    explosionCooldown{ 2.0f },
+    explosionCooldown{ 0.8f },
     explosionCooldownTimer{ 0.0f },
     shieldHitCooldownTimer{ 0.0f },
     audioPlayer{ nullptr },
     sfxPlayer{ nullptr },
+    sfxLaserHitStream{ nullptr },
     sfxLaser{ nullptr },
+    sfxLaserHit{ nullptr },
     sfxExplosion{ nullptr },
     sfxMissileHit{ nullptr },
     sfxShieldHit{ nullptr },
@@ -165,6 +167,14 @@ bool SceneMuntasir::OnCreate() {
     SDL_SetAudioStreamGain(sfxPlayer, sfxVolume);
     SDL_ResumeAudioStreamDevice(sfxPlayer);
 
+    // Dedicated stream for laser hit — cleared before each play for instant response
+    sfxLaserHitStream = SDL_OpenAudioDeviceStream(
+        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+        &defaultSpec, nullptr, nullptr);
+    if (!sfxLaserHitStream) std::cout << "Failed to create laser hit stream\n";
+    SDL_SetAudioStreamGain(sfxLaserHitStream, sfxVolume * 2.0f);
+    SDL_ResumeAudioStreamDevice(sfxLaserHitStream);
+
     // Music
     audioTest = new Sound("audio/music/deadmou5-gg.wav");
     audioTest->OnCreate();
@@ -173,6 +183,9 @@ bool SceneMuntasir::OnCreate() {
     // SFX
     sfxLaser = new Sound("audio/sfx/LaserShoot.wav");
     sfxLaser->OnCreate();
+
+    sfxLaserHit = new Sound("audio/sfx/AlphaWingEX_Laser_Hit.wav");
+    sfxLaserHit->OnCreate();
 
     sfxExplosion = new Sound("audio/sfx/Explosion04.wav");
     sfxExplosion->OnCreate();
@@ -304,6 +317,9 @@ void SceneMuntasir::OnDestroy() {
     sfxLaser->OnDestroy();
     delete sfxLaser;
 
+    sfxLaserHit->OnDestroy();
+    delete sfxLaserHit;
+
     sfxExplosion->OnDestroy();
     delete sfxExplosion;
 
@@ -326,6 +342,7 @@ void SceneMuntasir::OnDestroy() {
     // Audio
     SDL_DestroyAudioStream(audioPlayer);
     SDL_DestroyAudioStream(sfxPlayer);
+    SDL_DestroyAudioStream(sfxLaserHitStream);
     audioTest->OnDestroy();
     delete audioTest;
 }
@@ -534,6 +551,8 @@ void SceneMuntasir::Update(const float deltaTime) {
             if ((dx*dx)/(0.6f*0.6f) + (dy*dy)/(0.32f*0.32f) < 1.0f) {
                 Vec3 deathPos = bot01->GetBot01Positions()[e];
                 bullet->RemoveAt(b);
+                SDL_ClearAudioStream(sfxLaserHitStream);
+                sfxLaserHit->Play(sfxLaserHitStream);
                 if (bot01->DamageBot01(e)) {
                     SpawnShards(deathPos, 5);
                     score += 100;
@@ -555,6 +574,8 @@ void SceneMuntasir::Update(const float deltaTime) {
             if ((dx*dx)/(0.85f*0.85f) + (dy*dy)/(0.7f*0.7f) < 1.0f) {
                 Vec3 deathPos = asteroid->GetAsteroidPositions()[a];
                 bullet->RemoveAt(b);
+                SDL_ClearAudioStream(sfxLaserHitStream);
+                sfxLaserHit->Play(sfxLaserHitStream);
                 if (asteroid->DamageAsteroid(a)) {
                     SpawnShards(deathPos, 3);
                     score += 50;
@@ -576,6 +597,8 @@ void SceneMuntasir::Update(const float deltaTime) {
             if ((dx*dx)/(0.45f*0.45f) + (dy*dy)/(0.38f*0.38f) < 1.0f) {
                 Vec3 deathPos = asteroid->GetSmallAsteroidPositions()[a];
                 bullet->RemoveAt(b);
+                SDL_ClearAudioStream(sfxLaserHitStream);
+                sfxLaserHit->Play(sfxLaserHitStream);
                 if (asteroid->DamageSmallAsteroid(a)) {
                     SpawnShards(deathPos, 2);
                     score += 25;
@@ -1347,7 +1370,8 @@ void SceneMuntasir::DrawGui() {
             ImGui::SetCursorPosX(btnX);
             ImGui::SetNextItemWidth(btnW);
             if (ImGui::SliderFloat("##sfx", &sfxVolume, 0.0f, 1.0f)) {
-                SDL_SetAudioStreamGain(sfxPlayer,   sfxVolume);
+                SDL_SetAudioStreamGain(sfxPlayer,        sfxVolume);
+                SDL_SetAudioStreamGain(sfxLaserHitStream, sfxVolume * 2.0f);
                 if (hoverStream) SDL_SetAudioStreamGain(hoverStream, sfxVolume * 0.35f);
             }
 

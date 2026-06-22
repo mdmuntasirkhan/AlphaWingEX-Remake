@@ -85,7 +85,9 @@ private:
 	// Audio
 	SDL_AudioStream* audioPlayer;
 	SDL_AudioStream* sfxPlayer;
+	SDL_AudioStream* sfxLaserHitStream;
 	Sound* sfxLaser;
+	Sound* sfxLaserHit;
 	Sound* sfxExplosion;
 	Sound* sfxMissileHit;
 	Sound* sfxShieldHit;
