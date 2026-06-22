@@ -81,9 +81,13 @@ Currently registered scripts in `SceneMuntasir::OnCreate()`:
 
 **To add a new environment chunk:** export an OBJ from Blender into `meshes/`, then add one `LevelEvent` of type `SPAWN_ENV_CHUNK` inside the relevant `LevelXXScript.cpp`. No other file changes are required.
 
-**Two `EventType` values** are defined in `EventType.h`:
+**`EventType` values** defined in `EventType.h`:
 - `SPAWN_ENV_CHUNK` — spawns a mesh that scrolls left at `scrollSpeed` units/second.
 - `PHASE_CHANGE` — fires `phaseCallback(phaseId)` in `SceneMuntasir`, advancing enemy progression.
+- `SPAWN_BOT01_GROUP` — triggers a standard Bot01 wave. `scale` = bot count, `scrollSpeed` = seconds between individual spawns.
+- `SPAWN_BOT01_SHIELDED` — triggers a shielded Bot01 wave. `scale` = bot count; bots spawn sequentially with `scrollSpeed` as the delay between each.
+- `SPAWN_BOT02` — spawns the Bot02 pair (always 2, top and bottom).
+- `SET_ASTEROID_RATE` — changes spawn density mid-level. `scale` = large interval (s), `scrollSpeed` = small interval (s).
 
 ### Phase-based enemy progression
 
@@ -102,15 +106,17 @@ Currently registered scripts in `SceneMuntasir::OnCreate()`:
 
 `Enemy` (`Enemy.h`) is an **abstract base class** — it is not a monolithic class managing all pools. It provides the shared `debris` vector, `SpawnHitDebris()` / `SpawnKillDebris()` helpers, and the virtual interface (`Update`, `Render`, `OnDestroy`, `Reset`). The three concrete subclasses are each owned as a separate raw pointer in `SceneMuntasir`:
 
-- **`Asteroid`** — manages two parallel pools: large asteroids (6 HP) and small asteroids (3 HP). Both share one mesh. Exposes `GetAsteroidPositions()` / `GetSmallAsteroidPositions()` for collision. `DamageAsteroid()` / `DamageSmallAsteroid()` return `true` on kill. Debris spawns on hit and on kill.
-- **`Bot01`** — wave-based enemy (10 HP). Two-phase AI: flies straight on entry (Phase 1) until within 7 world-units of the player's X, then steers toward the player's Y (Phase 2). Has a `totalTime` wave-progression timer (persisted in `SaveData`). Spawns in waves of 5, one every 6 seconds (`bot01SpawnInterval`), starting immediately when the scene loads. Exposes `GetBot01Positions()`. Per-instance `bot01HitTimers` drive a white-flash-on-hit effect. `PushX()` / `PushY()` apply missile knockback. `IsWaveComplete()` / `ResetWave()` control wave flow. `DamageBot01()` returns `true` on kill.
-- **`Bot02`** — mini-boss enemy (20 HP). Hovers at a fixed world-X position (`kHoverX = 6.0f`) and oscillates vertically. Max 2 active at a time. Has its own projectile pool (`GetBulletPositions()` / `GetBulletVelocities()`) and fires at the player every `kFireInterval = 3.0f` seconds. Four mesh parts: body, cockpit, fin, thrust — plus a fragment mesh (asteroid shape) and a dedicated bullet mesh. Bot02 bullets must be handled separately in collision detection. `MissileTargetType` covers `ASTEROID`, `BOT01`, and `BOT02` — homing missiles prioritise Bot02 first.
+- **`Asteroid`** — manages two parallel pools: large asteroids (6 HP) and small asteroids (3 HP). Both share one mesh. Exposes `GetAsteroidPositions()` / `GetSmallAsteroidPositions()` for collision. `DamageAsteroid()` / `DamageSmallAsteroid()` return `true` on kill. `PushAsteroid()` / `PushSmallAsteroid()` apply knockback velocity (exponential decay). Debris spawns on hit and on kill.
+- **`Bot01`** — wave-based enemy (10 HP). Two-phase AI: flies straight on entry until within 7 world-units of the player's X, then steers toward the player's Y. Three wave types driven by `Bot01WaveType` enum — `STANDARD` (timer-spaced spawns), `PINCER` (simultaneous top+bottom pair), `SHIELDED` (sequential shielded bots, one per `bot01SpawnInterval`). `TriggerWave(type, count, interval)` is the entry point called by `LevelDirector`'s bot01 callback. Shielded bots activate a Fresnel shield bubble when a missile is nearby and stand off at `kStandoffX` instead of closing in. Per-instance `bot01HitTimers` drive a white-flash-on-hit effect. `PushX()` / `PushY()` apply impulse knockback (X uses a separate `bot01XKnockbackVels` vector that decays independently so it doesn't fight the chase spring). `DamageBot01()` returns `true` on kill.
+- **`Bot02`** — mini-boss enemy (20 HP). Hovers at a fixed world-X position (`kHoverX = 6.0f`) and oscillates vertically. Max 2 active at a time. Has its own projectile pool (`GetBulletPositions()` / `GetBulletVelocities()`) and fires at the player every `kFireInterval = 3.0f` seconds. Four mesh parts: body, cockpit, fin, thrust — plus a fragment mesh (asteroid shape) and a dedicated bullet mesh. Bot02 bullets must be handled separately in collision detection. `MissileTargetType` covers `ASTEROID`, `BOT01`, and `BOT02` — homing missiles prioritise Bot02 first. `PushBot02()` applies velocity-based knockback (decays via `expf(-9*dt)`).
 
 ### Game objects in SceneMuntasir
 
 - **`Player`** — four mesh components: ship body, cockpit, attachment, and thrust flame. Handles WASD movement with velocity/friction physics, health/lives, Z-roll on W/S (5° intentional wobble — do not change without asking), shield activation with Fresnel rim animation, and state-restore setters used by the save/load system. Shield collision is elliptical: X half-axis 1.05, Y half-axis 0.75 world units.
 - **`Bullet`** — two pools: straight laser shots and homing missiles. Missiles use proportional-navigation (PN) guidance (`missileNavigationGain`) with a brief straight-flight launch phase before homing kicks in. Re-acquires nearest target if the locked one is destroyed mid-flight. Also upgrades target mid-flight if a higher-priority tier appears. Target acquisition priority: Bot02 first, then Bot01, then large asteroids.
 - **`Environment`** — ImGui-drawn starfield scrolling background. Supports `SPACE` and `WATER` environment types (water adds jitter and a speed multiplier).
+
+**Impact knockback system:** all three enemy types support physics-based knockback applied at collision time. Bot01 uses `PushX(index, impulse)` / `PushY(index, impulse)`; Bot02 uses `PushBot02(index, dx, dy)`; Asteroid uses `PushAsteroid(index, dx, dy)` / `PushSmallAsteroid(index, dx, dy)`. All accumulate into per-instance knockback velocity vectors that decay via `expf(-8 or -9 × deltaTime)` each frame, independent of the enemy's normal movement logic. Missile impacts derive direction from `GetMissileVelocities()[m]` normalized; bullet impacts use a fixed +X direction since lasers travel horizontally. Missile forces are roughly 2–4× larger than bullet forces.
 
 Collision detection lives in `SceneMuntasir::Update()` — all shapes are **ellipses**, not circles. Each enemy type uses different half-axis constants. The method iterates bullet / missile / shield position vectors against enemy position vectors and calls the appropriate `DamageX()` / `RemoveX()` by index.
 
@@ -160,7 +166,7 @@ Uniforms are cached by name in `Shader`'s `unordered_map<string, GLuint>` and re
 
 Two audio paths exist in parallel:
 
-1. **Per-scene SDL3 streams** — `SceneMuntasir` holds its own `SDL_AudioStream* audioPlayer` (music) and `SDL_AudioStream* sfxPlayer` (SFX), both opened at 44100 Hz S16 stereo. `Sound::Play()` queues a WAV into the given stream. A third low-gain `hoverStream` plays UI hover sounds at 35% of sfxVolume.
+1. **Per-scene SDL3 streams** — `SceneMuntasir` holds its own `SDL_AudioStream* audioPlayer` (music) and `SDL_AudioStream* sfxPlayer` (SFX), both opened at 44100 Hz S16 stereo. `Sound::Play()` queues a WAV into the given stream. A third low-gain `hoverStream` plays UI hover sounds at 35% of sfxVolume. For rapid-fire SFX (e.g. `sfxLaserHitStream`) use a **dedicated stream** and call `SDL_ClearAudioStream(stream)` before every `Play()` — this flushes queued audio so each hit plays immediately instead of stacking up.
 2. **`SoundManager`** — a pooled manager with one BGM stream and 12 SFX pipes (`PIPE1`–`PIPE12`), defaulting to 48000 Hz. Currently present but not wired into `SceneMuntasir`; it is the intended replacement for the per-scene streams.
 
 Music and SFX volumes are stored in `SaveData` and applied via ImGui sliders in `DrawGui()`.
