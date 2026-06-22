@@ -6,8 +6,9 @@
 #include <iostream>
 
 LevelDirector::LevelDirector() :
-    levelTime{ 0.0f },
-    nextEvent{ 0 }
+    levelTime    { 0.0f  },
+    nextEvent    { 0     },
+    warpRequested{ false }
 {
 }
 
@@ -144,5 +145,8 @@ void LevelDirector::FireEvent(const LevelEvent& e) {
     }
     else if (e.type == EventType::SET_ASTEROID_RATE && asteroidCallback) {
         asteroidCallback(e.scale, e.scrollSpeed);
+    }
+    else if (e.type == EventType::WARP_START) {
+        warpRequested = true;
     }
 }

@@ -30,6 +30,9 @@ std::vector<LevelEvent> Level01Script::GetEvents() const {
         //  SET_ASTEROID_RATE — scale=large spawn interval (s), scrollSpeed=small spawn interval (s)
         //  Lower number = more asteroids. Change mid-level to ramp up density.
         // ============================================================
+        // Opening hyperspace jump — player warps INTO the level (10 s cinematic)
+        { 0.0f,   EventType::WARP_START,        {}, nullptr, {}, 0.0f, 0.0f, 0 },
+
         { 0.0f, EventType::SET_ASTEROID_RATE, {}, nullptr, {}, 3.2f, 2.0f, 0 }, // opening density
 
         // ============================================================
@@ -63,6 +66,9 @@ std::vector<LevelEvent> Level01Script::GetEvents() const {
         //  color       = Vec3(R, G, B) tint   scale = visual size   scrollSpeed = units/s leftward
         // ============================================================
         // { 5.0f, EventType::SPAWN_ENV_CHUNK, Vec3(15.0f, 0.0f, -10.0f), "meshes/level01_rock.obj", Vec3(0.5f, 0.5f, 0.6f), 1.0f, 1.5f },
+
+        // Exit hyperspace jump — fires after the last wave clears, transitioning to Level 02
+        { 170.0f, EventType::WARP_START,        {}, nullptr, {}, 0.0f, 0.0f, 0 },
 
     };
 }

@@ -402,6 +402,9 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
                 showDebugOverlay = false;
             }
             break;
+        case SDL_SCANCODE_F11:
+            environment->TriggerWarp(10.0f);   // test warp without waiting for level event
+            break;
         case SDL_SCANCODE_F12:
             drawInWireMode = !drawInWireMode;
             break;
@@ -534,16 +537,27 @@ void SceneMuntasir::Update(const float deltaTime) {
     // Advance level timeline and scroll environment chunks
     levelDirector->Update(deltaTime);
 
-    // Update all classes
-    player->Update(deltaTime);
-    bullet->Update(deltaTime,
-        asteroid->GetAsteroidPositions(), Vec3(-asteroid->GetAsteroidSpeed(), 0.0f, 0.0f),
-        bot01->GetBot01Positions(),       Vec3(-bot01->GetBot01Speed(), 0.0f, 0.0f),
-        bot02->GetPositions(),            Vec3(0.0f, 0.0f, 0.0f));
-    asteroid->Update(deltaTime);
-    bot01->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
-    bot01->UpdateShields(deltaTime, bullet->GetMissilePositions());
-    bot02->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
+    // Trigger warp if the level script requested one
+    if (levelDirector->PopWarpRequest())
+        environment->TriggerWarp(10.0f);
+
+    // During a hyperspace warp the world freezes — enemies and bullets pause
+    bool warping = environment->IsWarpActive();
+
+    // Player movement is dampened (20% speed) so the world feels fast around them
+    player->Update(warping ? deltaTime * 0.2f : deltaTime);
+
+    if (!warping) {
+        bullet->Update(deltaTime,
+            asteroid->GetAsteroidPositions(), Vec3(-asteroid->GetAsteroidSpeed(), 0.0f, 0.0f),
+            bot01->GetBot01Positions(),       Vec3(-bot01->GetBot01Speed(), 0.0f, 0.0f),
+            bot02->GetPositions(),            Vec3(0.0f, 0.0f, 0.0f));
+        asteroid->Update(deltaTime);
+        bot01->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
+        bot01->UpdateShields(deltaTime, bullet->GetMissilePositions());
+        bot02->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
+    }
+
     environment->Update(deltaTime);
 
     // Shard physics — drift, magnet pull, collect, cull

@@ -21,6 +21,7 @@ using namespace MATH;
 //  SPAWN_BOT01_SHIELDED  | unused            | unused    | unused      | bot count (int)    | seconds between bots  | unused
 //  SPAWN_BOT02           | unused            | unused    | unused      | unused             | unused                | unused
 //  SET_ASTEROID_RATE     | unused            | unused    | unused      | large spawn (s)    | small spawn (s)       | unused
+//  WARP_START            | unused            | unused    | unused      | unused             | unused                | unused
 //
 struct LevelEvent {
     float       time        = 0.0f;                      // seconds since level start when this fires

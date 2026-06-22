@@ -39,6 +39,12 @@ private:
     // Water effect
     float waterJitterTimer;
 
+    // Hyperspace warp effect
+    bool  warpActive;
+    float warpTimer;
+    float warpDuration;
+    float warpSpeed;    // current star speed multiplier (1.0 = normal)
+
 public:
     Environment();
     ~Environment();
@@ -59,6 +65,11 @@ public:
     // Water jitter - returns small random offset
     float GetJitterX() const;
     float GetJitterY() const;
+
+    // Hyperspace warp — stars streak, screen flashes, enemies pause for `duration` seconds.
+    // Three-phase curve: ramp-up (30%) → full-streak hold (40%) → ramp-down (30%).
+    void TriggerWarp(float duration = 10.0f);
+    bool IsWarpActive() const { return warpActive; }
 };
 
 #endif
