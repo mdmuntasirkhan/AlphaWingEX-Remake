@@ -126,6 +126,11 @@ private:
 	float postWarpTimer;
 	static constexpr float kPostWarpEaseDuration = 2.5f;
 
+	// Camera debug — F10 toggles window; slider live-rebuilds FOV + camera Z
+	bool  showCameraDebug;
+	float debugCameraFOV;
+	float currentAspect;
+
 	// Hover — selectSound played on a low-gain stream
 	SDL_AudioStream* hoverStream;
 	Sound*           uiClickSound;

@@ -21,24 +21,26 @@ namespace GameConst {
     // kWorldBoundX/Y, kSpawnX, kCullX are runtime values updated by ComputeWorldBounds()
     // whenever the viewport aspect ratio changes, so all resolutions (16:9 through 32:9)
     // see correct player bounds and enemy spawn/cull edges automatically.
-    static constexpr float kWorldZ = -10.0f;
+    static constexpr float kWorldZ   = -10.0f;
+    static constexpr float kCameraZ  =   5.7f;  // telephoto pull-back: 48° FOV, same visible area as old 70°@Z=0
 
-    // Defaults match 70° vertical FOV at Z=-10 for 16:9. Overwritten by ComputeWorldBounds().
+    // Defaults match 48° vertical FOV, camera at Z=5.7, objects at Z=-10. Overwritten by ComputeWorldBounds().
     inline float kWorldBoundX =  11.0f;
     inline float kWorldBoundY =   6.0f;
     inline float kSpawnX      =  15.0f;
     inline float kCullX       = -15.0f;
 
     // Call this from SceneMuntasir::OnCreate() and OnVideoChanged() whenever aspect changes.
-    // tan(35°) ≈ 0.70021 is half of the fixed 70° vertical FOV at depth abs(kWorldZ).
+    // tan(24°) = half of 48° vertical FOV. Distance = kCameraZ - kWorldZ = 15.7 units.
     inline void ComputeWorldBounds(float aspect) {
-        constexpr float kTan35 = 0.70021f;
-        const float halfY = kTan35 * (-kWorldZ);   // visible half-height at Z=kWorldZ
-        const float halfX = halfY * aspect;         // visible half-width scales with aspect
-        kWorldBoundX = halfX - 1.45f;              // player stays ~1.45 units from screen edge
-        kWorldBoundY = halfY - 1.0f;               // player stays ~1 unit from top/bottom
-        kSpawnX      =  halfX + 2.55f;             // enemies enter 2.55 units off right edge
-        kCullX       = -(halfX + 2.55f);           // enemies removed 2.55 units off left edge
+        constexpr float kTanHalfFOV = 0.44523f;           // tan(24°) — half of 48° vertical FOV
+        const float dist  = kCameraZ - kWorldZ;            // 15.7 units — camera to object plane
+        const float halfY = kTanHalfFOV * dist;            // visible half-height (≈ 6.99, same as before)
+        const float halfX = halfY * aspect;                 // visible half-width scales with aspect
+        kWorldBoundX = halfX - 1.45f;
+        kWorldBoundY = halfY - 1.0f;
+        kSpawnX      =  halfX + 2.55f;
+        kCullX       = -(halfX + 2.55f);
     }
 
     // ── Audio ───────────────────────────────────────────────

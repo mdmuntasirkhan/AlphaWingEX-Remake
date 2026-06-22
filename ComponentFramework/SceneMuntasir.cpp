@@ -61,6 +61,9 @@ SceneMuntasir::SceneMuntasir() :
     f11HoldTimer{ 0.0f },
     prevWarping{ false },
     postWarpTimer{ 0.0f },
+    showCameraDebug{ true },
+    debugCameraFOV{ 48.0f },
+    currentAspect{ 16.0f / 9.0f },
     hoverStream{ nullptr },
     uiClickSound{ nullptr },
     lastHoveredId{ 0 },
@@ -145,14 +148,14 @@ bool SceneMuntasir::OnCreate() {
 
     // Camera
     viewMatrix = MMath::lookAt(
-        Vec3(0.0f, 0.0f, 0.0f),
+        Vec3(0.0f, 0.0f, GameConst::kCameraZ),
         Vec3(0.0f, 0.0f, -1.0f),
-        Vec3(0.0f, 1.0f, 0.0f)
+        Vec3(0.0f, 1.0f,  0.0f)
     );
-    float aspect = static_cast<float>(SaveData::kResolutionW[SaveData::current.resolutionIndex]) /
-                   static_cast<float>(SaveData::kResolutionH[SaveData::current.resolutionIndex]);
-    GameConst::ComputeWorldBounds(aspect);
-    projectionMatrix = MMath::perspective(70.0f, aspect, 0.1f, 100.0f);
+    currentAspect = static_cast<float>(SaveData::kResolutionW[SaveData::current.resolutionIndex]) /
+                    static_cast<float>(SaveData::kResolutionH[SaveData::current.resolutionIndex]);
+    GameConst::ComputeWorldBounds(currentAspect);
+    projectionMatrix = MMath::perspective(48.0f, currentAspect, 0.1f, 100.0f);
 
     // Audio Setup
     SDL_AudioSpec defaultSpec;
@@ -276,9 +279,9 @@ bool SceneMuntasir::OnCreate() {
 }
 
 void SceneMuntasir::OnVideoChanged(int w, int h) {
-    float aspect = static_cast<float>(w) / static_cast<float>(h);
-    GameConst::ComputeWorldBounds(aspect);
-    projectionMatrix = MMath::perspective(70.0f, aspect, 0.1f, 100.0f);
+    currentAspect = static_cast<float>(w) / static_cast<float>(h);
+    GameConst::ComputeWorldBounds(currentAspect);
+    projectionMatrix = MMath::perspective(debugCameraFOV, currentAspect, 0.1f, 100.0f);
     environment->OnResize((float)w, (float)h);
 }
 
@@ -405,6 +408,9 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
             } else {
                 showDebugOverlay = false;
             }
+            break;
+        case SDL_SCANCODE_F10:
+            showCameraDebug = !showCameraDebug;
             break;
         case SDL_SCANCODE_F11:
             f11Held = true;
@@ -1259,8 +1265,8 @@ void SceneMuntasir::Render() const {
 
     glUseProgram(shader->GetProgram());
 
-    glUniform3f(shader->GetUniformID("lightPos"), 0.0f, 50.0f, 10.0f);
-    glUniform3f(shader->GetUniformID("viewPos"),  0.0f,  0.0f, 10.0f);
+    glUniform3f(shader->GetUniformID("lightPos"), 0.0f, 50.0f, GameConst::kCameraZ);
+    glUniform3f(shader->GetUniformID("viewPos"),  0.0f,  0.0f, GameConst::kCameraZ);
 
     // Player always visible — even during full warp
     player->Render(shader, projectionMatrix, viewMatrix);
@@ -1316,7 +1322,52 @@ void SceneMuntasir::PlayHoverSound() {
 }
 
 void SceneMuntasir::DrawGui() {
-    if (showDebugOverlay) debugOverlay->Draw();  // Draw() is non-const — mode button can flip inside
+    if (showDebugOverlay) debugOverlay->Draw();
+
+    // ── Camera Debug (F10) ────────────────────────────────────────────────────
+    if (showCameraDebug) {
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, 20.0f), ImGuiCond_Always, ImVec2(0.5f, 0.0f));
+        ImGui::SetNextWindowSize(ImVec2(380, 0), ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.88f);
+        ImGui::Begin("##camdbg", nullptr,
+            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize   |
+            ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoScrollbar |
+            ImGuiWindowFlags_AlwaysAutoResize);
+
+        ImGui::TextColored(ImVec4(0.4f, 0.9f, 1.0f, 1.0f), "CAMERA DEBUG  [F10]");
+        ImGui::Separator();
+
+        bool changed = ImGui::SliderFloat("FOV", &debugCameraFOV, 25.0f, 75.0f, "%.1f deg");
+
+        // Preset buttons
+        ImGui::Spacing();
+        struct { const char* label; float fov; } presets[] = {
+            { "30°", 30.0f }, { "40°", 40.0f }, { "48° (cur)", 48.0f },
+            { "50°", 50.0f }, { "60°", 60.0f }, { "70° (orig)", 70.0f }
+        };
+        for (auto& p : presets) {
+            if (ImGui::Button(p.label)) { debugCameraFOV = p.fov; changed = true; }
+            ImGui::SameLine();
+        }
+        ImGui::NewLine();
+
+        // Show derived camera Z
+        float halfFov  = debugCameraFOV * GameConst::kPi / 180.0f * 0.5f;
+        float dist     = 7.0f / tanf(halfFov);
+        float camZ     = GameConst::kWorldZ + dist;
+        ImGui::TextDisabled("Camera Z: %.2f   Dist to objects: %.2f", camZ, dist);
+
+        ImGui::End();
+
+        // Apply live — rebuild matrices whenever slider or button changed
+        if (changed) {
+            viewMatrix       = MMath::lookAt(Vec3(0.0f, 0.0f, camZ), Vec3(0.0f, 0.0f, -1.0f), Vec3(0.0f, 1.0f, 0.0f));
+            projectionMatrix = MMath::perspective(debugCameraFOV, currentAspect, 0.1f, 100.0f);
+            glUseProgram(shader->GetProgram());
+            glUniform3f(shader->GetUniformID("viewPos"), 0.0f, 0.0f, camZ);
+        }
+    }
 
     if (environment->IsFullWarp()) return;       // hide all HUD during cinematic warp
     DrawHUD();
