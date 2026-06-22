@@ -118,7 +118,8 @@ void SaveData::SaveMachineSettings() const {
       << "sfxvolume "   << sfxVolume                << "\n"
       << "fullscreen "  << (fullscreen ? 1 : 0)     << "\n"
       << "resindex "    << resolutionIndex           << "\n"
-      << "vsyncmode "   << vsyncMode                 << "\n";
+      << "vsyncmode "   << vsyncMode                 << "\n"
+      << "targetfps "   << targetFPS                 << "\n";
 }
 
 void SaveData::LoadMachineSettings() {
@@ -131,6 +132,7 @@ void SaveData::LoadMachineSettings() {
         else if (key == "fullscreen")  { int v; f >> v; fullscreen = (v != 0); }
         else if (key == "resindex")    f >> resolutionIndex;
         else if (key == "vsyncmode")   f >> vsyncMode;
+        else if (key == "targetfps")   f >> targetFPS;
         else { std::string skip; f >> skip; }
     }
 }

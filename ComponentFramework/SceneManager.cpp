@@ -148,13 +148,12 @@ void SceneManager::Run() {
 
 		// Frame pacing:
 		// When vsync is active, SwapWindow already blocks for the display interval.
-		// A manual sleep on top would halve the frame rate — so skip it.
-		// When vsync is off, enforce a 60 fps floor manually.
-		if (!vsyncActive) {
-			const Uint64 kFrameMs = 16; // ~60 fps
-			Uint64 elapsed = SDL_GetTicks() - frameStart;
-			if (elapsed < kFrameMs)
-				SDL_Delay(static_cast<Uint32>(kFrameMs - elapsed));
+		// When vsync is off, cap to targetFPS (0 = uncapped).
+		if (!vsyncActive && SaveData::current.targetFPS > 0) {
+			Uint64 targetMs = 1000 / (Uint64)SaveData::current.targetFPS;
+			Uint64 elapsed  = SDL_GetTicks() - frameStart;
+			if (elapsed < targetMs)
+				SDL_Delay(static_cast<Uint32>(targetMs - elapsed));
 		}
 	}
 }

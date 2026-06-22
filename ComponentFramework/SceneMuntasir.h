@@ -15,6 +15,7 @@
 #include "SceneSwitcher.h"
 #include "LevelDirector.h"
 #include "ShardBeacon.h"
+#include "DebugOverlay.h"
 #include <vector>
 
 using namespace MATH;
@@ -110,6 +111,11 @@ private:
 	int  pendingResIndex;
 	bool pendingFullscreen;
 	int  pendingVsync;
+	int  pendingTargetFPS;
+
+	// Debug overlay — toggled with F9
+	DebugOverlay* debugOverlay;
+	bool          showDebugOverlay;
 
 	// Hover — selectSound played on a low-gain stream
 	SDL_AudioStream* hoverStream;

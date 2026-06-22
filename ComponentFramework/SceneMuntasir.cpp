@@ -54,6 +54,9 @@ SceneMuntasir::SceneMuntasir() :
     pendingResIndex{ SaveData::current.resolutionIndex },
     pendingFullscreen{ SaveData::current.fullscreen },
     pendingVsync{ SaveData::current.vsyncMode },
+    pendingTargetFPS{ SaveData::current.targetFPS },
+    debugOverlay{ nullptr },
+    showDebugOverlay{ false },
     hoverStream{ nullptr },
     uiClickSound{ nullptr },
     lastHoveredId{ 0 },
@@ -263,6 +266,8 @@ bool SceneMuntasir::OnCreate() {
     // where both zones' chunks scroll on screen simultaneously (seamless transition).
     levelDirector->AddScript(new Level02Script(), 180.0f);
 
+    debugOverlay = new DebugOverlay();
+
     return true;
 }
 
@@ -374,6 +379,9 @@ void SceneMuntasir::OnDestroy() {
     SDL_DestroyAudioStream(sfxLaserHitStream);
     bgmMusic->OnDestroy();
     delete bgmMusic;
+
+    delete debugOverlay;
+    debugOverlay = nullptr;
 }
 
 // HandleEvents
@@ -383,6 +391,9 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
         switch (sdlEvent.key.scancode) {
         case SDL_SCANCODE_ESCAPE:
             if (!gameOver) gamePaused = !gamePaused;
+            break;
+        case SDL_SCANCODE_F9:
+            showDebugOverlay = !showDebugOverlay;
             break;
         case SDL_SCANCODE_F12:
             drawInWireMode = !drawInWireMode;
@@ -492,6 +503,8 @@ void SceneMuntasir::SpawnShards(const Vec3& pos, int count) {
 
 // Update
 void SceneMuntasir::Update(const float deltaTime) {
+    debugOverlay->Update(deltaTime);
+
     if (gamePaused) return;
 
     // Cooldown timers
@@ -1246,6 +1259,7 @@ void SceneMuntasir::PlayHoverSound() {
 }
 
 void SceneMuntasir::DrawGui() {
+    if (showDebugOverlay) debugOverlay->Draw();
     DrawHUD();
     DrawPauseMenu();
     DrawGameOver();
@@ -1375,7 +1389,7 @@ void SceneMuntasir::DrawPauseMenu() {
 
     ImGuiIO& io   = ImGui::GetIO();
         float    panW = 380.0f;
-        float    panH = pauseShowSettings ? 590.0f : 275.0f;
+        float    panH = pauseShowSettings ? 640.0f : 275.0f;
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
@@ -1415,6 +1429,7 @@ void SceneMuntasir::DrawPauseMenu() {
                 pendingResIndex   = SaveData::current.resolutionIndex;
                 pendingFullscreen = SaveData::current.fullscreen;
                 pendingVsync      = SaveData::current.vsyncMode;
+                pendingTargetFPS  = SaveData::current.targetFPS;
             }
             pauseShowSettings = !pauseShowSettings;
         }
@@ -1480,12 +1495,27 @@ void SceneMuntasir::DrawPauseMenu() {
             ImGui::SameLine();
             if (ImGui::RadioButton("Off##vs",      pendingVsync ==  0)) pendingVsync =  0;
 
+            // Frame Cap (only meaningful when Sync is Off)
+            ImGui::SetCursorPosX(btnX);
+            ImGui::Text("Frame Cap");
+            ImGui::SameLine();
+            {
+                static const char* capLabels[] = { "Uncapped", "240 FPS", "144 FPS", "120 FPS", "60 FPS" };
+                static const int   capValues[] = { 0, 240, 144, 120, 60 };
+                int capIdx = 0;
+                for (int ci = 0; ci < 5; ci++) if (capValues[ci] == pendingTargetFPS) { capIdx = ci; break; }
+                ImGui::SetNextItemWidth(btnW - 100.0f);
+                if (ImGui::Combo("##cap", &capIdx, capLabels, 5))
+                    pendingTargetFPS = capValues[capIdx];
+            }
+
             ImGui::Spacing();
             ImGui::SetCursorPosX(btnX);
             if (ImGui::Button("APPLY VIDEO", ImVec2(btnW, 30))) {
                 SaveData::current.resolutionIndex = pendingResIndex;
                 SaveData::current.fullscreen      = pendingFullscreen;
                 SaveData::current.vsyncMode       = pendingVsync;
+                SaveData::current.targetFPS       = pendingTargetFPS;
                 int w = SaveData::kResolutionW[pendingResIndex];
                 int h = SaveData::kResolutionH[pendingResIndex];
                 SceneSwitcher::RequestVideo(pendingFullscreen, w, h, pendingVsync);

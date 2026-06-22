@@ -37,6 +37,7 @@ struct SaveData {
     bool fullscreen      = false;
     int  resolutionIndex = 0;    // index into kResolutionW / kResolutionH
     int  vsyncMode       = -1;   // -1=adaptive sync, 1=vsync, 0=uncapped
+    int  targetFPS       = 240;  // frame cap when vsync is off; 0 = uncapped
 
     static SaveData current;
 

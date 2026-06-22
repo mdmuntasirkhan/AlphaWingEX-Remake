@@ -136,6 +136,7 @@
   <ItemGroup>
     <ClCompile Include="Asteroid.cpp" />
     <ClCompile Include="Body.cpp" />
+    <ClCompile Include="DebugOverlay.cpp" />
     <ClCompile Include="Bot01.cpp" />
     <ClCompile Include="Bot02.cpp" />
     <ClCompile Include="ShardBeacon.cpp" />
@@ -175,6 +176,7 @@
     <ClInclude Include="Asteroid.h" />
     <ClInclude Include="Body.h" />
     <ClInclude Include="Bot01.h" />
+    <ClInclude Include="DebugOverlay.h" />
     <ClInclude Include="GameConstants.h" />
     <ClInclude Include="Bot02.h" />
     <ClInclude Include="ShardBeacon.h" />
