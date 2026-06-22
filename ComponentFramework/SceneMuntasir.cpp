@@ -28,8 +28,8 @@ SceneMuntasir::SceneMuntasir() :
     score{ 0 },
     shardCount{ 0 },
     shardMesh{ nullptr },
-    lostShards{},
-    hasLostShards{ false },
+    shardBeacon{ nullptr },
+    beaconTriggerTime{ 0.0f },
     prevLives{ 3 },
     autoSaveTimer{ 0.0f },
     currentPhase{ 1 },
@@ -218,13 +218,20 @@ bool SceneMuntasir::OnCreate() {
 
     bot01->SetTotalTime(SaveData::current.waveTime);
 
-    // Restore lost shard pile
-    hasLostShards = SaveData::current.hasLostShards;
-    if (hasLostShards) {
-        lostShards.pos   = Vec3(SaveData::current.lostShardPosX,
-                                SaveData::current.lostShardPosY, -10.0f);
-        lostShards.count = SaveData::current.lostShardCount;
-        lostShards.pulseTimer = 0.0f;
+    // Shard beacon — satellite marker placed at death position
+    shardBeacon = new ShardBeacon();
+    if (!shardBeacon->OnCreate()) return false;
+    if (SaveData::current.hasLostShards) {
+        if (SaveData::current.deathLevelTime > 0.0f) {
+            // Beacon is pending — activate when level timeline reaches the death moment
+            beaconTriggerTime = SaveData::current.deathLevelTime;
+        } else {
+            // Beacon was already triggered last session — restore immediately
+            shardBeacon->Place(
+                Vec3(SaveData::current.lostShardPosX,
+                     SaveData::current.lostShardPosY, -10.0f),
+                SaveData::current.lostShardCount);
+        }
     }
 
     prevLives = player->GetLives();
@@ -266,13 +273,17 @@ void SceneMuntasir::OnVideoChanged(int w, int h) {
 void SceneMuntasir::OnDestroy() {
     Debug::Info("Deleting assets SceneMuntasir: ", __FILE__, __LINE__);
 
-    // On a complete death, write a clean-slate save so the next load starts fresh.
-    // highScore was already committed when gameOver was set.
-    // On a normal exit (pause-quit, window close mid-run), save the full mid-session state.
+    // On a complete death: reset only run-specific fields so the next load starts fresh.
+    // highScore was committed at game-over detection; shard pile was saved at last life-loss.
+    // On a normal mid-run exit: full mid-session save so the player can resume.
     if (gameOver) {
-        int hs = SaveData::current.highScore;
-        SaveData::current.Reset();
-        SaveData::current.highScore = hs;
+        SaveData::current.lives       = 3;
+        SaveData::current.health      = 100.0f;
+        SaveData::current.score       = 0;
+        SaveData::current.shardCount  = 0;
+        SaveData::current.posX        = 0.0f;
+        SaveData::current.posY        = 0.0f;
+        SaveData::current.waveTime    = 0.0f;
         SaveData::current.Save();
     } else {
         SaveGame();
@@ -291,6 +302,11 @@ void SceneMuntasir::OnDestroy() {
         shardMesh->OnDestroy();
         delete shardMesh;
         shardMesh = nullptr;
+    }
+    if (shardBeacon) {
+        shardBeacon->OnDestroy();
+        delete shardBeacon;
+        shardBeacon = nullptr;
     }
 
     // Game classes
@@ -434,10 +450,24 @@ void SceneMuntasir::SaveGame() {
     SaveData::current.posX            = player->GetPosition().x;
     SaveData::current.posY            = player->GetPosition().y;
     SaveData::current.waveTime        = bot01->GetTotalTime();
-    SaveData::current.hasLostShards   = hasLostShards;
-    SaveData::current.lostShardPosX   = hasLostShards ? lostShards.pos.x : 0.0f;
-    SaveData::current.lostShardPosY   = hasLostShards ? lostShards.pos.y : 0.0f;
-    SaveData::current.lostShardCount  = hasLostShards ? lostShards.count : 0;
+    if (shardBeacon->IsActive()) {
+        // Beacon is visible — sync from beacon object; reload should show it immediately
+        SaveData::current.hasLostShards  = true;
+        SaveData::current.lostShardPosX  = shardBeacon->GetPosition().x;
+        SaveData::current.lostShardPosY  = shardBeacon->GetPosition().y;
+        SaveData::current.lostShardCount = shardBeacon->GetCount();
+        SaveData::current.deathLevelTime = 0.0f;
+    } else if (beaconTriggerTime > 0.0f) {
+        // Beacon is pending — level hasn't reached the death time yet; keep pos/count as-is
+        SaveData::current.hasLostShards  = true;
+        SaveData::current.deathLevelTime = beaconTriggerTime;
+    } else {
+        SaveData::current.hasLostShards  = false;
+        SaveData::current.lostShardPosX  = 0.0f;
+        SaveData::current.lostShardPosY  = 0.0f;
+        SaveData::current.lostShardCount = 0;
+        SaveData::current.deathLevelTime = 0.0f;
+    }
     SaveData::current.musicVolume     = musicVolume;
     SaveData::current.sfxVolume       = sfxVolume;
     SaveData::current.Save();
@@ -530,22 +560,47 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Lost shard pile — pulse + collect (larger 1.2-unit radius so it feels good)
-    if (hasLostShards) {
-        lostShards.pulseTimer += deltaTime;
-        float ldx = ppos.x - lostShards.pos.x;
-        float ldy = ppos.y - lostShards.pos.y;
-        if (ldx*ldx + ldy*ldy < 1.2f * 1.2f) {
-            shardCount   += lostShards.count;
-            hasLostShards = false;
-            SaveGame();   // immediately bank the recovered shards
-        }
+    // Shard beacon — activate when level timeline reaches recorded death moment
+    if (!shardBeacon->IsActive() && beaconTriggerTime > 0.0f &&
+        levelDirector->GetTime() >= beaconTriggerTime) {
+        shardBeacon->Place(
+            Vec3(SaveData::current.lostShardPosX,
+                 SaveData::current.lostShardPosY, -10.0f),
+            SaveData::current.lostShardCount);
+        beaconTriggerTime = 0.0f;
+    }
+
+    // Update animation, then check pickup
+    shardBeacon->Update(deltaTime);
+    int recovered = shardBeacon->TryCollect(ppos);
+    if (recovered > 0) {
+        shardCount += recovered;
+        SaveData::current.hasLostShards  = false;
+        SaveData::current.lostShardPosX  = 0.0f;
+        SaveData::current.lostShardPosY  = 0.0f;
+        SaveData::current.lostShardCount = 0;
+        SaveData::current.deathLevelTime = 0.0f;
+        beaconTriggerTime = 0.0f;
+        SaveGame();
     }
 
     // Check game over
     if (player->IsGameOver()) {
         if (score > SaveData::current.highScore)
             SaveData::current.highScore = score;
+        if (shardCount > 0) {
+            // Drop ALL shards at final death position — replaces any existing beacon
+            shardBeacon->Clear();
+            SaveData::current.hasLostShards  = true;
+            SaveData::current.lostShardPosX  = player->GetPosition().x;
+            SaveData::current.lostShardPosY  = player->GetPosition().y;
+            SaveData::current.lostShardCount = shardCount;
+            SaveData::current.deathLevelTime = levelDirector->GetTime();
+            SaveData::current.shardCount     = 0;
+            beaconTriggerTime = SaveData::current.deathLevelTime;
+            shardCount = 0;
+        }
+        // shardCount == 0: any existing beacon from a prior run survives untouched
         gameOver = true;
     }
 
@@ -1068,17 +1123,8 @@ void SceneMuntasir::Update(const float deltaTime) {
     // Life-loss detection — after all collision damage this frame.
     int currentLives = player->GetLives();
     if (currentLives < prevLives) {
-        if (shardCount > 0) {
-            // Drop shards at death position — replaces any previous pile
-            lostShards.pos        = player->GetPosition();
-            lostShards.count      = shardCount;
-            lostShards.pulseTimer = 0.0f;
-            hasLostShards         = true;
-            shardCount            = 0;
-        }
-        // If shardCount == 0: keep any existing pile — dying broke doesn't erase
-        // previously dropped shards (player still has a chance to recover them)
-        SaveGame();  // snapshot: one fewer life, 0 shards, pile recorded
+        // Shards stay on individual life loss — only a complete game over drops them
+        SaveGame();
     }
     prevLives = currentLives;
 }
@@ -1156,14 +1202,12 @@ void SceneMuntasir::Render() const {
     bot01->Render(shader, projectionMatrix, viewMatrix);
     bot02->Render(shader, projectionMatrix, viewMatrix);
 
-    // Energy shards + lost shard pile — additive emissive
-    if (!shards.empty() || hasLostShards) {
+    // Energy shards — additive emissive spinning orbs
+    if (!shards.empty()) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         glDepthMask(GL_FALSE);
         glUniform1f(shader->GetUniformID("emissive"), 1.0f);
-
-        // Regular shards — spinning gold orbs (scale 0.12, visible now)
         glUniform4f(shader->GetUniformID("color"), 1.0f, 0.85f, 0.1f, 0.9f);
         for (int i = 0; i < (int)shards.size(); i++) {
             Matrix4 m = MMath::translate(shards[i].pos) *
@@ -1172,32 +1216,13 @@ void SceneMuntasir::Render() const {
             glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
             shardMesh->Render();
         }
-
-        // Lost shard pile — larger pulsing white-gold cluster at death position
-        if (hasLostShards) {
-            float pulse = 0.55f + 0.45f * sinf(lostShards.pulseTimer * 4.5f);
-            glUniform4f(shader->GetUniformID("color"), 1.0f, 0.92f, 0.4f, pulse);
-            // Draw 3 orbs in a small cluster around the drop point
-            const Vec3 offsets[3] = {
-                Vec3( 0.00f,  0.00f, 0.0f),
-                Vec3( 0.18f,  0.10f, 0.0f),
-                Vec3(-0.18f,  0.10f, 0.0f)
-            };
-            for (int k = 0; k < 3; k++) {
-                Vec3 p = lostShards.pos + offsets[k];
-                float spin = lostShards.pulseTimer * 60.0f + k * 120.0f;
-                Matrix4 m = MMath::translate(p) *
-                            MMath::rotate(spin, Vec3(0.0f, 0.0f, 1.0f)) *
-                            MMath::scale(0.18f, 0.18f, 0.18f);
-                glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
-                shardMesh->Render();
-            }
-        }
-
         glUniform1f(shader->GetUniformID("emissive"), 0.0f);
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
     }
+
+    // Shard beacon — satellite marker at death position (manages its own GL state)
+    shardBeacon->Render(shader, projectionMatrix, viewMatrix);
 
     glUseProgram(0);
 
@@ -1318,10 +1343,15 @@ void SceneMuntasir::DrawGui() {
         }
     }
 
-    // Lost shard warning
-    if (hasLostShards) {
+    // Lost shard beacon status
+    if (beaconTriggerTime > 0.0f && !shardBeacon->IsActive()) {
+        float timeLeft = beaconTriggerTime - levelDirector->GetTime();
+        ImGui::TextColored(ImVec4(1.0f, 0.70f, 0.10f, 0.85f),
+            "BEACON IN %.0fs  [%d shards]",
+            timeLeft, SaveData::current.lostShardCount);
+    } else if (shardBeacon->IsActive()) {
         ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.05f, 1.0f),
-            ">> LOST SHARDS: %d", lostShards.count);
+            ">> RECOVER %d LOST SHARDS", shardBeacon->GetCount());
     }
 
     ImGui::TextDisabled("ESC  Pause");
@@ -1502,10 +1532,9 @@ void SceneMuntasir::DrawGui() {
         ImGui::Spacing();
         ImGui::SetCursorPosX(50);
         if (ImGui::Button("Try Again", ImVec2(120, 40))) {
-            gameOver      = false;
-            score         = 0;
-            shardCount    = 0;
-            hasLostShards = false;
+            gameOver   = false;
+            score      = 0;
+            shardCount = 0;
             shards.clear();
             autoSaveTimer = 0.0f;
             currentPhase  = 1;
@@ -1515,9 +1544,13 @@ void SceneMuntasir::DrawGui() {
             bot02->Reset();
             levelDirector->Reset();
             prevLives = player->GetLives();
-            int prevHighScore = SaveData::current.highScore;
-            SaveData::current.Reset();
-            SaveData::current.highScore = prevHighScore;
+            SaveData::current.lives    = 3;
+            SaveData::current.health   = 100.0f;
+            SaveData::current.score    = 0;
+            SaveData::current.posX     = 0.0f;
+            SaveData::current.posY     = 0.0f;
+            SaveData::current.waveTime = 0.0f;
+            SaveData::current.shardCount = 0;
             SaveData::current.Save();
         }
         chkHov();

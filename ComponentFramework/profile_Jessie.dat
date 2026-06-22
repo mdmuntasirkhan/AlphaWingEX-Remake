@@ -1,12 +1,12 @@
-﻿profile Jessie
+profile Jessie
 shards 106
 highscore 0
 health 100
 lives 3
 score 0
-posx 0
-posy 0
-wavetime 0
+posx -2.40513
+posy 2.15849
+wavetime 3.03299
 haslostshards 0
 lostshardposx 0
 lostshardposy 0

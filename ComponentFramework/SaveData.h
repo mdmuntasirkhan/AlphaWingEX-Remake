@@ -22,11 +22,12 @@ struct SaveData {
     float posY     = 0.0f;
     float waveTime = 0.0f;   // enemy wave progression timer
 
-    // Lost shard pile state (persisted so reload restores the pile)
+    // Lost shard beacon (FromSoftware-style: drops on game over, recoverable next run)
     bool  hasLostShards    = false;
     float lostShardPosX    = 0.0f;
     float lostShardPosY    = 0.0f;
     int   lostShardCount   = 0;
+    float deathLevelTime   = 0.0f;  // level time at which the beacon activates (0 = immediate)
 
     // Audio preferences
     float musicVolume = 0.10f;

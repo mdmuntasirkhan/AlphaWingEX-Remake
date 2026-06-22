@@ -138,6 +138,7 @@
     <ClCompile Include="Body.cpp" />
     <ClCompile Include="Bot01.cpp" />
     <ClCompile Include="Bot02.cpp" />
+    <ClCompile Include="ShardBeacon.cpp" />
     <ClCompile Include="Bullet.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Debug.cpp" />
@@ -175,6 +176,7 @@
     <ClInclude Include="Body.h" />
     <ClInclude Include="Bot01.h" />
     <ClInclude Include="Bot02.h" />
+    <ClInclude Include="ShardBeacon.h" />
     <ClInclude Include="Bullet.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Debug.h" />

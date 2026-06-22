@@ -27,6 +27,7 @@ bool SaveData::Save() const {
       << "lostshardposx "  << lostShardPosX  << "\n"
       << "lostshardposy "  << lostShardPosY  << "\n"
       << "lostshardcount " << lostShardCount << "\n"
+      << "deathleveltime " << deathLevelTime << "\n"
       << "musicvolume "    << musicVolume    << "\n"
       << "sfxvolume "      << sfxVolume      << "\n"
       << "fullscreen "     << (fullscreen ? 1 : 0) << "\n"
@@ -54,6 +55,7 @@ bool SaveData::Load(const std::string& name) {
         else if (key == "lostshardposx")  f >> lostShardPosX;
         else if (key == "lostshardposy")  f >> lostShardPosY;
         else if (key == "lostshardcount") f >> lostShardCount;
+        else if (key == "deathleveltime") f >> deathLevelTime;
         else if (key == "musicvolume")    f >> musicVolume;
         else if (key == "sfxvolume")      f >> sfxVolume;
         else if (key == "fullscreen")     { int v; f >> v; fullscreen = (v != 0); }
@@ -76,6 +78,7 @@ void SaveData::Reset() {
     lostShardPosX   = 0.0f;
     lostShardPosY   = 0.0f;
     lostShardCount  = 0;
+    deathLevelTime  = 0.0f;
     musicVolume     = 0.10f;
     sfxVolume       = 0.05f;
 }

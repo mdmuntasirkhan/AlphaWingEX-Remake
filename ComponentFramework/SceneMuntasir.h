@@ -14,6 +14,7 @@
 #include "SaveData.h"
 #include "SceneSwitcher.h"
 #include "LevelDirector.h"
+#include "ShardBeacon.h"
 #include <vector>
 
 using namespace MATH;
@@ -55,14 +56,9 @@ private:
 	int   shardCount;
 	Mesh* shardMesh;
 
-	// Lost shard pile — dropped on death, recoverable once
-	struct DroppedShard {
-		Vec3  pos;
-		int   count;
-		float pulseTimer;
-	};
-	DroppedShard lostShards;
-	bool hasLostShards;
+	// Lost shard beacon — satellite placed at death position, recoverable next run
+	ShardBeacon* shardBeacon;
+	float beaconTriggerTime;  // level time at which beacon activates (0 = inactive or immediate)
 	int  prevLives;
 
 	static constexpr float kMagnetRadius  = 2.4f;
