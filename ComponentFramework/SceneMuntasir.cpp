@@ -547,9 +547,9 @@ void SceneMuntasir::Update(const float deltaTime) {
     levelDirector->Update(deltaTime);
 
     // Trigger warp animations requested by the level script
-    if (levelDirector->PopWarpEnterRequest()) environment->TriggerWarpEnter(10.0f);
-    if (levelDirector->PopWarpExitRequest())  environment->TriggerWarpExit(10.0f);
-    if (levelDirector->PopWarpFullRequest())  environment->TriggerWarp(10.0f);
+    if (levelDirector->PopWarpEnterRequest()) environment->TriggerWarpEnter(6.0f);
+    if (levelDirector->PopWarpExitRequest())  environment->TriggerWarpExit(6.0f);
+    if (levelDirector->PopWarpFullRequest())  environment->TriggerWarp(6.0f);
 
     // F11 hold-to-warp — charge for 3 s then fire
     if (f11Held && !environment->IsWarpActive()) {
