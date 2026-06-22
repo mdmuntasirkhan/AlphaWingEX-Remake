@@ -18,6 +18,7 @@ Player::Player() :  mesh { nullptr },
 					maxSpeed { 10.0f },
 					shieldActive { false },
 					shieldPaused { false },
+					shieldPenaltyQueued { false },
 					shieldTimer { 0.0f },
 					shieldDuration { 10.0f },
 					shieldCooldown { 5.0f },
@@ -170,23 +171,43 @@ void Player::Update(float deltaTime) {
 				  MMath::rotate(rollAngle, Vec3(0.0f, 0.0f, 1.0f)) *
 				  MMath::scale(0.3f, 0.3f, 0.3f);
 
-	// Shield active countdown (paused = timer frozen, shield stays up)
-	if (shieldActive && !shieldPaused) {
-		shieldTimer += deltaTime;
-		if (shieldTimer >= shieldDuration) {
-			shieldActive = false;
-			shieldPaused = false;
-			shieldOnCooldown = true;
-			shieldCooldownTimer = 0.0f;
+	if (shieldActive) {
+		if (shieldPaused) {
+			// Retracting — timer counts back toward 0, shield is invisible
+			shieldTimer -= deltaTime;
+			if (shieldTimer <= 0.0f) {
+				shieldTimer  = 0.0f;
+				shieldActive = false;
+				shieldPaused = false;
+				if (shieldPenaltyQueued) {
+					// Used ≥90% before retracting — penalty cooldown
+					shieldOnCooldown    = true;
+					shieldCooldownTimer = 0.0f;
+					shieldCooldown      = kPenaltyCooldown;
+					shieldPenaltyQueued = false;
+				}
+				// else: retracted cleanly — no cooldown, shield is immediately available
+			}
+		} else {
+			// Active — timer counts up toward duration
+			shieldTimer += deltaTime;
+			if (shieldTimer >= shieldDuration) {
+				// Expired — always a penalty cooldown
+				shieldActive        = false;
+				shieldPaused        = false;
+				shieldOnCooldown    = true;
+				shieldCooldownTimer = 0.0f;
+				shieldCooldown      = kPenaltyCooldown;
+				shieldPenaltyQueued = false;
+			}
 		}
 	}
 
-	// Shield recharging
+	// Shield cooldown countdown
 	if (shieldOnCooldown) {
 		shieldCooldownTimer += deltaTime;
 		if (shieldCooldownTimer >= shieldCooldown) {
-			// Fully recharged
-			shieldOnCooldown = false;
+			shieldOnCooldown    = false;
 			shieldCooldownTimer = 0.0f;
 		}
 	}
@@ -275,8 +296,7 @@ void Player::Render(Shader* shader,
 }
 
 void Player::TakeDamage(float amount) {
-	//Shield blocks all damage!
-	if (shieldActive) return;
+	if (shieldActive && !shieldPaused) return; // retracting shield does not block
 
 	health -= amount;
 	if (health <= 0.0f) {
@@ -287,14 +307,23 @@ void Player::TakeDamage(float amount) {
 
 void Player::ActivateShield() {
 	if (shieldActive) {
-		shieldPaused = !shieldPaused;  // E while active: toggle pause/resume
+		if (!shieldPaused) {
+			// Start retracting — flag penalty if already ≥90% used
+			shieldPenaltyQueued = (shieldTimer / shieldDuration >= 0.9f);
+			shieldPaused = true;
+		} else {
+			// Already retracting — re-deploy
+			shieldPaused        = false;
+			shieldPenaltyQueued = false;
+		}
 		return;
 	}
 	if (!shieldOnCooldown) {
-		shieldActive = true;
-		shieldPaused = false;
-		shieldTimer = 0.0f;
-		shieldSweepTimer = 0.0f;
+		shieldActive        = true;
+		shieldPaused        = false;
+		shieldPenaltyQueued = false;
+		shieldTimer         = 0.0f;
+		shieldSweepTimer    = 0.0f;
 	}
 }
 
@@ -305,10 +334,12 @@ void Player::Reset() {
 	velocity = Vec3(0.0f, 0.0f, 0.0f);
 	rollAngle = 0.0f;
 	rollVelocity = 0.0f;
-	shieldActive = false;
-	shieldPaused = false;
-	shieldTimer = 0.0f;
-	shieldOnCooldown = false;
+	shieldActive        = false;
+	shieldPaused        = false;
+	shieldPenaltyQueued = false;
+	shieldTimer         = 0.0f;
+	shieldCooldown      = 5.0f;
+	shieldOnCooldown    = false;
 	shieldCooldownTimer = 0.0f;
 	thrustTimer = 0.0f;
 }

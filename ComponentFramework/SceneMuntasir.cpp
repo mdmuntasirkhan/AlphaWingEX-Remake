@@ -1210,21 +1210,47 @@ void SceneMuntasir::DrawGui() {
     ImGui::ProgressBar(hp, ImVec2(250, 18), "");
     ImGui::PopStyleColor();
 
-    // Shield status — active shows duration bar (smaller than health bar), cooldown shows recharge
-    if (player->IsShieldActive()) {
-        float rem = 1.0f - player->GetShieldDurationPercent();
-        if (player->IsShieldPaused())
-            ImGui::TextColored(ImVec4(0.4f, 0.7f, 1.0f, 1.0f), "SHIELD [PAUSED]  [E]");
-        else
-            ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "SHIELD ACTIVE  [E pause]");
-        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.0f, 0.7f, 1.0f, 1.0f));
-        ImGui::ProgressBar(rem, ImVec2(200.0f, 10.0f), "");
-        ImGui::PopStyleColor();
-    } else if (player->IsShieldOnCooldown()) {
-        ImGui::Text("SHIELD RECHARGING...");
-        ImGui::ProgressBar(player->GetShieldCooldownPercent(), ImVec2(200.0f, 10.0f), "");
-    } else {
-        ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "SHIELD READY  [E]");
+    // Shield — always-visible bar. Vertical tick marks the 90%-usage / penalty threshold.
+    {
+        static constexpr float kPenaltyCharge = 0.10f; // charge fraction below which penalty applies
+        float charge = player->GetShieldChargeFraction(); // 1=full, 0=empty
+
+        if (player->IsShieldActive()) {
+            ImVec4 barCol = charge > kPenaltyCharge
+                ? ImVec4(0.0f, 0.7f, 1.0f, 1.0f)
+                : ImVec4(1.0f, 0.35f, 0.0f, 1.0f); // orange = inside penalty zone
+            ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "SHIELD ACTIVE  [E retract]");
+            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, barCol);
+            ImGui::ProgressBar(charge, ImVec2(200.0f, 10.0f), "");
+            ImGui::PopStyleColor();
+        } else if (player->IsShieldRetracting()) {
+            ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "SHIELD RETRACTING  [E re-deploy]");
+            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.3f, 0.55f, 0.9f, 1.0f));
+            ImGui::ProgressBar(charge, ImVec2(200.0f, 10.0f), "");
+            ImGui::PopStyleColor();
+        } else if (player->IsShieldOnCooldown()) {
+            ImGui::TextColored(ImVec4(0.8f, 0.3f, 1.0f, 1.0f), "SHIELD COOLDOWN");
+            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.6f, 0.1f, 0.8f, 1.0f));
+            ImGui::ProgressBar(player->GetShieldCooldownPercent(), ImVec2(200.0f, 10.0f), "");
+            ImGui::PopStyleColor();
+        } else {
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "SHIELD READY  [E]");
+            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.0f, 0.7f, 1.0f, 1.0f));
+            ImGui::ProgressBar(1.0f, ImVec2(200.0f, 10.0f), "");
+            ImGui::PopStyleColor();
+        }
+
+        // Draw penalty-threshold tick on the bar for active and retracting states.
+        // The tick sits at kPenaltyCharge (10%) from the left — "don't cross this line."
+        if (player->IsShieldActive() || player->IsShieldRetracting()) {
+            ImVec2 bMin = ImGui::GetItemRectMin();
+            ImVec2 bMax = ImGui::GetItemRectMax();
+            float  tickX = bMin.x + (bMax.x - bMin.x) * kPenaltyCharge;
+            ImGui::GetWindowDrawList()->AddLine(
+                ImVec2(tickX, bMin.y - 1.0f),
+                ImVec2(tickX, bMax.y + 1.0f),
+                IM_COL32(255, 80, 0, 230), 2.0f);
+        }
     }
 
     // Lost shard warning

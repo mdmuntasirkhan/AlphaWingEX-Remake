@@ -1,12 +1,12 @@
 profile RK
-shards 53
+shards 93
 highscore 8240
 health 50
 lives 3
-score 1750
-posx -9.02514
-posy -0.0208337
-wavetime 169.216
+score 2605
+posx 1.52947
+posy 0.491269
+wavetime 311.437
 haslostshards 0
 lostshardposx 0
 lostshardposy 0

@@ -149,18 +149,19 @@ void Bot01::Update(float deltaTime, float playerX, float playerY) {
 		bot01XKnockbackVels[i] *= expf(-9.0f * deltaTime);
 		if (fabsf(bot01XKnockbackVels[i]) < 0.01f) bot01XKnockbackVels[i] = 0.0f;
 
-		// Arrival behavior: rush in fast from far, decelerate to a slow tracking hover
-		// once close — classic Craig Reynolds arrival steering.
-		// kSlowingRadius defines where braking begins; kNearSpeed is the close-range cap.
-		static constexpr float kSlowingRadius = 14.0f;
-		static constexpr float kFarSpeed      = 7.0f;
-		static constexpr float kNearSpeed     = 0.6f;
-		float dx   = playerX - bot01Positions[i].x;
+		// Shielded bots hover at standoff range (4.5 units right of player) — they don't
+		// close in while the shield is up. Standard bots use arrival steering to close in.
+		static constexpr float kSlowingRadius  = 14.0f;
+		static constexpr float kStandoffX      = 4.5f;
+		float targetX = bot01HasShield[i] ? playerX + kStandoffX : playerX;
+		float farSpd  = bot01HasShield[i] ? 5.0f : 7.0f;
+		float nearSpd = bot01HasShield[i] ? 0.3f : 0.6f;
+		float dx   = targetX - bot01Positions[i].x;
 		float dy   = playerY - bot01Positions[i].y;
 		float dist = sqrtf(dx * dx + dy * dy);
 		float t    = dist / kSlowingRadius;
 		if (t > 1.0f) t = 1.0f;
-		float dynamicMaxSpeed = kNearSpeed + (kFarSpeed - kNearSpeed) * t;
+		float dynamicMaxSpeed = nearSpd + (farSpd - nearSpd) * t;
 
 		// X spring chase + gentle leftward drift so bots eventually leave the screen
 		float xForce = bot01SteerForce * dx

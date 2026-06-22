@@ -35,13 +35,16 @@ private:
 
 	// Shield
 	Mesh* shieldMesh;
-	bool shieldActive;
-	bool shieldPaused;          // E while active freezes the duration countdown
+	bool  shieldActive;
+	bool  shieldPaused;         // true = retracting (timer counts back, shield invisible)
+	bool  shieldPenaltyQueued;  // true if retracted after ≥90% usage → penalty cooldown on full retract
 	float shieldTimer;
 	float shieldDuration;
 	float shieldCooldown;
 	float shieldCooldownTimer;
-	bool shieldOnCooldown;
+	bool  shieldOnCooldown;
+
+	static constexpr float kPenaltyCooldown = 12.0f; // cooldown when shield expires or retracted after ≥90%
 
 	float shieldSweepTimer;
 	float shieldSweepPeriod;
@@ -88,11 +91,14 @@ public:
 
 	// Shield
 	void ActivateShield();
-	bool IsShieldActive() const { return shieldActive && !shieldPaused; }
-	bool IsShieldPaused() const { return shieldPaused; }
-	bool IsShieldOnCooldown() const { return shieldOnCooldown; }
-	float GetShieldCooldownPercent() const { return shieldCooldownTimer / shieldCooldown; }
-	float GetShieldDurationPercent() const { return shieldTimer / shieldDuration; }
+	bool  IsShieldActive()     const { return shieldActive && !shieldPaused; }
+	bool  IsShieldRetracting() const { return shieldActive &&  shieldPaused; }
+	bool  IsShieldPaused()     const { return shieldPaused; }
+	bool  IsShieldOnCooldown() const { return shieldOnCooldown; }
+	float GetShieldCooldownPercent()  const { return shieldCooldownTimer / shieldCooldown; }
+	float GetShieldDurationPercent()  const { return shieldTimer / shieldDuration; }
+	// 0=full charge, increases as shield drains; used by HUD and retract bar
+	float GetShieldChargeFraction()   const { return 1.0f - (shieldTimer / shieldDuration); }
 	// Elliptical collision half-axes: mesh bounds (±3.5 X, ±2.5 Y) × render scale 0.3
 	float GetShieldRadiusX() const { return 1.05f; }
 	float GetShieldRadiusY() const { return 0.75f; }
