@@ -1,4 +1,5 @@
 #include "LevelDirector.h"
+#include "GameConstants.h"
 #include <MMath.h>
 #include <glew.h>
 #include <algorithm>
@@ -53,7 +54,7 @@ void LevelDirector::Update(float deltaTime) {
     // Scroll all active chunks left and cull anything that has passed the left edge
     for (int i = (int)activeChunks.size() - 1; i >= 0; i--) {
         activeChunks[i].pos.x -= activeChunks[i].scrollSpeed * deltaTime;
-        if (activeChunks[i].pos.x < -18.0f) {
+        if (activeChunks[i].pos.x < GameConst::kCullX - 3.0f) {
             activeChunks.erase(activeChunks.begin() + i);
         }
     }

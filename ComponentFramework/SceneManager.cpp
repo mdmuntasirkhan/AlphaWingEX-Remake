@@ -74,6 +74,17 @@ bool SceneManager::Initialize(std::string name, int width, int height) {
 	// This must come before ApplyVsync so the loaded vsyncMode is used.
 	SaveData::current.LoadMachineSettings();
 
+	// Resize window to match saved resolution so OnCreate() projection matrices
+	// are never computed against the default 1280x720 startup size.
+	// Ultrawide resolutions (5K2K/8K2K) have a different aspect ratio than 16:9
+	// and will stretch if the viewport doesn't match the projection on startup.
+	window->SetFullscreen(SaveData::current.fullscreen);
+	if (!SaveData::current.fullscreen) {
+		window->SetSize(
+			SaveData::kResolutionW[SaveData::current.resolutionIndex],
+			SaveData::kResolutionH[SaveData::current.resolutionIndex]);
+	}
+
 	// Adaptive sync (FreeSync / G-Sync) → standard vsync → uncapped
 	ApplyVsync(SaveData::current.vsyncMode);
 
@@ -206,21 +217,25 @@ bool SceneManager::BuildNewScene(SceneID id) {
     case SceneID::TITLE:
         currentScene = new SceneTitle();
         status = currentScene->OnCreate();
+        currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
         break;
 
     case SceneID::STG:
         currentScene = new SceneSTG();
         status = currentScene->OnCreate();
+        currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
         break;
 
     case SceneID::JA:
         currentScene = new SceneJA();
         status = currentScene->OnCreate();
+        currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
         break;
 
     case SceneID::MUN:
         currentScene = new SceneMuntasir();
         status = currentScene->OnCreate();
+        currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
         break;
 
     default:

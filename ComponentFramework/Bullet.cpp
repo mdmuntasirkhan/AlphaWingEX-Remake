@@ -152,7 +152,7 @@ void Bullet::Update(float deltaTime,
 
 	// Remove regular bullets off the screen
 	for (int i = (int)positions.size() - 1; i >= 0; i--) {
-		if (positions[i].x > kBulletCullX) {
+		if (positions[i].x > GameConst::kSpawnX) {
 			positions.erase(positions.begin() + i);
 			bulletYVelocities.erase(bulletYVelocities.begin() + i);
 		}

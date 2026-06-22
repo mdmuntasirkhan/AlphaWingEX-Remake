@@ -18,13 +18,28 @@ namespace GameConst {
 
     // ── World space ─────────────────────────────────────────
     // All active game objects live at Z = kWorldZ.
-    // Player is hard-clamped to ±kWorldBoundX / ±kWorldBoundY (70° FOV at Z=-10).
-    // Enemies enter from kSpawnX (right edge) and cull at kCullX (left edge).
-    static constexpr float kWorldZ      = -10.0f;
-    static constexpr float kWorldBoundX =  11.0f;
-    static constexpr float kWorldBoundY =   6.0f;
-    static constexpr float kSpawnX      =  15.0f;
-    static constexpr float kCullX       = -15.0f;
+    // kWorldBoundX/Y, kSpawnX, kCullX are runtime values updated by ComputeWorldBounds()
+    // whenever the viewport aspect ratio changes, so all resolutions (16:9 through 32:9)
+    // see correct player bounds and enemy spawn/cull edges automatically.
+    static constexpr float kWorldZ = -10.0f;
+
+    // Defaults match 70° vertical FOV at Z=-10 for 16:9. Overwritten by ComputeWorldBounds().
+    inline float kWorldBoundX =  11.0f;
+    inline float kWorldBoundY =   6.0f;
+    inline float kSpawnX      =  15.0f;
+    inline float kCullX       = -15.0f;
+
+    // Call this from SceneMuntasir::OnCreate() and OnVideoChanged() whenever aspect changes.
+    // tan(35°) ≈ 0.70021 is half of the fixed 70° vertical FOV at depth abs(kWorldZ).
+    inline void ComputeWorldBounds(float aspect) {
+        constexpr float kTan35 = 0.70021f;
+        const float halfY = kTan35 * (-kWorldZ);   // visible half-height at Z=kWorldZ
+        const float halfX = halfY * aspect;         // visible half-width scales with aspect
+        kWorldBoundX = halfX - 1.45f;              // player stays ~1.45 units from screen edge
+        kWorldBoundY = halfY - 1.0f;               // player stays ~1 unit from top/bottom
+        kSpawnX      =  halfX + 2.55f;             // enemies enter 2.55 units off right edge
+        kCullX       = -(halfX + 2.55f);           // enemies removed 2.55 units off left edge
+    }
 
     // ── Audio ───────────────────────────────────────────────
     // SDL3 audio streams in every scene open at this sample rate.

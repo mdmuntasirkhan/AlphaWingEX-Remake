@@ -5,6 +5,7 @@
 #include <SDL.h>
 #include <SDL3/SDL_events.h>
 #include "SceneMuntasir.h"
+#include "GameConstants.h"
 #include "Level01Script.h"
 #include "Level02Script.h"
 #include <MMath.h>
@@ -143,6 +144,7 @@ bool SceneMuntasir::OnCreate() {
     );
     float aspect = static_cast<float>(SaveData::kResolutionW[SaveData::current.resolutionIndex]) /
                    static_cast<float>(SaveData::kResolutionH[SaveData::current.resolutionIndex]);
+    GameConst::ComputeWorldBounds(aspect);
     projectionMatrix = MMath::perspective(70.0f, aspect, 0.1f, 100.0f);
 
     // Audio Setup
@@ -265,7 +267,9 @@ bool SceneMuntasir::OnCreate() {
 }
 
 void SceneMuntasir::OnVideoChanged(int w, int h) {
-    projectionMatrix = MMath::perspective(70.0f, static_cast<float>(w) / static_cast<float>(h), 0.1f, 100.0f);
+    float aspect = static_cast<float>(w) / static_cast<float>(h);
+    GameConst::ComputeWorldBounds(aspect);
+    projectionMatrix = MMath::perspective(70.0f, aspect, 0.1f, 100.0f);
     environment->OnResize((float)w, (float)h);
 }
 
@@ -554,7 +558,7 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
 
         // Cull off-screen
-        if (shards[i].pos.x < -16.0f || shards[i].pos.x > 16.0f ||
+        if (shards[i].pos.x < GameConst::kCullX || shards[i].pos.x > GameConst::kSpawnX ||
             shards[i].pos.y < -10.0f || shards[i].pos.y >  10.0f) {
             shards.erase(shards.begin() + i);
         }

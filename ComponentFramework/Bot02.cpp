@@ -136,7 +136,7 @@ void Bot02::Update(float deltaTime, float playerX, float playerY) {
     // Move bullets, cull off-screen
     for (int i = (int)bulletPositions.size() - 1; i >= 0; i--) {
         bulletPositions[i] += bulletVelocities[i] * deltaTime;
-        if (bulletPositions[i].x < -16.0f || bulletPositions[i].x > 16.0f ||
+        if (bulletPositions[i].x < GameConst::kCullX || bulletPositions[i].x > GameConst::kSpawnX ||
             bulletPositions[i].y < -10.0f || bulletPositions[i].y >  10.0f) {
             bulletPositions .erase(bulletPositions.begin()  + i);
             bulletVelocities.erase(bulletVelocities.begin() + i);

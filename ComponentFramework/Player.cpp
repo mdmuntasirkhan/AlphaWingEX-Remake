@@ -1,5 +1,6 @@
 #include "Player.h"
 #include "Mesh.h"
+#include "GameConstants.h"
 #include <MMath.h>
 #include <glew.h>
 #include <iostream>
@@ -150,11 +151,11 @@ void Player::Update(float deltaTime) {
 	// Move the position
 	pos += velocity * deltaTime;
 
-	// Screen Boundary — derived from 70° vertical FOV at Z=-10: visible ≈ ±7.0 Y, ±12.45 X
-	if (pos.x < -11.0f) { pos.x = -11.0f; velocity.x = 0.0f; }
-	if (pos.x >  11.0f) { pos.x =  11.0f; velocity.x = 0.0f; }
-	if (pos.y < -6.0f)  { pos.y = -6.0f;  velocity.y = 0.0f; }
-	if (pos.y >  6.0f)  { pos.y =  6.0f;  velocity.y = 0.0f; }
+	// Screen Boundary — dynamic bounds computed from the current aspect ratio via GameConst::ComputeWorldBounds()
+	if (pos.x < -GameConst::kWorldBoundX) { pos.x = -GameConst::kWorldBoundX; velocity.x = 0.0f; }
+	if (pos.x >  GameConst::kWorldBoundX) { pos.x =  GameConst::kWorldBoundX; velocity.x = 0.0f; }
+	if (pos.y < -GameConst::kWorldBoundY) { pos.y = -GameConst::kWorldBoundY; velocity.y = 0.0f; }
+	if (pos.y >  GameConst::kWorldBoundY) { pos.y =  GameConst::kWorldBoundY; velocity.y = 0.0f; }
 
 
 	thrustTimer += deltaTime;
