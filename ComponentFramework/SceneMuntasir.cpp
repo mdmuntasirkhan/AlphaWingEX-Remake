@@ -35,11 +35,13 @@ SceneMuntasir::SceneMuntasir() :
     currentPhase{ 1 },
     explosionCooldown{ 2.0f },
     explosionCooldownTimer{ 0.0f },
+    shieldHitCooldownTimer{ 0.0f },
     audioPlayer{ nullptr },
     sfxPlayer{ nullptr },
     sfxLaser{ nullptr },
     sfxExplosion{ nullptr },
     sfxMissileHit{ nullptr },
+    sfxShieldHit{ nullptr },
     audioTest{ nullptr },
     musicVolume{ 0.1f },
     sfxVolume{ 0.05f },
@@ -172,11 +174,14 @@ bool SceneMuntasir::OnCreate() {
     sfxLaser = new Sound("audio/sfx/LaserShoot.wav");
     sfxLaser->OnCreate();
 
-    sfxExplosion = new Sound("audio/sfx/Explosion03.wav");
+    sfxExplosion = new Sound("audio/sfx/Explosion04.wav");
     sfxExplosion->OnCreate();
 
     sfxMissileHit = new Sound("audio/sfx/missileHit.wav");
     sfxMissileHit->OnCreate();
+
+    sfxShieldHit = new Sound("audio/sfx/AWshieldDamageWarning.wav");
+    sfxShieldHit->OnCreate();
 
     hoverStream = SDL_OpenAudioDeviceStream(
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &defaultSpec, nullptr, nullptr);
@@ -305,6 +310,9 @@ void SceneMuntasir::OnDestroy() {
     sfxMissileHit->OnDestroy();
     delete sfxMissileHit;
 
+    sfxShieldHit->OnDestroy();
+    delete sfxShieldHit;
+
     if (uiClickSound) {
         uiClickSound->OnDestroy();
         delete uiClickSound;
@@ -431,6 +439,8 @@ void SceneMuntasir::Update(const float deltaTime) {
     // Cooldown timers
     if (explosionCooldownTimer > 0.0f)
         explosionCooldownTimer -= deltaTime;
+    if (shieldHitCooldownTimer > 0.0f)
+        shieldHitCooldownTimer -= deltaTime;
 
     // Periodic auto-save (only while alive)
     if (!gameOver) {
@@ -774,6 +784,11 @@ void SceneMuntasir::Update(const float deltaTime) {
                         bVel.y = outVy / spd * kRicochetSpeed;
                     }
                     bot02->MarkBulletReflected(b);
+
+                    if (shieldHitCooldownTimer <= 0.0f) {
+                        sfxShieldHit->Play(sfxPlayer);
+                        shieldHitCooldownTimer = kShieldHitCooldown;
+                    }
                 }
             }
         }
@@ -978,15 +993,23 @@ void SceneMuntasir::Update(const float deltaTime) {
         float dx = player->GetPosition().x - bot02->GetBulletPositions()[b].x;
         float dy = player->GetPosition().y - bot02->GetBulletPositions()[b].y;
         if (dx*dx + dy*dy < 0.35f * 0.35f) {
-            Vec3 vel = bot02->GetBulletVelocities()[b];
-            float vlen = sqrtf(vel.x*vel.x + vel.y*vel.y);
-            if (vlen > 0.001f)
-                player->ApplyImpulse(Vec3(vel.x/vlen * -5.0f, vel.y/vlen * -5.0f, 0.0f));
-            bot02->RemoveBullet(b);
-            player->TakeDamage(25.0f);
-            if (explosionCooldownTimer <= 0.0f) {
-                sfxExplosion->Play(sfxPlayer);
-                explosionCooldownTimer = explosionCooldown;
+            if (player->IsShieldActive()) {
+                bot02->RemoveBullet(b);
+                if (shieldHitCooldownTimer <= 0.0f) {
+                    sfxShieldHit->Play(sfxPlayer);
+                    shieldHitCooldownTimer = kShieldHitCooldown;
+                }
+            } else {
+                Vec3 vel = bot02->GetBulletVelocities()[b];
+                float vlen = sqrtf(vel.x*vel.x + vel.y*vel.y);
+                if (vlen > 0.001f)
+                    player->ApplyImpulse(Vec3(vel.x/vlen * -5.0f, vel.y/vlen * -5.0f, 0.0f));
+                bot02->RemoveBullet(b);
+                player->TakeDamage(25.0f);
+                if (explosionCooldownTimer <= 0.0f) {
+                    sfxExplosion->Play(sfxPlayer);
+                    explosionCooldownTimer = explosionCooldown;
+                }
             }
         }
     }

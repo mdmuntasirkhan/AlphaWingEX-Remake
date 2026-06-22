@@ -88,10 +88,15 @@ private:
 	Sound* sfxLaser;
 	Sound* sfxExplosion;
 	Sound* sfxMissileHit;
+	Sound* sfxShieldHit;
 	Sound* audioTest;
 	float musicVolume;
 	float sfxVolume;
 	bool musicPaused;
+
+	// Shield hit sound cooldown — prevents spam when bullets bounce rapidly
+	float shieldHitCooldownTimer;
+	static constexpr float kShieldHitCooldown = 0.4f;
 
 	// Pause
 	bool gamePaused;
