@@ -6,7 +6,9 @@
 // Add new types here as the engine grows (enemy triggers, music changes, etc.)
 enum class EventType {
     SPAWN_ENV_CHUNK,    // spawn a Blender-exported mesh that scrolls through the level
-    WARP_START,         // trigger a 10-second hyperspace jump animation in Environment
+    WARP_ENTER,         // spawn animation  : starts at peak warp speed, decelerates to normal
+    WARP_EXIT,          // transition out   : starts at normal speed, accelerates to peak warp
+    WARP_FULL,          // full 3-phase warp: ramp-up → hold → ramp-down (F11 test / future use)
     PHASE_CHANGE,       // advance enemy progression phase (phaseId field in LevelEvent)
     SPAWN_BOT01_GROUP,    // standard Bot01 wave  — scale=count (int cast), scrollSpeed=seconds between spawns
     SPAWN_BOT01_SHIELDED, // shielded Bot01 wave  — scale=count (int cast, usually 1), scrollSpeed=seconds between spawns

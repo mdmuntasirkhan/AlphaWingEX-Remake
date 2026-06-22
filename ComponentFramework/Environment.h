@@ -40,10 +40,12 @@ private:
     float waterJitterTimer;
 
     // Hyperspace warp effect
-    bool  warpActive;
-    float warpTimer;
-    float warpDuration;
-    float warpSpeed;    // current star speed multiplier (1.0 = normal)
+    enum class WarpMode { FULL, ENTER, EXIT };
+    WarpMode warpMode;
+    bool     warpActive;
+    float    warpTimer;
+    float    warpDuration;
+    float    warpSpeed;    // current star speed multiplier (1.0 = normal)
 
 public:
     Environment();
@@ -66,8 +68,11 @@ public:
     float GetJitterX() const;
     float GetJitterY() const;
 
-    // Hyperspace warp — stars streak, screen flashes, enemies pause for `duration` seconds.
-    // Three-phase curve: ramp-up (30%) → full-streak hold (40%) → ramp-down (30%).
+    // WARP_ENTER — scene opens already at peak warp; smoothly decelerates to normal.
+    void TriggerWarpEnter(float duration = 10.0f);
+    // WARP_EXIT  — starts at normal speed; smoothly accelerates to peak warp.
+    void TriggerWarpExit(float duration = 10.0f);
+    // WARP_FULL  — full 3-phase: ramp-up → hold → ramp-down (F11 test).
     void TriggerWarp(float duration = 10.0f);
     bool IsWarpActive() const { return warpActive; }
 };

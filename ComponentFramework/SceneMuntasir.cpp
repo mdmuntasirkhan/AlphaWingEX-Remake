@@ -537,9 +537,10 @@ void SceneMuntasir::Update(const float deltaTime) {
     // Advance level timeline and scroll environment chunks
     levelDirector->Update(deltaTime);
 
-    // Trigger warp if the level script requested one
-    if (levelDirector->PopWarpRequest())
-        environment->TriggerWarp(10.0f);
+    // Trigger warp animations requested by the level script
+    if (levelDirector->PopWarpEnterRequest()) environment->TriggerWarpEnter(10.0f);
+    if (levelDirector->PopWarpExitRequest())  environment->TriggerWarpExit(10.0f);
+    if (levelDirector->PopWarpFullRequest())  environment->TriggerWarp(10.0f);
 
     // During a hyperspace warp the world freezes — enemies and bullets pause
     bool warping = environment->IsWarpActive();

@@ -54,9 +54,10 @@ public:
     // Reset the timeline back to t=0 (for Try Again). Meshes stay loaded.
     void Reset();
 
-    // Returns true (once) when a WARP_START event fired this frame.
-    // SceneMuntasir calls this each Update() to trigger environment->TriggerWarp().
-    bool PopWarpRequest() { bool v = warpRequested; warpRequested = false; return v; }
+    // Pop warp requests — each returns true once when the matching event fires.
+    bool PopWarpEnterRequest() { bool v = warpEnterRequested; warpEnterRequested = false; return v; }
+    bool PopWarpExitRequest()  { bool v = warpExitRequested;  warpExitRequested  = false; return v; }
+    bool PopWarpFullRequest()  { bool v = warpFullRequested;  warpFullRequested  = false; return v; }
 
     // Current position on the master timeline (seconds).
     float GetTime() const;
@@ -84,7 +85,9 @@ private:
 
     float                        levelTime;
     int                          nextEvent;
-    bool                         warpRequested;
+    bool                         warpEnterRequested;
+    bool                         warpExitRequested;
+    bool                         warpFullRequested;
     std::vector<LevelEvent>      timeline;
     std::vector<ActiveChunk>     activeChunks;
     std::map<std::string, Mesh*> meshPool;
