@@ -39,11 +39,15 @@ void Asteroid::OnDestroy() {
 	asteroidSpinSpeeds.clear();
 	asteroidHP.clear();
 	asteroidScales.clear();
+	asteroidKnockVelX.clear();
+	asteroidKnockVelY.clear();
 	smallAsteroidPositions.clear();
 	smallAsteroidAngles.clear();
 	smallAsteroidSpinSpeeds.clear();
 	smallAsteroidHP.clear();
 	smallAsteroidScales.clear();
+	smallAsteroidKnockVelX.clear();
+	smallAsteroidKnockVelY.clear();
 	debris.clear();
 }
 
@@ -58,18 +62,28 @@ void Asteroid::Update(float deltaTime, float /*playerX*/, float /*playerY*/) {
 		asteroidSpinSpeeds.push_back((float)((rand() % 121) - 60));
 		asteroidHP.push_back(6);
 		asteroidScales.push_back(0.4f);
+		asteroidKnockVelX.push_back(0.0f);
+		asteroidKnockVelY.push_back(0.0f);
 	}
 	for (int i = 0; i < (int)asteroidPositions.size(); i++) {
+		asteroidPositions[i].x += asteroidKnockVelX[i] * deltaTime;
+		asteroidPositions[i].y += asteroidKnockVelY[i] * deltaTime;
+		asteroidKnockVelX[i] *= expf(-8.0f * deltaTime);
+		asteroidKnockVelY[i] *= expf(-8.0f * deltaTime);
+		if (fabsf(asteroidKnockVelX[i]) < 0.01f) asteroidKnockVelX[i] = 0.0f;
+		if (fabsf(asteroidKnockVelY[i]) < 0.01f) asteroidKnockVelY[i] = 0.0f;
 		asteroidPositions[i].x -= asteroidSpeed * deltaTime;
 		asteroidAngles[i]      += asteroidSpinSpeeds[i] * deltaTime;
 	}
 	for (int i = (int)asteroidPositions.size() - 1; i >= 0; i--) {
 		if (asteroidPositions[i].x < -15.0f) {
-			asteroidPositions.erase(asteroidPositions.begin() + i);
-			asteroidAngles.erase(asteroidAngles.begin() + i);
+			asteroidPositions.erase (asteroidPositions.begin()  + i);
+			asteroidAngles.erase    (asteroidAngles.begin()     + i);
 			asteroidSpinSpeeds.erase(asteroidSpinSpeeds.begin() + i);
-			asteroidHP.erase(asteroidHP.begin() + i);
-			asteroidScales.erase(asteroidScales.begin() + i);
+			asteroidHP.erase        (asteroidHP.begin()         + i);
+			asteroidScales.erase    (asteroidScales.begin()     + i);
+			asteroidKnockVelX.erase (asteroidKnockVelX.begin()  + i);
+			asteroidKnockVelY.erase (asteroidKnockVelY.begin()  + i);
 		}
 	}
 
@@ -83,18 +97,28 @@ void Asteroid::Update(float deltaTime, float /*playerX*/, float /*playerY*/) {
 		smallAsteroidSpinSpeeds.push_back((float)((rand() % 181) - 90));
 		smallAsteroidHP.push_back(3);
 		smallAsteroidScales.push_back(0.2f);
+		smallAsteroidKnockVelX.push_back(0.0f);
+		smallAsteroidKnockVelY.push_back(0.0f);
 	}
 	for (int i = 0; i < (int)smallAsteroidPositions.size(); i++) {
+		smallAsteroidPositions[i].x += smallAsteroidKnockVelX[i] * deltaTime;
+		smallAsteroidPositions[i].y += smallAsteroidKnockVelY[i] * deltaTime;
+		smallAsteroidKnockVelX[i] *= expf(-8.0f * deltaTime);
+		smallAsteroidKnockVelY[i] *= expf(-8.0f * deltaTime);
+		if (fabsf(smallAsteroidKnockVelX[i]) < 0.01f) smallAsteroidKnockVelX[i] = 0.0f;
+		if (fabsf(smallAsteroidKnockVelY[i]) < 0.01f) smallAsteroidKnockVelY[i] = 0.0f;
 		smallAsteroidPositions[i].x -= smallAsteroidSpeed * deltaTime;
 		smallAsteroidAngles[i]      += smallAsteroidSpinSpeeds[i] * deltaTime;
 	}
 	for (int i = (int)smallAsteroidPositions.size() - 1; i >= 0; i--) {
 		if (smallAsteroidPositions[i].x < -15.0f) {
-			smallAsteroidPositions.erase(smallAsteroidPositions.begin() + i);
-			smallAsteroidAngles.erase(smallAsteroidAngles.begin() + i);
+			smallAsteroidPositions.erase (smallAsteroidPositions.begin()  + i);
+			smallAsteroidAngles.erase    (smallAsteroidAngles.begin()     + i);
 			smallAsteroidSpinSpeeds.erase(smallAsteroidSpinSpeeds.begin() + i);
-			smallAsteroidHP.erase(smallAsteroidHP.begin() + i);
-			smallAsteroidScales.erase(smallAsteroidScales.begin() + i);
+			smallAsteroidHP.erase        (smallAsteroidHP.begin()         + i);
+			smallAsteroidScales.erase    (smallAsteroidScales.begin()     + i);
+			smallAsteroidKnockVelX.erase (smallAsteroidKnockVelX.begin()  + i);
+			smallAsteroidKnockVelY.erase (smallAsteroidKnockVelY.begin()  + i);
 		}
 	}
 
@@ -170,6 +194,8 @@ bool Asteroid::DamageAsteroid(int index, int amount) {
 		asteroidSpinSpeeds.erase(asteroidSpinSpeeds.begin() + index);
 		asteroidHP.erase        (asteroidHP.begin()         + index);
 		asteroidScales.erase    (asteroidScales.begin()     + index);
+		asteroidKnockVelX.erase (asteroidKnockVelX.begin()  + index);
+		asteroidKnockVelY.erase (asteroidKnockVelY.begin()  + index);
 		return true;
 	}
 	return false;
@@ -187,6 +213,8 @@ bool Asteroid::DamageSmallAsteroid(int index, int amount) {
 		smallAsteroidSpinSpeeds.erase(smallAsteroidSpinSpeeds.begin() + index);
 		smallAsteroidHP.erase        (smallAsteroidHP.begin()         + index);
 		smallAsteroidScales.erase    (smallAsteroidScales.begin()     + index);
+		smallAsteroidKnockVelX.erase (smallAsteroidKnockVelX.begin()  + index);
+		smallAsteroidKnockVelY.erase (smallAsteroidKnockVelY.begin()  + index);
 		return true;
 	}
 	return false;
@@ -199,6 +227,8 @@ void Asteroid::RemoveAsteroid(int index) {
 	asteroidSpinSpeeds.erase(asteroidSpinSpeeds.begin() + index);
 	asteroidHP.erase        (asteroidHP.begin()         + index);
 	asteroidScales.erase    (asteroidScales.begin()     + index);
+	asteroidKnockVelX.erase (asteroidKnockVelX.begin()  + index);
+	asteroidKnockVelY.erase (asteroidKnockVelY.begin()  + index);
 }
 
 void Asteroid::RemoveSmallAsteroid(int index) {
@@ -208,6 +238,8 @@ void Asteroid::RemoveSmallAsteroid(int index) {
 	smallAsteroidSpinSpeeds.erase(smallAsteroidSpinSpeeds.begin() + index);
 	smallAsteroidHP.erase        (smallAsteroidHP.begin()         + index);
 	smallAsteroidScales.erase    (smallAsteroidScales.begin()     + index);
+	smallAsteroidKnockVelX.erase (smallAsteroidKnockVelX.begin()  + index);
+	smallAsteroidKnockVelY.erase (smallAsteroidKnockVelY.begin()  + index);
 }
 
 void Asteroid::Reset() {
@@ -216,11 +248,15 @@ void Asteroid::Reset() {
 	asteroidSpinSpeeds.clear();
 	asteroidHP.clear();
 	asteroidScales.clear();
+	asteroidKnockVelX.clear();
+	asteroidKnockVelY.clear();
 	smallAsteroidPositions.clear();
 	smallAsteroidAngles.clear();
 	smallAsteroidSpinSpeeds.clear();
 	smallAsteroidHP.clear();
 	smallAsteroidScales.clear();
+	smallAsteroidKnockVelX.clear();
+	smallAsteroidKnockVelY.clear();
 	debris.clear();
 	asteroidSpawnTimer      = 0.0f;
 	smallAsteroidSpawnTimer = 0.0f;

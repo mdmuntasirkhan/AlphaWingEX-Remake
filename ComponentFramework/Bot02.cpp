@@ -52,6 +52,8 @@ void Bot02::OnDestroy() {
     hp.clear();
     hitTimers.clear();
     fireTimers.clear();
+    knockVelX.clear();
+    knockVelY.clear();
     bulletPositions.clear();
     bulletVelocities.clear();
     bulletReflected.clear();
@@ -66,6 +68,8 @@ void Bot02::Spawn(float /*playerY*/) {
     hp             .push_back(kHP);
     hitTimers      .push_back(0.0f);
     fireTimers     .push_back(0.0f);
+    knockVelX      .push_back(0.0f);
+    knockVelY      .push_back(0.0f);
 
     // Bottom — fixed right-bottom hover point, fires half-cycle later
     positions      .push_back(Vec3(15.0f, -kHoverYOffset, -10.0f));
@@ -73,7 +77,9 @@ void Bot02::Spawn(float /*playerY*/) {
     hoverPhases    .push_back(3.14159f);
     hp             .push_back(kHP);
     hitTimers      .push_back(0.0f);
-    fireTimers     .push_back(kFireInterval * 0.5f);  // staggered fire
+    fireTimers     .push_back(kFireInterval * 0.5f);
+    knockVelX      .push_back(0.0f);
+    knockVelY      .push_back(0.0f);  // staggered fire
 
     hoverTimer = 0.0f;
 }
@@ -83,6 +89,14 @@ void Bot02::Update(float deltaTime, float playerX, float playerY) {
     hoverTimer  += deltaTime;
 
     for (int i = 0; i < (int)positions.size(); i++) {
+        // Knockback impulse — decays fast, layered on top of hover
+        positions[i].x += knockVelX[i] * deltaTime;
+        positions[i].y += knockVelY[i] * deltaTime;
+        knockVelX[i] *= expf(-9.0f * deltaTime);
+        knockVelY[i] *= expf(-9.0f * deltaTime);
+        if (fabsf(knockVelX[i]) < 0.01f) knockVelX[i] = 0.0f;
+        if (fabsf(knockVelY[i]) < 0.01f) knockVelY[i] = 0.0f;
+
         // Approach target X
         float dx = targetPositions[i].x - positions[i].x;
         if (fabsf(dx) > 0.05f)
@@ -232,6 +246,8 @@ bool Bot02::DamageBot02(int index, int amount) {
         hp             .erase(hp.begin()              + index);
         hitTimers      .erase(hitTimers.begin()       + index);
         fireTimers     .erase(fireTimers.begin()      + index);
+        knockVelX      .erase(knockVelX.begin()       + index);
+        knockVelY      .erase(knockVelY.begin()       + index);
         return true;
     }
     hitTimers[index] = 0.18f;
@@ -247,6 +263,8 @@ void Bot02::RemoveBot02(int index) {
     hp             .erase(hp.begin()              + index);
     hitTimers      .erase(hitTimers.begin()       + index);
     fireTimers     .erase(fireTimers.begin()      + index);
+    knockVelX      .erase(knockVelX.begin()       + index);
+    knockVelY      .erase(knockVelY.begin()       + index);
 }
 
 void Bot02::RemoveBullet(int index) {
@@ -262,6 +280,8 @@ void Bot02::Reset() {
     hp.clear();
     hitTimers.clear();
     fireTimers.clear();
+    knockVelX.clear();
+    knockVelY.clear();
     bulletPositions.clear();
     bulletVelocities.clear();
     bulletReflected.clear();

@@ -17,8 +17,12 @@ private:
 	std::vector<float> smallAsteroidSpinSpeeds;
 	std::vector<int>   asteroidHP;
 	std::vector<float> asteroidScales;
+	std::vector<float> asteroidKnockVelX;
+	std::vector<float> asteroidKnockVelY;
 	std::vector<int>   smallAsteroidHP;
 	std::vector<float> smallAsteroidScales;
+	std::vector<float> smallAsteroidKnockVelX;
+	std::vector<float> smallAsteroidKnockVelY;
 
 	float asteroidSpeed;
 	float smallAsteroidSpeed;
@@ -54,6 +58,18 @@ public:
 	bool DamageSmallAsteroid(int index, int amount = 1);
 	void RemoveAsteroid(int index);
 	void RemoveSmallAsteroid(int index);
+	void PushAsteroid(int index, float dx, float dy) {
+		if (index >= 0 && index < (int)asteroidKnockVelX.size()) {
+			asteroidKnockVelX[index] += dx;
+			asteroidKnockVelY[index] += dy;
+		}
+	}
+	void PushSmallAsteroid(int index, float dx, float dy) {
+		if (index >= 0 && index < (int)smallAsteroidKnockVelX.size()) {
+			smallAsteroidKnockVelX[index] += dx;
+			smallAsteroidKnockVelY[index] += dy;
+		}
+	}
 };
 
 #endif // ASTEROID_H

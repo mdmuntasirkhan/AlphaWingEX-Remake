@@ -23,6 +23,8 @@ private:
     std::vector<int>   hp;
     std::vector<float> hitTimers;
     std::vector<float> fireTimers;   // per-instance fire cooldown
+    std::vector<float> knockVelX;
+    std::vector<float> knockVelY;
 
     // Projectile pool
     std::vector<Vec3>  bulletPositions;
@@ -64,10 +66,10 @@ public:
     void RemoveBullet(int index);
     void MarkBulletReflected(int index) { if (index >= 0 && index < (int)bulletReflected.size()) bulletReflected[index] = true; }
     bool IsBulletReflected(int index)   const { return index >= 0 && index < (int)bulletReflected.size() && bulletReflected[index]; }
-    void PushPosition(int index, float dx, float dy) {
-        if (index >= 0 && index < (int)positions.size()) {
-            positions[index].x += dx;
-            positions[index].y += dy;
+    void PushBot02(int index, float dx, float dy) {
+        if (index >= 0 && index < (int)knockVelX.size()) {
+            knockVelX[index] += dx;
+            knockVelY[index] += dy;
         }
     }
 };

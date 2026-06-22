@@ -551,6 +551,8 @@ void SceneMuntasir::Update(const float deltaTime) {
             if ((dx*dx)/(0.6f*0.6f) + (dy*dy)/(0.32f*0.32f) < 1.0f) {
                 Vec3 deathPos = bot01->GetBot01Positions()[e];
                 bullet->RemoveAt(b);
+                bot01->PushX(e, 1.0f);
+                bot01->PushY(e, 0.0f);
                 SDL_ClearAudioStream(sfxLaserHitStream);
                 sfxLaserHit->Play(sfxLaserHitStream);
                 if (bot01->DamageBot01(e)) {
@@ -574,6 +576,7 @@ void SceneMuntasir::Update(const float deltaTime) {
             if ((dx*dx)/(0.85f*0.85f) + (dy*dy)/(0.7f*0.7f) < 1.0f) {
                 Vec3 deathPos = asteroid->GetAsteroidPositions()[a];
                 bullet->RemoveAt(b);
+                asteroid->PushAsteroid(a, 1.5f, 0.0f);
                 SDL_ClearAudioStream(sfxLaserHitStream);
                 sfxLaserHit->Play(sfxLaserHitStream);
                 if (asteroid->DamageAsteroid(a)) {
@@ -597,6 +600,7 @@ void SceneMuntasir::Update(const float deltaTime) {
             if ((dx*dx)/(0.45f*0.45f) + (dy*dy)/(0.38f*0.38f) < 1.0f) {
                 Vec3 deathPos = asteroid->GetSmallAsteroidPositions()[a];
                 bullet->RemoveAt(b);
+                asteroid->PushSmallAsteroid(a, 2.5f, 0.0f);
                 SDL_ClearAudioStream(sfxLaserHitStream);
                 sfxLaserHit->Play(sfxLaserHitStream);
                 if (asteroid->DamageSmallAsteroid(a)) {
@@ -657,6 +661,11 @@ void SceneMuntasir::Update(const float deltaTime) {
             float dy = bullet->GetMissilePositions()[m].y - asteroid->GetAsteroidPositions()[a].y;
             if ((dx*dx)/(0.9f*0.9f) + (dy*dy)/(0.75f*0.75f) < 1.0f) {
                 Vec3 deathPos = asteroid->GetAsteroidPositions()[a];
+                Vec3  mVelA  = bullet->GetMissileVelocities()[m];
+                float mSpdA  = sqrtf(mVelA.x*mVelA.x + mVelA.y*mVelA.y);
+                float iDirAX = (mSpdA > 0.001f) ? mVelA.x / mSpdA : 1.0f;
+                float iDirAY = (mSpdA > 0.001f) ? mVelA.y / mSpdA : 0.0f;
+                asteroid->PushAsteroid(a, iDirAX * 2.5f, iDirAY * 1.5f);
                 bullet->RemoveMissileAt(m);
                 if (asteroid->DamageAsteroid(a, 3)) {
                     SpawnShards(deathPos, 5);
@@ -681,6 +690,11 @@ void SceneMuntasir::Update(const float deltaTime) {
             float dy = bullet->GetMissilePositions()[m].y - asteroid->GetSmallAsteroidPositions()[a].y;
             if ((dx*dx)/(0.5f*0.5f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
                 Vec3 deathPos = asteroid->GetSmallAsteroidPositions()[a];
+                Vec3  mVelS  = bullet->GetMissileVelocities()[m];
+                float mSpdS  = sqrtf(mVelS.x*mVelS.x + mVelS.y*mVelS.y);
+                float iDirSX = (mSpdS > 0.001f) ? mVelS.x / mSpdS : 1.0f;
+                float iDirSY = (mSpdS > 0.001f) ? mVelS.y / mSpdS : 0.0f;
+                asteroid->PushSmallAsteroid(a, iDirSX * 4.0f, iDirSY * 2.5f);
                 bullet->RemoveMissileAt(m);
                 if (asteroid->DamageSmallAsteroid(a, 3)) {
                     SpawnShards(deathPos, 3);
@@ -949,6 +963,7 @@ void SceneMuntasir::Update(const float deltaTime) {
             if ((dx*dx)/(0.7f*0.7f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
                 Vec3 deathPos = bot02->GetPositions()[e];
                 bullet->RemoveAt(b);
+                bot02->PushBot02(e, 0.5f, 0.0f);
                 if (bot02->DamageBot02(e)) {
                     SpawnShards(deathPos, 8);
                     score += 300;
@@ -973,9 +988,7 @@ void SceneMuntasir::Update(const float deltaTime) {
                 float mSpd2  = sqrtf(mVel2.x*mVel2.x + mVel2.y*mVel2.y);
                 float iDirX2 = (mSpd2 > 0.001f) ? mVel2.x / mSpd2 : 1.0f;
                 float iDirY2 = (mSpd2 > 0.001f) ? mVel2.y / mSpd2 : 0.0f;
-                // Stagger Bot02 position — hover system pulls it back, creating
-                // a visible recoil-and-recover motion proportional to impact angle
-                bot02->PushPosition(e, iDirX2 * 0.55f, iDirY2 * 0.35f);
+                bot02->PushBot02(e, iDirX2 * 2.0f, iDirY2 * 3.5f);
                 bullet->RemoveMissileAt(m);
                 if (bot02->DamageBot02(e, 4)) {
                     SpawnShards(deathPos, 10);
