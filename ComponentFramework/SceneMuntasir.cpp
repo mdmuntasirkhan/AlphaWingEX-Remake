@@ -158,7 +158,7 @@ bool SceneMuntasir::OnCreate() {
     projectionMatrix = MMath::perspective(48.0f, currentAspect, 0.1f, 100.0f);
 
     // Audio Setup
-    SDL_AudioSpec defaultSpec;
+    SDL_AudioSpec defaultSpec{};
     defaultSpec.freq = 44100;
     defaultSpec.channels = 2;
     defaultSpec.format = SDL_AUDIO_S16;
@@ -1342,12 +1342,10 @@ void SceneMuntasir::DrawGui() {
 
         // Preset buttons
         ImGui::Spacing();
-        struct { const char* label; float fov; } presets[] = {
-            { "30°", 30.0f }, { "40°", 40.0f }, { "48° (cur)", 48.0f },
-            { "50°", 50.0f }, { "60°", 60.0f }, { "70° (orig)", 70.0f }
-        };
-        for (auto& p : presets) {
-            if (ImGui::Button(p.label)) { debugCameraFOV = p.fov; changed = true; }
+        static const char*  presetLabels[] = { "30deg", "40deg", "48deg", "50deg", "60deg", "70deg" };
+        static const float  presetFOVs[]   = {  30.0f,   40.0f,   48.0f,   50.0f,   60.0f,   70.0f };
+        for (int i = 0; i < 6; i++) {
+            if (ImGui::Button(presetLabels[i])) { debugCameraFOV = presetFOVs[i]; changed = true; }
             ImGui::SameLine();
         }
         ImGui::NewLine();
@@ -1696,7 +1694,7 @@ void SceneMuntasir::DrawPauseMenu() {
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.75f, 0.15f, 0.15f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(1.00f, 0.20f, 0.20f, 1.0f));
         if (ImGui::Button("QUIT GAME", ImVec2(btnW, 36.0f))) {
-            SDL_Event e; e.type = SDL_EVENT_QUIT;
+            SDL_Event e{}; e.type = SDL_EVENT_QUIT;
             SDL_PushEvent(&e);
         }
         PlayHoverSound();
@@ -1760,7 +1758,7 @@ void SceneMuntasir::DrawGameOver() {
         PlayHoverSound();
         ImGui::SameLine();
         if (ImGui::Button("Exit", ImVec2(70, 40))) {
-            SDL_Event e; e.type = SDL_EVENT_QUIT;
+            SDL_Event e{}; e.type = SDL_EVENT_QUIT;
             SDL_PushEvent(&e);
         }
         PlayHoverSound();

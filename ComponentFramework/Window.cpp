@@ -24,12 +24,12 @@ Window::~Window() {
 }
 
 bool Window::OnCreate(std::string name_, int width_, int height_) {
-	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+	if (!SDL_Init(SDL_INIT_VIDEO)) {
 		Debug::FatalError("Failed to initialize SDL", __FILE__, __LINE__);
 		return false;
 	}
-	
-	if (SDL_Init(SDL_INIT_AUDIO) < 0) {
+
+	if (!SDL_Init(SDL_INIT_AUDIO)) {
 		Debug::FatalError("Failed to initialize SDL", __FILE__, __LINE__);
 		return false;
 	}
