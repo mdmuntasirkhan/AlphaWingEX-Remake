@@ -1,4 +1,5 @@
 #include "Asteroid.h"
+#include "GameConstants.h"
 #include <MMath.h>
 #include <glew.h>
 #include <cstdlib>
@@ -57,26 +58,26 @@ void Asteroid::Update(float deltaTime, float /*playerX*/, float /*playerY*/) {
 	if (spawningEnabled && asteroidSpawnTimer >= asteroidSpawnInterval) {
 		asteroidSpawnTimer = 0.0f;
 		float randomY = ((rand() % 25) - 12) * 0.5f; // ±6.0, matches visible Y range
-		asteroidPositions.push_back(Vec3(15.0f, randomY, -10.0f));
+		asteroidPositions.push_back(Vec3(GameConst::kSpawnX, randomY, GameConst::kWorldZ));
 		asteroidAngles.push_back(0.0f);
 		asteroidSpinSpeeds.push_back((float)((rand() % 121) - 60));
-		asteroidHP.push_back(6);
-		asteroidScales.push_back(0.4f);
+		asteroidHP.push_back(kLargeHP);
+		asteroidScales.push_back(kLargeScale);
 		asteroidKnockVelX.push_back(0.0f);
 		asteroidKnockVelY.push_back(0.0f);
 	}
 	for (int i = 0; i < (int)asteroidPositions.size(); i++) {
 		asteroidPositions[i].x += asteroidKnockVelX[i] * deltaTime;
 		asteroidPositions[i].y += asteroidKnockVelY[i] * deltaTime;
-		asteroidKnockVelX[i] *= expf(-8.0f * deltaTime);
-		asteroidKnockVelY[i] *= expf(-8.0f * deltaTime);
+		asteroidKnockVelX[i] *= expf(-kKnockbackDecay * deltaTime);
+		asteroidKnockVelY[i] *= expf(-kKnockbackDecay * deltaTime);
 		if (fabsf(asteroidKnockVelX[i]) < 0.01f) asteroidKnockVelX[i] = 0.0f;
 		if (fabsf(asteroidKnockVelY[i]) < 0.01f) asteroidKnockVelY[i] = 0.0f;
 		asteroidPositions[i].x -= asteroidSpeed * deltaTime;
 		asteroidAngles[i]      += asteroidSpinSpeeds[i] * deltaTime;
 	}
 	for (int i = (int)asteroidPositions.size() - 1; i >= 0; i--) {
-		if (asteroidPositions[i].x < -15.0f) {
+		if (asteroidPositions[i].x < GameConst::kCullX) {
 			asteroidPositions.erase (asteroidPositions.begin()  + i);
 			asteroidAngles.erase    (asteroidAngles.begin()     + i);
 			asteroidSpinSpeeds.erase(asteroidSpinSpeeds.begin() + i);
@@ -92,11 +93,11 @@ void Asteroid::Update(float deltaTime, float /*playerX*/, float /*playerY*/) {
 	if (spawningEnabled && smallAsteroidSpawnTimer >= smallAsteroidSpawnInterval) {
 		smallAsteroidSpawnTimer = 0.0f;
 		float randomY = ((rand() % 25) - 12) * 0.5f; // ±6.0, matches visible Y range
-		smallAsteroidPositions.push_back(Vec3(15.0f, randomY, -10.0f));
+		smallAsteroidPositions.push_back(Vec3(GameConst::kSpawnX, randomY, GameConst::kWorldZ));
 		smallAsteroidAngles.push_back(0.0f);
 		smallAsteroidSpinSpeeds.push_back((float)((rand() % 181) - 90));
-		smallAsteroidHP.push_back(3);
-		smallAsteroidScales.push_back(0.2f);
+		smallAsteroidHP.push_back(kSmallHP);
+		smallAsteroidScales.push_back(kSmallScale);
 		smallAsteroidKnockVelX.push_back(0.0f);
 		smallAsteroidKnockVelY.push_back(0.0f);
 	}
@@ -111,7 +112,7 @@ void Asteroid::Update(float deltaTime, float /*playerX*/, float /*playerY*/) {
 		smallAsteroidAngles[i]      += smallAsteroidSpinSpeeds[i] * deltaTime;
 	}
 	for (int i = (int)smallAsteroidPositions.size() - 1; i >= 0; i--) {
-		if (smallAsteroidPositions[i].x < -15.0f) {
+		if (smallAsteroidPositions[i].x < GameConst::kCullX) {
 			smallAsteroidPositions.erase (smallAsteroidPositions.begin()  + i);
 			smallAsteroidAngles.erase    (smallAsteroidAngles.begin()     + i);
 			smallAsteroidSpinSpeeds.erase(smallAsteroidSpinSpeeds.begin() + i);

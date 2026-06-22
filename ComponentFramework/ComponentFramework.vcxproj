@@ -175,6 +175,7 @@
     <ClInclude Include="Asteroid.h" />
     <ClInclude Include="Body.h" />
     <ClInclude Include="Bot01.h" />
+    <ClInclude Include="GameConstants.h" />
     <ClInclude Include="Bot02.h" />
     <ClInclude Include="ShardBeacon.h" />
     <ClInclude Include="Bullet.h" />

@@ -5,9 +5,18 @@
 #include "Enemy.h"
 #include <vector>
 
+// Manages two parallel pools of scrolling hazards: large orange asteroids and small grey ones.
+// Both pools share a single mesh. Supports physics-based knockback, hit/kill debris, and
+// configurable spawn rates driven by the level script via SetSpawnRates().
 class Asteroid : public Enemy {
 private:
 	Mesh* asteroidMesh;
+
+	static constexpr int   kLargeHP        = 6;     // hits to kill a large asteroid
+	static constexpr int   kSmallHP        = 3;     // hits to kill a small asteroid
+	static constexpr float kLargeScale     = 0.4f;  // initial uniform scale for large asteroids
+	static constexpr float kSmallScale     = 0.2f;  // initial uniform scale for small asteroids
+	static constexpr float kKnockbackDecay = 8.0f;  // exponential decay rate for knockback velocity
 
 	std::vector<Vec3>  asteroidPositions;
 	std::vector<Vec3>  smallAsteroidPositions;

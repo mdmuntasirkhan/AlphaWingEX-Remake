@@ -11,8 +11,9 @@
 using namespace MATH;
 
 enum class EnvironmentType {
-    SPACE,   // normal gameplay
-    WATER,   // slow movement, jittery controls
+    SPACE,  // normal space gameplay — default
+    WATER,  // underwater zone: faster star scroll, random Y jitter on stars
+            // NOTE: GetJitterX/Y() exist for future player physics coupling — not yet wired in
 };
 
 struct Star {

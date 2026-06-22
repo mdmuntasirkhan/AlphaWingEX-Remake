@@ -1,4 +1,5 @@
 #include "Bot02.h"
+#include "GameConstants.h"
 #include <MMath.h>
 #include <glew.h>
 #include <cstdlib>
@@ -62,8 +63,8 @@ void Bot02::OnDestroy() {
 
 void Bot02::Spawn(float /*playerY*/) {
     // Top — fixed right-top hover point
-    positions      .push_back(Vec3(15.0f,  kHoverYOffset, -10.0f));
-    targetPositions.push_back(Vec3(kHoverX, kHoverYOffset, -10.0f));
+    positions      .push_back(Vec3(GameConst::kSpawnX,  kHoverYOffset, GameConst::kWorldZ));
+    targetPositions.push_back(Vec3(kHoverX, kHoverYOffset, GameConst::kWorldZ));
     hoverPhases    .push_back(0.0f);
     hp             .push_back(kHP);
     hitTimers      .push_back(0.0f);
@@ -72,8 +73,8 @@ void Bot02::Spawn(float /*playerY*/) {
     knockVelY      .push_back(0.0f);
 
     // Bottom — fixed right-bottom hover point, fires half-cycle later
-    positions      .push_back(Vec3(15.0f, -kHoverYOffset, -10.0f));
-    targetPositions.push_back(Vec3(kHoverX, -kHoverYOffset, -10.0f));
+    positions      .push_back(Vec3(GameConst::kSpawnX, -kHoverYOffset, GameConst::kWorldZ));
+    targetPositions.push_back(Vec3(kHoverX, -kHoverYOffset, GameConst::kWorldZ));
     hoverPhases    .push_back(3.14159f);
     hp             .push_back(kHP);
     hitTimers      .push_back(0.0f);
@@ -92,8 +93,8 @@ void Bot02::Update(float deltaTime, float playerX, float playerY) {
         // Knockback impulse — decays fast, layered on top of hover
         positions[i].x += knockVelX[i] * deltaTime;
         positions[i].y += knockVelY[i] * deltaTime;
-        knockVelX[i] *= expf(-9.0f * deltaTime);
-        knockVelY[i] *= expf(-9.0f * deltaTime);
+        knockVelX[i] *= expf(-kKnockbackDecay * deltaTime);
+        knockVelY[i] *= expf(-kKnockbackDecay * deltaTime);
         if (fabsf(knockVelX[i]) < 0.01f) knockVelX[i] = 0.0f;
         if (fabsf(knockVelY[i]) < 0.01f) knockVelY[i] = 0.0f;
 
@@ -163,7 +164,7 @@ void Bot02::Render(Shader* shader,
     for (int i = 0; i < (int)positions.size(); i++) {
         Matrix4 m = MMath::translate(positions[i]) *
                     MMath::rotate(180.0f, Vec3(0.0f, 1.0f, 0.0f)) *
-                    MMath::scale(0.17f, 0.17f, 0.17f);
+                    MMath::scale(kScale, kScale, kScale);
         glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
 
         // Body — deep violet, flashes white on hit
@@ -195,7 +196,7 @@ void Bot02::Render(Shader* shader,
     for (int i = 0; i < (int)positions.size(); i++) {
         Matrix4 m = MMath::translate(positions[i]) *
                     MMath::rotate(180.0f, Vec3(0.0f, 1.0f, 0.0f)) *
-                    MMath::scale(0.17f, 0.17f, 0.17f);
+                    MMath::scale(kScale, kScale, kScale);
         glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
         thrustMesh->Render();
     }
@@ -250,7 +251,7 @@ bool Bot02::DamageBot02(int index, int amount) {
         knockVelY      .erase(knockVelY.begin()       + index);
         return true;
     }
-    hitTimers[index] = 0.18f;
+    hitTimers[index] = GameConst::kHitFlashDuration;
     SpawnHitDebris(positions[index], Vec3(1.0f, 0.8f, 0.0f), amount > 1 ? 6 : 3);
     return false;
 }

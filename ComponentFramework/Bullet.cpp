@@ -1,4 +1,5 @@
 #include "Bullet.h"
+#include "GameConstants.h"
 #include <MMath.h>
 #include <glew.h>
 #include <iostream>
@@ -75,7 +76,7 @@ void Bullet::Spawn(Vec3 position) {
 	if (fireCooldownTimer > 0.0f) return;
 	fireCooldownTimer = fireCooldown;
 	positions.push_back(position);
-	float ySpread = ((rand() % 100) - 50) * 0.004f; // ±0.2 units/s subtle spread
+	float ySpread = ((rand() % 100) - 50) * kBulletSpreadY; // ±0.2 units/s subtle spread
 	bulletYVelocities.push_back(ySpread);
 }
 
@@ -151,7 +152,7 @@ void Bullet::Update(float deltaTime,
 
 	// Remove regular bullets off the screen
 	for (int i = (int)positions.size() - 1; i >= 0; i--) {
-		if (positions[i].x > 15.0f) {
+		if (positions[i].x > kBulletCullX) {
 			positions.erase(positions.begin() + i);
 			bulletYVelocities.erase(bulletYVelocities.begin() + i);
 		}
@@ -233,18 +234,18 @@ void Bullet::Update(float deltaTime,
 		// will curve back naturally if it overshoots, producing the near-miss feel.
 		if (missileLaunchTimers[i] >= missileLaunchDuration && targetPos != nullptr) {
 			// --- Predictive lead targeting ---
-			float currentSpeed = sqrt(missileVelocities[i].x * missileVelocities[i].x +
-									   missileVelocities[i].y * missileVelocities[i].y);
+			float currentSpeed = sqrtf(missileVelocities[i].x * missileVelocities[i].x +
+									    missileVelocities[i].y * missileVelocities[i].y);
 			if (currentSpeed < 0.01f) currentSpeed = missileCruiseSpeed;
 
-			float timeToIntercept = sqrt(rawDx * rawDx + rawDy * rawDy) / currentSpeed;
+			float timeToIntercept = sqrtf(rawDx * rawDx + rawDy * rawDy) / currentSpeed;
 			float leadX = targetPos->x + targetVel.x * timeToIntercept;
 			float leadY = targetPos->y + targetVel.y * timeToIntercept;
 
 			// --- Proportional navigation toward the lead point ---
 			float dx    = leadX - missilePositions[i].x;
 			float dy    = leadY - missilePositions[i].y;
-			float range = sqrt(dx * dx + dy * dy);
+			float range = sqrtf(dx * dx + dy * dy);
 
 			if (range > 0.01f) {
 				float relVelX      = targetVel.x - missileVelocities[i].x;
@@ -276,13 +277,13 @@ void Bullet::Update(float deltaTime,
 			float lerpFrac = (cruiseT < missileDecelDuration) ? (cruiseT / missileDecelDuration) : 1.0f;
 			desiredSpeed   = missileLaunchSpeed + lerpFrac * (missileCruiseSpeed - missileLaunchSpeed);
 		}
-		float realRange = sqrt(rawDx * rawDx + rawDy * rawDy);
+		float realRange = sqrtf(rawDx * rawDx + rawDy * rawDy);
 		if (hasTarget && realRange < missileTerminalRange) {
 			desiredSpeed = missileTerminalSpeed;
 		}
 
-		float speedNow = sqrt(missileVelocities[i].x * missileVelocities[i].x +
-							   missileVelocities[i].y * missileVelocities[i].y);
+		float speedNow = sqrtf(missileVelocities[i].x * missileVelocities[i].x +
+							    missileVelocities[i].y * missileVelocities[i].y);
 		if (speedNow > 0.01f) {
 			missileVelocities[i].x = missileVelocities[i].x / speedNow * desiredSpeed;
 			missileVelocities[i].y = missileVelocities[i].y / speedNow * desiredSpeed;

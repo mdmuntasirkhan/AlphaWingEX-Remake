@@ -31,6 +31,9 @@ private:
     std::vector<Vec3>  bulletVelocities;
     std::vector<bool>  bulletReflected;
 
+    static constexpr float kScale           = 0.17f; // uniform render scale (matches Bot01)
+    static constexpr float kKnockbackDecay  = 9.0f;  // exponential decay rate for knockback
+
     static constexpr float kHoverX         = 6.0f;
     static constexpr float kHoverYOffset   = 3.0f;
     static constexpr float kApproachSpeed  = 3.0f;

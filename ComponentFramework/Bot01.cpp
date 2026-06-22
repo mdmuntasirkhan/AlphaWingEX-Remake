@@ -1,4 +1,5 @@
 #include "Bot01.h"
+#include "GameConstants.h"
 #include <MMath.h>
 #include <glew.h>
 #include <cstdlib>
@@ -100,11 +101,11 @@ void Bot01::OnDestroy() {
 }
 
 void Bot01::SpawnBot01(float x, float y, bool hasShield) {
-	bot01Positions.push_back(Vec3(x, y, -10.0f));
+	bot01Positions.push_back(Vec3(x, y, GameConst::kWorldZ));
 	bot01XVelocities.push_back(0.0f);
 	bot01YVelocities.push_back(0.0f);
 	bot01XKnockbackVels.push_back(0.0f);
-	bot01HP.push_back(10);
+	bot01HP.push_back(kHP);
 	bot01HitTimers.push_back(0.0f);
 	bot01HasShield.push_back(hasShield);
 	bot01ShieldActive.push_back(false);
@@ -121,14 +122,14 @@ void Bot01::Update(float deltaTime, float playerX, float playerY) {
 		if (currentWaveType == Bot01WaveType::PINCER) {
 			// Spawn top and bottom simultaneously on first tick of the wave
 			if (waveSpawned == 0) {
-				SpawnBot01(15.0f,  4.5f, false);
-				SpawnBot01(15.0f, -4.5f, false);
+				SpawnBot01(GameConst::kSpawnX,  4.5f, false);
+				SpawnBot01(GameConst::kSpawnX, -4.5f, false);
 				waveSpawned = 2;
 			}
 		} else if (currentWaveType == Bot01WaveType::SHIELDED) {
 			if (waveSpawned == 0) {
 				float spawnY = -3.5f + (rand() % 701) / 100.0f;
-				SpawnBot01(15.0f, spawnY, true);
+				SpawnBot01(GameConst::kSpawnX, spawnY, true);
 				waveSpawned = 1;
 			}
 		} else {
@@ -137,7 +138,7 @@ void Bot01::Update(float deltaTime, float playerX, float playerY) {
 			if (bot01SpawnTimer >= bot01SpawnInterval) {
 				bot01SpawnTimer = 0.0f;
 				float spawnY = -3.5f + (rand() % 701) / 100.0f;
-				SpawnBot01(15.0f, spawnY, false);
+				SpawnBot01(GameConst::kSpawnX, spawnY, false);
 				waveSpawned++;
 			}
 		}
@@ -146,7 +147,7 @@ void Bot01::Update(float deltaTime, float playerX, float playerY) {
 	for (int i = 0; i < (int)bot01Positions.size(); i++) {
 		// Missile knockback — decays fast, kept separate so it doesn't fight the chase spring
 		bot01Positions[i].x += bot01XKnockbackVels[i] * deltaTime;
-		bot01XKnockbackVels[i] *= expf(-9.0f * deltaTime);
+		bot01XKnockbackVels[i] *= expf(-kKnockbackDecay * deltaTime);
 		if (fabsf(bot01XKnockbackVels[i]) < 0.01f) bot01XKnockbackVels[i] = 0.0f;
 
 		// Shielded bots hover at standoff range (4.5 units right of player) — they don't
@@ -181,7 +182,7 @@ void Bot01::Update(float deltaTime, float playerX, float playerY) {
 		bot01Positions[i].y += bot01YVelocities[i] * deltaTime;
 	}
 	for (int i = (int)bot01Positions.size() - 1; i >= 0; i--) {
-		if (bot01Positions[i].x < -15.0f) {
+		if (bot01Positions[i].x < GameConst::kCullX) {
 			bot01Positions          .erase(bot01Positions.begin()          + i);
 			bot01XVelocities        .erase(bot01XVelocities.begin()        + i);
 			bot01YVelocities        .erase(bot01YVelocities.begin()        + i);
@@ -259,7 +260,7 @@ void Bot01::Render(Shader* shader,
 			glUniform4f(shader->GetUniformID("color"), 1.0f, 0.1f, 0.1f, 1.0f);
 		Matrix4 m = MMath::translate(bot01Positions[i]) *
 			MMath::rotate(180.0f, Vec3(0.0f, 1.0f, 0.0f)) *
-			MMath::scale(0.17f, 0.17f, 0.17f);
+			MMath::scale(kScale, kScale, kScale);
 		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
 		bot01Mesh->Render();
 	}
@@ -275,7 +276,7 @@ void Bot01::Render(Shader* shader,
 	for (int i = 0; i < (int)bot01Positions.size(); i++) {
 		Matrix4 m = MMath::translate(bot01Positions[i]) *
 			MMath::rotate(180.0f, Vec3(0.0f, 1.0f, 0.0f)) *
-			MMath::scale(0.17f, 0.17f, 0.17f);
+			MMath::scale(kScale, kScale, kScale);
 		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
 		bot01ThrustMesh->Render();
 	}
@@ -300,7 +301,7 @@ void Bot01::Render(Shader* shader,
 			if (!bot01ShieldActive[i]) continue;
 			Matrix4 sm = MMath::translate(bot01Positions[i]) *
 			             MMath::rotate(180.0f, Vec3(0.0f, 1.0f, 0.0f)) *
-			             MMath::scale(0.17f, 0.17f, 0.17f);
+			             MMath::scale(kScale, kScale, kScale);
 			glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, sm);
 			shieldMesh->Render();
 		}
@@ -350,7 +351,7 @@ bool Bot01::DamageBot01(int index, int amount) {
 		bot01ShieldCooldownTimer.erase(bot01ShieldCooldownTimer.begin() + index);
 		return true;
 	}
-	bot01HitTimers[index] = 0.18f;
+	bot01HitTimers[index] = GameConst::kHitFlashDuration;
 	SpawnHitDebris(bot01Positions[index], Vec3(1.0f, 0.95f, 0.3f), amount > 1 ? 6 : 3);
 	return false;
 }

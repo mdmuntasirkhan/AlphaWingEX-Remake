@@ -36,6 +36,10 @@ private:
     std::vector<float> bot01ShieldTimer;
     std::vector<float> bot01ShieldCooldownTimer;
 
+    static constexpr int   kHP              = 10;    // health points per bot
+    static constexpr float kScale           = 0.17f; // uniform render scale
+    static constexpr float kKnockbackDecay  = 9.0f;  // exponential decay rate for X knockback
+
     static constexpr float kShieldDuration  = 5.0f;   // shield stays up for 5 s
     static constexpr float kShieldCooldown  = 10.0f;  // 10 s recharge (2x player's 5 s)
     static constexpr float kShieldProximity = 3.0f;   // activate when missile within 3 world units

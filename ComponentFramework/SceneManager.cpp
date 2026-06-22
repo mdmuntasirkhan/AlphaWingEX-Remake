@@ -22,10 +22,14 @@
 
 
 
-SceneManager::SceneManager():
-	currentScene{nullptr}, window{nullptr}, timer{nullptr},
-	fps(60), isRunning{false}, fullScreen{false}, vsyncActive{false} {
-	Debug::Info("Starting the SceneManager", __FILE__, __LINE__);
+SceneManager::SceneManager()
+    : currentScene{ nullptr }
+    , window{ nullptr }
+    , timer{ nullptr }
+    , isRunning{ false }
+    , vsyncActive{ false }
+{
+    Debug::Info("Starting the SceneManager", __FILE__, __LINE__);
 }
 
 SceneManager::~SceneManager() {
@@ -49,21 +53,17 @@ SceneManager::~SceneManager() {
 	
 }
 
-bool SceneManager::Initialize(std::string name_, int width_, int height_) {
+bool SceneManager::Initialize(std::string name, int width, int height) {
 
-	window = new Window();
-	if (!window->OnCreate(name_, width_, height_)) {
-		Debug::FatalError("Failed to initialize Window object", __FILE__, __LINE__);
-		return false;
-	}
+    window = new Window();
+    if (!window->OnCreate(name, width, height)) {
+        Debug::FatalError("Failed to initialize Window object", __FILE__, __LINE__);
+        return false;
+    }
 
-	timer = new Timer();
-	if (timer == nullptr) {
-		Debug::FatalError("Failed to initialize Timer object", __FILE__, __LINE__);
-		return false;
-	}
+    timer = new Timer();
 
-	/// imgui
+    // ImGui
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
@@ -77,13 +77,10 @@ bool SceneManager::Initialize(std::string name_, int width_, int height_) {
 	// Adaptive sync (FreeSync / G-Sync) → standard vsync → uncapped
 	ApplyVsync(SaveData::current.vsyncMode);
 
-	/********************************   Default first scene   ***********************/
-	BuildNewScene(SCENE_NUMBER::SCENETITLE);
-	/********************************************************************************/
-	return true;
+    BuildNewScene(SceneID::TITLE);
+    return true;
 }
 
-/// This is the whole game
 void SceneManager::Run() {
 	timer->Start();
 	isRunning = true;
@@ -108,10 +105,10 @@ void SceneManager::Run() {
 			GameScene gs = SceneSwitcher::pending;
 			SceneSwitcher::hasPending = false;
 			switch (gs) {
-			case GameScene::TITLE: BuildNewScene(SCENE_NUMBER::SCENETITLE); break;
-			case GameScene::MUN:   BuildNewScene(SCENE_NUMBER::SCENEMUN);   break;
-			case GameScene::STG:   BuildNewScene(SCENE_NUMBER::SCENESTG);   break;
-			case GameScene::JA:    BuildNewScene(SCENE_NUMBER::SCENEJA);    break;
+			case GameScene::TITLE: BuildNewScene(SceneID::TITLE); break;
+			case GameScene::MUN:   BuildNewScene(SceneID::MUN);   break;
+			case GameScene::STG:   BuildNewScene(SceneID::STG);   break;
+			case GameScene::JA:    BuildNewScene(SceneID::JA);    break;
 			}
 		}
 
@@ -168,9 +165,7 @@ void SceneManager::ApplyVsync(int mode) {
 
 void SceneManager::HandleEvents() {
 	SDL_Event sdlEvent;
-	while (SDL_PollEvent(&sdlEvent)) { /// Loop over all events in the SDL queue
-
-		// ImGui gets events FIRST - this is what was missing!
+	while (SDL_PollEvent(&sdlEvent)) {
 		ImGui_ImplSDL3_ProcessEvent(&sdlEvent);
 
 		if (sdlEvent.type == SDL_EventType::SDL_EVENT_QUIT) {
@@ -183,28 +178,13 @@ void SceneManager::HandleEvents() {
 				isRunning = false;
 				return;
 
-			case SDL_SCANCODE_F1:
-				// switch to scene0 default
-				BuildNewScene(SCENE_NUMBER::SCENESTG);
-				break;
-
-			case SDL_SCANCODE_F2:
-				// switch to scene0 default
-				BuildNewScene(SCENE_NUMBER::SCENEJA);
-				break;
-
-			case SDL_SCANCODE_F3:
-				// switch to scene0 default
-				BuildNewScene(SCENE_NUMBER::SCENEMUN);
-				break;
-
-			case SDL_SCANCODE_F6:
-				break;
-			default:
-				break;
+			case SDL_SCANCODE_F1: BuildNewScene(SceneID::STG);   break;
+			case SDL_SCANCODE_F2: BuildNewScene(SceneID::JA);    break;
+			case SDL_SCANCODE_F3: BuildNewScene(SceneID::MUN);   break;
+			default: break;
 			}
 		}
-		if (currentScene == nullptr) { /// Just to be careful
+		if (currentScene == nullptr) {
 			Debug::FatalError("No currentScene", __FILE__, __LINE__);
 			isRunning = false;
 			return;
@@ -213,39 +193,39 @@ void SceneManager::HandleEvents() {
 	}
 }
 
-bool SceneManager::BuildNewScene(SCENE_NUMBER scene) {
-	bool status; 
+bool SceneManager::BuildNewScene(SceneID id) {
+    bool status = false;
 
-	if (currentScene != nullptr) {
-		currentScene->OnDestroy();
-		delete currentScene;
-		currentScene = nullptr;
-	}
+    if (currentScene != nullptr) {
+        currentScene->OnDestroy();
+        delete currentScene;
+        currentScene = nullptr;
+    }
 
-	switch (scene) {
-	case SCENE_NUMBER::SCENETITLE:
-		currentScene = new SceneTitle();
-		status = currentScene->OnCreate();
-		break;
+    switch (id) {
+    case SceneID::TITLE:
+        currentScene = new SceneTitle();
+        status = currentScene->OnCreate();
+        break;
 
-	case SCENE_NUMBER::SCENESTG:
-		currentScene = new SceneSTG();
-		status = currentScene->OnCreate();
-		break;
+    case SceneID::STG:
+        currentScene = new SceneSTG();
+        status = currentScene->OnCreate();
+        break;
 
-	case SCENE_NUMBER::SCENEJA:
-		currentScene = new SceneJA();
-		status = currentScene->OnCreate();
-		break;
+    case SceneID::JA:
+        currentScene = new SceneJA();
+        status = currentScene->OnCreate();
+        break;
 
-	case SCENE_NUMBER::SCENEMUN:
-		currentScene = new SceneMuntasir();
-		status = currentScene->OnCreate();
-		break;
+    case SceneID::MUN:
+        currentScene = new SceneMuntasir();
+        status = currentScene->OnCreate();
+        break;
 
-	default:
-		Debug::Error("Incorrect scene number assigned in the manager", __FILE__, __LINE__);
-		currentScene = nullptr;
+    default:
+        Debug::Error("Unknown scene ID in BuildNewScene", __FILE__, __LINE__);
+        currentScene = nullptr;
 		return false;
 	}
 

@@ -63,6 +63,9 @@ private:
 	float fireCooldown;
 	float fireCooldownTimer;
 
+	static constexpr float kBulletCullX   = 15.0f;   // remove bullet once it passes this X
+	static constexpr float kBulletSpreadY = 0.004f;  // Y spread per random unit (±0.2 u/s)
+
 	// Re-acquire a target after the locked one is destroyed mid-flight.
 	// Priority: Bot02 > Bot01 > Asteroid. Within a tier, picks the nearest one.
 	bool FindNearestTarget(const Vec3& fromPosition,

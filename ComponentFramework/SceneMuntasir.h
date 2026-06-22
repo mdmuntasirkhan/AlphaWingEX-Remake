@@ -1,6 +1,6 @@
 #pragma once
-#ifndef SceneMuntasir_H
-#define SceneMuntasir_H
+#ifndef SCENEMUNTASIR_H
+#define SCENEMUNTASIR_H
 #include "Scene.h"
 #include "Vector.h"
 #include <Matrix.h>
@@ -67,6 +67,12 @@ private:
 	void SpawnShards(const Vec3& pos, int count);
 	void SaveGame();
 
+	// DrawGui helpers — called only from DrawGui() each frame
+	void DrawHUD();       // always-visible overlay: score, shards, health, shield, missiles
+	void DrawPauseMenu(); // ESC pause panel with audio/video settings
+	void DrawGameOver();  // game-over screen with Try Again / Title / Exit buttons
+	void PlayHoverSound(); // plays a quiet click when the cursor moves onto a new button
+
 	// Auto-save
 	float autoSaveTimer;
 	static constexpr float kAutoSaveInterval = 10.0f;
@@ -79,7 +85,7 @@ private:
 	float explosionCooldownTimer;
 
 	// Audio
-	SDL_AudioStream* audioPlayer;
+	SDL_AudioStream* bgmPlayer;
 	SDL_AudioStream* sfxPlayer;
 	SDL_AudioStream* sfxLaserHitStream;
 	Sound* sfxLaser;
@@ -87,7 +93,7 @@ private:
 	Sound* sfxExplosion;
 	Sound* sfxMissileHit;
 	Sound* sfxShieldHit;
-	Sound* audioTest;
+	Sound* bgmMusic;       // background music track
 	float musicVolume;
 	float sfxVolume;
 	bool musicPaused;
@@ -128,4 +134,4 @@ public:
 };
 
 
-#endif // SCENE0_H
+#endif // SCENEMUNTASIR_H
