@@ -1,5 +1,8 @@
 #include "SceneTitle.h"
 #include "SceneSwitcher.h"
+#include "GameConstants.h"
+#include "Version.h"
+#include "AppFonts.h"
 #include <glew.h>
 #include <SDL3/SDL_events.h>
 #include "imgui.h"
@@ -8,6 +11,7 @@
 SceneTitle::SceneTitle()
     : state(TitleState::MAIN)
     , showSettings(false)
+    , showCredits(false)
     , pendingDeleteIndex(-1)
     , bgmStream(nullptr)
     , bgmSound(nullptr)
@@ -19,6 +23,7 @@ SceneTitle::SceneTitle()
     , pendingResIndex(SaveData::current.resolutionIndex)
     , pendingFullscreen(SaveData::current.fullscreen)
     , pendingVsync(SaveData::current.vsyncMode)
+    , pendingTargetFPS(SaveData::current.targetFPS)
 {
     memset(nameBuf, 0, sizeof(nameBuf));
 }
@@ -27,7 +32,7 @@ SceneTitle::~SceneTitle() {}
 
 bool SceneTitle::OnCreate() {
     SDL_AudioSpec spec;
-    spec.freq     = 44100;
+    spec.freq     = GameConst::kAudioSampleRate;
     spec.channels = 2;
     spec.format   = SDL_AUDIO_S16;
 
@@ -61,7 +66,7 @@ bool SceneTitle::OnCreate() {
     hoverStream = SDL_OpenAudioDeviceStream(
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr);
     if (hoverStream) {
-        SDL_SetAudioStreamGain(hoverStream, SaveData::current.sfxVolume * 0.35f);
+        SDL_SetAudioStreamGain(hoverStream, SaveData::current.sfxVolume * GameConst::kHoverStreamGain);
         SDL_ResumeAudioStreamDevice(hoverStream);
     }
 
@@ -135,28 +140,34 @@ void SceneTitle::DrawGui() {
 
     // title banner
     ImGui::SetNextWindowPos(ImVec2(cx, cy * 0.32f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(500, 90), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(580, 108), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.0f);
     ImGui::Begin("##banner", nullptr,
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar |
         ImGuiWindowFlags_NoInputs);
     float iw = ImGui::GetContentRegionAvail().x;
-    ImGui::SetWindowFontScale(2.4f);
+
+    // Title — 40 px raster, crisp on all resolutions
+    ImGui::PushFont(AppFonts::title);
     ImVec2 tSz = ImGui::CalcTextSize("ALPHA WING EX");
     ImGui::SetCursorPosX((iw - tSz.x) * 0.5f);
     ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "ALPHA WING EX");
-    ImGui::SetWindowFontScale(0.85f);
+    ImGui::PopFont();
+
+    // Subtitle — 22 px raster
+    ImGui::PushFont(AppFonts::medium);
     ImVec2 sSz = ImGui::CalcTextSize("R  E  M  A  K  E");
     ImGui::SetCursorPosX((iw - sSz.x) * 0.5f);
     ImGui::TextColored(ImVec4(0.40f, 0.40f, 0.60f, 1.0f), "R  E  M  A  K  E");
-    ImGui::SetWindowFontScale(1.0f);
+    ImGui::PopFont();
+
     ImGui::End();
 
     // leaderboard panel
     {
         float lbW = 290.0f;
-        float lbH = 76.0f + (float)(leaderboard.empty() ? 1 : (int)leaderboard.size()) * 21.0f;
+        float lbH = 88.0f + (float)(leaderboard.empty() ? 1 : (int)leaderboard.size()) * 21.0f;
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x - 20.0f, io.DisplaySize.y * 0.24f),
             ImGuiCond_Always, ImVec2(1.0f, 0.0f));
@@ -168,11 +179,11 @@ void SceneTitle::DrawGui() {
             ImGuiWindowFlags_NoInputs);
 
         float lbIW = ImGui::GetContentRegionAvail().x;
-        ImGui::SetWindowFontScale(1.25f);
+        ImGui::PushFont(AppFonts::medium);
         ImVec2 hSz = ImGui::CalcTextSize("HIGH SCORES");
         ImGui::SetCursorPosX((lbIW - hSz.x) * 0.5f);
         ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.1f, 1.0f), "HIGH SCORES");
-        ImGui::SetWindowFontScale(1.0f);
+        ImGui::PopFont();
         ImGui::Separator();
         ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), " %-3s %-14s %s", "#", "PILOT", "SCORE");
         ImGui::Separator();
@@ -201,9 +212,9 @@ void SceneTitle::DrawGui() {
     // main panel
     bool atCap = (int)profiles.size() >= SaveData::kMaxProfiles;
     float panH = 0.0f;
-    if      (state == TitleState::MAIN)          panH = 200.0f + (showSettings ? 310.0f : 0.0f) + (atCap ? 46.0f : 0.0f);
+    if      (state == TitleState::MAIN)          panH = 280.0f + (showSettings ? 345.0f : 0.0f) + (atCap ? 46.0f : 0.0f);
     else if (state == TitleState::NEW_GAME_NAME) panH = 160.0f;
-    else if (state == TitleState::LOAD_SELECT)   panH = 60.0f + (float)profiles.size() * 52.0f + 50.0f;
+    else if (state == TitleState::LOAD_SELECT)   panH = 70.0f + (float)profiles.size() * 52.0f + 50.0f;
 
     float panW = 420.0f;
     ImGui::SetNextWindowPos(ImVec2(cx, cy * 1.12f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
@@ -219,6 +230,7 @@ void SceneTitle::DrawGui() {
 
     // MAIN
     if (state == TitleState::MAIN) {
+        ImGui::PushFont(AppFonts::medium);
         ImGui::SetCursorPosX(btnX);
         if (atCap) ImGui::BeginDisabled();
         if (ImGui::Button("NEW GAME", ImVec2(btnW, 44))) {
@@ -252,17 +264,19 @@ void SceneTitle::DrawGui() {
         ImGui::Spacing();
         ImGui::SetCursorPosX(btnX);
         if (ImGui::Button(showSettings ? "SETTINGS  [hide]" : "SETTINGS  [show]",
-                          ImVec2(btnW, 38))) {
+                          ImVec2(btnW, 44))) {
             PlaySelect();
             if (!showSettings) {
                 // Sync pending video to current applied settings when panel opens
                 pendingResIndex   = SaveData::current.resolutionIndex;
                 pendingFullscreen = SaveData::current.fullscreen;
                 pendingVsync      = SaveData::current.vsyncMode;
+                pendingTargetFPS  = SaveData::current.targetFPS;
             }
             showSettings = !showSettings;
         }
         if (ImGui::IsItemHovered()) PlayHover();
+        ImGui::PopFont();
 
         if (showSettings) {
             // Audio
@@ -283,7 +297,7 @@ void SceneTitle::DrawGui() {
                 if (sfxStream)
                     SDL_SetAudioStreamGain(sfxStream,   SaveData::current.sfxVolume);
                 if (hoverStream)
-                    SDL_SetAudioStreamGain(hoverStream, SaveData::current.sfxVolume * 0.35f);
+                    SDL_SetAudioStreamGain(hoverStream, SaveData::current.sfxVolume * GameConst::kHoverStreamGain);
             }
 
             // Video
@@ -312,6 +326,20 @@ void SceneTitle::DrawGui() {
             ImGui::SameLine();
             if (ImGui::RadioButton("Off##vs",      pendingVsync ==  0)) pendingVsync =  0;
 
+            // Frame Cap (applies when Sync is Off)
+            ImGui::SetCursorPosX(btnX);
+            ImGui::Text("Frame Cap");
+            ImGui::SameLine();
+            {
+                static const char* capLabels[] = { "Uncapped", "240 FPS", "144 FPS", "120 FPS", "60 FPS" };
+                static const int   capValues[] = { 0, 240, 144, 120, 60 };
+                int capIdx = 0;
+                for (int ci = 0; ci < 5; ci++) if (capValues[ci] == pendingTargetFPS) { capIdx = ci; break; }
+                ImGui::SetNextItemWidth(btnW - 100.0f);
+                if (ImGui::Combo("##cap", &capIdx, capLabels, 5))
+                    pendingTargetFPS = capValues[capIdx];
+            }
+
             ImGui::Spacing();
             ImGui::SetCursorPosX(btnX);
             if (ImGui::Button("APPLY VIDEO", ImVec2(btnW, 30))) {
@@ -319,6 +347,7 @@ void SceneTitle::DrawGui() {
                 SaveData::current.resolutionIndex = pendingResIndex;
                 SaveData::current.fullscreen      = pendingFullscreen;
                 SaveData::current.vsyncMode       = pendingVsync;
+                SaveData::current.targetFPS       = pendingTargetFPS;
                 int w = SaveData::kResolutionW[pendingResIndex];
                 int h = SaveData::kResolutionH[pendingResIndex];
                 SceneSwitcher::RequestVideo(pendingFullscreen, w, h, pendingVsync);
@@ -326,16 +355,26 @@ void SceneTitle::DrawGui() {
             if (ImGui::IsItemHovered()) PlayHover();
         }
 
+        ImGui::PushFont(AppFonts::medium);
+        ImGui::Spacing();
+        ImGui::SetCursorPosX(btnX);
+        if (ImGui::Button("CREDITS", ImVec2(btnW, 44))) {
+            PlaySelect();
+            showCredits = true;
+        }
+        if (ImGui::IsItemHovered()) PlayHover();
+
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
         ImGui::SetCursorPosX(btnX);
-        if (ImGui::Button("EXIT", ImVec2(btnW, 32))) {
+        if (ImGui::Button("EXIT", ImVec2(btnW, 44))) {
             PlaySelect();
             SDL_Event e; e.type = SDL_EVENT_QUIT;
             SDL_PushEvent(&e);
         }
         if (ImGui::IsItemHovered()) PlayHover();
+        ImGui::PopFont();
     }
 
     // NEW GAME
@@ -380,6 +419,7 @@ void SceneTitle::DrawGui() {
         float spacing  = ImGui::GetStyle().ItemSpacing.x;
         float loadBtnW = btnW - delBtnW - spacing;
 
+        ImGui::PushFont(AppFonts::medium);
         for (int i = 0; i < (int)profiles.size(); i++) {
             std::string pname = profiles[i];
             ImGui::SetCursorPosX(btnX);
@@ -425,17 +465,124 @@ void SceneTitle::DrawGui() {
             }
         }
 
+        ImGui::PopFont();
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
         ImGui::SetCursorPosX(btnX);
-        if (ImGui::Button("BACK", ImVec2(btnW, 34))) {
+        ImGui::PushFont(AppFonts::medium);
+        if (ImGui::Button("BACK", ImVec2(btnW, 44))) {
             PlaySelect();
             pendingDeleteIndex = -1;
             state = TitleState::MAIN;
         }
+        ImGui::PopFont();
         if (ImGui::IsItemHovered()) PlayHover();
     }
 
     ImGui::End();
+
+    // ── Credits modal ─────────────────────────────────────────────────────────
+    if (showCredits)
+        ImGui::OpenPopup("##credits");
+
+    if (showCredits) {
+        ImGui::SetNextWindowPos(ImVec2(cx, cy), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(520, 0), ImGuiCond_Always);
+        ImGui::PushStyleColor(ImGuiCol_WindowBg,   ImVec4(0.03f, 0.05f, 0.13f, 0.97f));
+        ImGui::PushStyleColor(ImGuiCol_Border,     ImVec4(0.15f, 0.55f, 1.0f,  0.60f));
+        ImGui::PushStyleColor(ImGuiCol_PopupBg,    ImVec4(0.03f, 0.05f, 0.13f, 0.97f));
+        if (ImGui::BeginPopupModal("##credits", nullptr,
+                ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoScrollbar)) {
+
+            float w = ImGui::GetContentRegionAvail().x;
+
+            // Header
+            ImGui::PushFont(AppFonts::large);
+            ImVec2 hSz = ImGui::CalcTextSize("CREDITS");
+            ImGui::SetCursorPosX((w - hSz.x) * 0.5f);
+            ImGui::TextColored(ImVec4(0.15f, 0.88f, 1.0f, 1.0f), "CREDITS");
+            ImGui::PopFont();
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            // Developer name
+            ImGui::PushFont(AppFonts::title);
+            ImVec2 nSz = ImGui::CalcTextSize("Muntasir Khan");
+            ImGui::SetCursorPosX((w - nSz.x) * 0.5f);
+            ImGui::TextColored(ImVec4(0.95f, 0.95f, 1.0f, 1.0f), "Muntasir Khan");
+            ImGui::PopFont();
+
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            // Roles — centered, slightly dimmed
+            static const char* kRoles[] = {
+                "Lead Programmer",
+                "Game Designer",
+                "3D Artist",
+                "Composer & Audio Designer",
+            };
+            ImGui::PushFont(AppFonts::medium);
+            for (const char* role : kRoles) {
+                ImVec2 rSz = ImGui::CalcTextSize(role);
+                ImGui::SetCursorPosX((w - rSz.x) * 0.5f);
+                ImGui::TextColored(ImVec4(0.70f, 0.72f, 0.85f, 1.0f), "%s", role);
+            }
+            ImGui::PopFont();
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            // Attribution footer
+            const char* footer1 = "Personal Project Showcase";
+            const char* footer2 = "Game Development Program  —  Humber College  2026";
+            ImVec2 f1Sz = ImGui::CalcTextSize(footer1);
+            ImVec2 f2Sz = ImGui::CalcTextSize(footer2);
+            ImGui::SetCursorPosX((w - f1Sz.x) * 0.5f);
+            ImGui::TextDisabled("%s", footer1);
+            ImGui::SetCursorPosX((w - f2Sz.x) * 0.5f);
+            ImGui::TextDisabled("%s", footer2);
+
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            // Close button
+            float closeBtnW = 160.0f;
+            ImGui::PushFont(AppFonts::medium);
+            ImGui::SetCursorPosX((w - closeBtnW) * 0.5f);
+            if (ImGui::Button("CLOSE", ImVec2(closeBtnW, 44))) {
+                PlaySelect();
+                showCredits = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::PopFont();
+            if (ImGui::IsItemHovered()) PlayHover();
+
+            ImGui::Spacing();
+            ImGui::EndPopup();
+        }
+        ImGui::PopStyleColor(3);
+    }
+
+    // ── Build Version — bottom-left ───────────────────────────────────────────
+    {
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 10.0f, io.DisplaySize.y - 10.0f),
+                                ImGuiCond_Always, ImVec2(1.0f, 1.0f));
+        ImGui::SetNextWindowBgAlpha(0.0f);
+        ImGui::Begin("##titlever", nullptr,
+            ImGuiWindowFlags_NoTitleBar     | ImGuiWindowFlags_AlwaysAutoResize |
+            ImGuiWindowFlags_NoMove         | ImGuiWindowFlags_NoScrollbar      |
+            ImGuiWindowFlags_NoSavedSettings| ImGuiWindowFlags_NoNav            |
+            ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoInputs);
+
+        ImGui::TextDisabled("Alpha Engine  v%d.%d.%d  build %d",
+            AppVersion::kMajor, AppVersion::kMinor, AppVersion::kPatch, AppVersion::kBuild);
+
+        ImGui::End();
+    }
 }

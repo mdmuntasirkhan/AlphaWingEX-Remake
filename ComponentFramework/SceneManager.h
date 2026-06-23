@@ -1,36 +1,52 @@
+#pragma once
 #ifndef SCENEMANAGER_H
 #define SCENEMANAGER_H
 
+// ============================================================
+//  SceneManager — owns the game loop and scene lifecycle.
+//
+//  Call Initialize() once at startup, then Run() blocks until quit.
+//
+//  Each frame:
+//    HandleEvents() → scene Update/RenderBackground/Render/DrawGui
+//    → drain SceneSwitcher (deferred scene change)
+//    → drain video request (deferred resolution/vsync change)
+//    → ImGui::Render() → SDL_GL_SwapWindow
+//
+//  Scene switches are deferred until after DrawGui() so the current
+//  frame completes cleanly before BuildNewScene() destroys the old scene.
+// ============================================================
+
 #include <string>
-class SceneManager  {
+
+class SceneManager {
 public:
-	
-	SceneManager();
-	~SceneManager();
-	void Run();
-	bool Initialize(std::string name_, int width_, int height_);
-	void HandleEvents();
-	
-	
+    SceneManager();
+    ~SceneManager();
+
+    bool Initialize(std::string name, int width, int height);
+    void Run();
+    void HandleEvents();
+
 private:
-	enum class SCENE_NUMBER {
-		SCENETITLE = 0,
-		SCENEJA,
-		SCENEMUN,
-		SCENESTG
-	};
+    // Internal scene identifiers — used only by BuildNewScene().
+    // The public API uses GameScene (SceneSwitcher.h) for requesting switches.
+    enum class SceneID {
+        TITLE = 0,
+        JA,
+        MUN,
+        STG
+    };
 
-	class Scene* currentScene;
-	class Timer* timer;
-	class Window* window;
+    class Scene*  currentScene;
+    class Timer*  timer;
+    class Window* window;
 
-	unsigned int fps;
-	bool isRunning;
-	bool fullScreen;
-	bool vsyncActive;   // true when swap interval != 0; skips manual SDL_Delay
-	bool BuildNewScene(SCENE_NUMBER scene_);
-	void ApplyVsync(int mode); // tries mode, falls back gracefully
+    bool isRunning;
+    bool vsyncActive;  // true when swap interval != 0; skips the manual SDL_Delay cap
+
+    bool BuildNewScene(SceneID id);
+    void ApplyVsync(int mode);  // tries requested mode, falls back gracefully if unsupported
 };
-
 
 #endif // SCENEMANAGER_H

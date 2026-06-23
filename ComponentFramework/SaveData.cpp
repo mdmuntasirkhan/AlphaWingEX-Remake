@@ -27,6 +27,7 @@ bool SaveData::Save() const {
       << "lostshardposx "  << lostShardPosX  << "\n"
       << "lostshardposy "  << lostShardPosY  << "\n"
       << "lostshardcount " << lostShardCount << "\n"
+      << "deathleveltime " << deathLevelTime << "\n"
       << "musicvolume "    << musicVolume    << "\n"
       << "sfxvolume "      << sfxVolume      << "\n"
       << "fullscreen "     << (fullscreen ? 1 : 0) << "\n"
@@ -54,6 +55,7 @@ bool SaveData::Load(const std::string& name) {
         else if (key == "lostshardposx")  f >> lostShardPosX;
         else if (key == "lostshardposy")  f >> lostShardPosY;
         else if (key == "lostshardcount") f >> lostShardCount;
+        else if (key == "deathleveltime") f >> deathLevelTime;
         else if (key == "musicvolume")    f >> musicVolume;
         else if (key == "sfxvolume")      f >> sfxVolume;
         else if (key == "fullscreen")     { int v; f >> v; fullscreen = (v != 0); }
@@ -65,6 +67,7 @@ bool SaveData::Load(const std::string& name) {
 
 void SaveData::Reset() {
     shardCount      = 0;
+    highScore       = 0;
     health          = 100.0f;
     lives           = 3;
     score           = 0;
@@ -75,6 +78,7 @@ void SaveData::Reset() {
     lostShardPosX   = 0.0f;
     lostShardPosY   = 0.0f;
     lostShardCount  = 0;
+    deathLevelTime  = 0.0f;
     musicVolume     = 0.10f;
     sfxVolume       = 0.05f;
 }
@@ -105,6 +109,32 @@ std::vector<std::pair<std::string, int>> SaveData::GetLeaderboard() {
 bool SaveData::DeleteProfile(const std::string& name) {
     std::string path = "profile_" + name + ".dat";
     return std::remove(path.c_str()) == 0;
+}
+
+void SaveData::SaveMachineSettings() const {
+    std::ofstream f("settings.dat");
+    if (!f) return;
+    f << "musicvolume " << musicVolume              << "\n"
+      << "sfxvolume "   << sfxVolume                << "\n"
+      << "fullscreen "  << (fullscreen ? 1 : 0)     << "\n"
+      << "resindex "    << resolutionIndex           << "\n"
+      << "vsyncmode "   << vsyncMode                 << "\n"
+      << "targetfps "   << targetFPS                 << "\n";
+}
+
+void SaveData::LoadMachineSettings() {
+    std::ifstream f("settings.dat");
+    if (!f) return;
+    std::string key;
+    while (f >> key) {
+        if      (key == "musicvolume") f >> musicVolume;
+        else if (key == "sfxvolume")   f >> sfxVolume;
+        else if (key == "fullscreen")  { int v; f >> v; fullscreen = (v != 0); }
+        else if (key == "resindex")    f >> resolutionIndex;
+        else if (key == "vsyncmode")   f >> vsyncMode;
+        else if (key == "targetfps")   f >> targetFPS;
+        else { std::string skip; f >> skip; }
+    }
 }
 
 std::vector<std::string> SaveData::GetProfileList() {

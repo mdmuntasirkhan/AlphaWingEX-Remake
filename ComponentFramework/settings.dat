@@ -1,4 +1,6 @@
-vsync 1
-fpscap 0
-respreset 5
-fullscreen 1
+musicvolume 0.1
+sfxvolume 0.05
+fullscreen 0
+resindex 3
+vsyncmode 1
+targetfps 0

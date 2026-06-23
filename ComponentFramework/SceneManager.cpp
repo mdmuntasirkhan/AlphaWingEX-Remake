@@ -15,6 +15,7 @@
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
+#include "AppFonts.h"
 
 
 
@@ -22,10 +23,14 @@
 
 
 
-SceneManager::SceneManager():
-	currentScene{nullptr}, window{nullptr}, timer{nullptr},
-	fps(60), isRunning{false}, fullScreen{false}, vsyncActive{false} {
-	Debug::Info("Starting the SceneManager", __FILE__, __LINE__);
+SceneManager::SceneManager()
+    : currentScene{ nullptr }
+    , window{ nullptr }
+    , timer{ nullptr }
+    , isRunning{ false }
+    , vsyncActive{ false }
+{
+    Debug::Info("Starting the SceneManager", __FILE__, __LINE__);
 }
 
 SceneManager::~SceneManager() {
@@ -49,37 +54,61 @@ SceneManager::~SceneManager() {
 	
 }
 
-bool SceneManager::Initialize(std::string name_, int width_, int height_) {
+bool SceneManager::Initialize(std::string name, int width, int height) {
 
-	window = new Window();
-	if (!window->OnCreate(name_, width_, height_)) {
-		Debug::FatalError("Failed to initialize Window object", __FILE__, __LINE__);
-		return false;
-	}
+    window = new Window();
+    if (!window->OnCreate(name, width, height)) {
+        Debug::FatalError("Failed to initialize Window object", __FILE__, __LINE__);
+        return false;
+    }
 
-	timer = new Timer();
-	if (timer == nullptr) {
-		Debug::FatalError("Failed to initialize Timer object", __FILE__, __LINE__);
-		return false;
-	}
+    timer = new Timer();
 
-	/// imgui
+    // ImGui
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
+
+	// Load Exo 2 at four sizes for crisp text at every scale.
+	// Place fonts/Exo2-Regular.ttf in ComponentFramework/fonts/ to activate.
+	// Falls back to the built-in ImGui default if the file is missing.
+	{
+		ImGuiIO& io = ImGui::GetIO();
+		AppFonts::body = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 14.0f);
+		if (!AppFonts::body) {
+			io.Fonts->AddFontDefault();
+		} else {
+			AppFonts::medium = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 22.0f);
+			AppFonts::large  = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 32.0f);
+			AppFonts::title  = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 40.0f);
+		}
+	}
+
 	ImGui_ImplSDL3_InitForOpenGL(window->getWindow(), SDL_GL_GetCurrentContext());
 	ImGui_ImplOpenGL3_Init("#version 450");
+
+	// Restore machine-level video/audio prefs before the first scene starts.
+	// This must come before ApplyVsync so the loaded vsyncMode is used.
+	SaveData::current.LoadMachineSettings();
+
+	// Resize window to match saved resolution so OnCreate() projection matrices
+	// are never computed against the default 1280x720 startup size.
+	// Ultrawide resolutions (5K2K/8K2K) have a different aspect ratio than 16:9
+	// and will stretch if the viewport doesn't match the projection on startup.
+	window->SetFullscreen(SaveData::current.fullscreen);
+	if (!SaveData::current.fullscreen) {
+		window->SetSize(
+			SaveData::kResolutionW[SaveData::current.resolutionIndex],
+			SaveData::kResolutionH[SaveData::current.resolutionIndex]);
+	}
 
 	// Adaptive sync (FreeSync / G-Sync) → standard vsync → uncapped
 	ApplyVsync(SaveData::current.vsyncMode);
 
-	/********************************   Default first scene   ***********************/
-	BuildNewScene(SCENE_NUMBER::SCENETITLE);
-	/********************************************************************************/
-	return true;
+    BuildNewScene(SceneID::TITLE);
+    return true;
 }
 
-/// This is the whole game
 void SceneManager::Run() {
 	timer->Start();
 	isRunning = true;
@@ -104,21 +133,28 @@ void SceneManager::Run() {
 			GameScene gs = SceneSwitcher::pending;
 			SceneSwitcher::hasPending = false;
 			switch (gs) {
-			case GameScene::TITLE: BuildNewScene(SCENE_NUMBER::SCENETITLE); break;
-			case GameScene::MUN:   BuildNewScene(SCENE_NUMBER::SCENEMUN);   break;
-			case GameScene::STG:   BuildNewScene(SCENE_NUMBER::SCENESTG);   break;
-			case GameScene::JA:    BuildNewScene(SCENE_NUMBER::SCENEJA);    break;
+			case GameScene::TITLE: BuildNewScene(SceneID::TITLE); break;
+			case GameScene::MUN:   BuildNewScene(SceneID::MUN);   break;
+			case GameScene::STG:   BuildNewScene(SceneID::STG);   break;
+			case GameScene::JA:    BuildNewScene(SceneID::JA);    break;
 			}
 		}
 
 		// Drain video settings request
 		if (SceneSwitcher::hasVideoRequest) {
 			SceneSwitcher::hasVideoRequest = false;
+			// Exit fullscreen BEFORE resizing — SDL glitches if you resize
+			// a window that is still in fullscreen mode.
+			window->SetFullscreen(SceneSwitcher::videoFullscreen);
 			if (!SceneSwitcher::videoFullscreen)
 				window->SetSize(SceneSwitcher::videoWidth, SceneSwitcher::videoHeight);
-			window->SetFullscreen(SceneSwitcher::videoFullscreen);
 			ApplyVsync(SceneSwitcher::videoVsync);
-			SaveData::current.Save(); // persist video prefs immediately
+			// Write ONLY to settings.dat — never to a profile file.
+			// Without this, the default profileName="Player" caused
+			// profile_Player.dat to be created whenever video was changed
+			// on the title screen before any profile was loaded.
+			SaveData::current.SaveMachineSettings();
+			currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
 		}
 
 		// Render ImGui
@@ -129,13 +165,12 @@ void SceneManager::Run() {
 
 		// Frame pacing:
 		// When vsync is active, SwapWindow already blocks for the display interval.
-		// A manual sleep on top would halve the frame rate — so skip it.
-		// When vsync is off, enforce a 60 fps floor manually.
-		if (!vsyncActive) {
-			const Uint64 kFrameMs = 16; // ~60 fps
-			Uint64 elapsed = SDL_GetTicks() - frameStart;
-			if (elapsed < kFrameMs)
-				SDL_Delay(static_cast<Uint32>(kFrameMs - elapsed));
+		// When vsync is off, cap to targetFPS (0 = uncapped).
+		if (!vsyncActive && SaveData::current.targetFPS > 0) {
+			Uint64 targetMs = 1000 / (Uint64)SaveData::current.targetFPS;
+			Uint64 elapsed  = SDL_GetTicks() - frameStart;
+			if (elapsed < targetMs)
+				SDL_Delay(static_cast<Uint32>(targetMs - elapsed));
 		}
 	}
 }
@@ -157,9 +192,7 @@ void SceneManager::ApplyVsync(int mode) {
 
 void SceneManager::HandleEvents() {
 	SDL_Event sdlEvent;
-	while (SDL_PollEvent(&sdlEvent)) { /// Loop over all events in the SDL queue
-
-		// ImGui gets events FIRST - this is what was missing!
+	while (SDL_PollEvent(&sdlEvent)) {
 		ImGui_ImplSDL3_ProcessEvent(&sdlEvent);
 
 		if (sdlEvent.type == SDL_EventType::SDL_EVENT_QUIT) {
@@ -168,32 +201,13 @@ void SceneManager::HandleEvents() {
 		}
 		else if (sdlEvent.type == SDL_EVENT_KEY_DOWN) {
 			switch (sdlEvent.key.scancode) {
-			case SDL_SCANCODE_Q:
-				isRunning = false;
-				return;
-
-			case SDL_SCANCODE_F1:
-				// switch to scene0 default
-				BuildNewScene(SCENE_NUMBER::SCENESTG);
-				break;
-
-			case SDL_SCANCODE_F2:
-				// switch to scene0 default
-				BuildNewScene(SCENE_NUMBER::SCENEJA);
-				break;
-
-			case SDL_SCANCODE_F3:
-				// switch to scene0 default
-				BuildNewScene(SCENE_NUMBER::SCENEMUN);
-				break;
-
-			case SDL_SCANCODE_F6:
-				break;
-			default:
-				break;
+			case SDL_SCANCODE_F1: BuildNewScene(SceneID::STG);   break;
+			case SDL_SCANCODE_F2: BuildNewScene(SceneID::JA);    break;
+			case SDL_SCANCODE_F3: BuildNewScene(SceneID::MUN);   break;
+			default: break;
 			}
 		}
-		if (currentScene == nullptr) { /// Just to be careful
+		if (currentScene == nullptr) {
 			Debug::FatalError("No currentScene", __FILE__, __LINE__);
 			isRunning = false;
 			return;
@@ -202,39 +216,43 @@ void SceneManager::HandleEvents() {
 	}
 }
 
-bool SceneManager::BuildNewScene(SCENE_NUMBER scene) {
-	bool status; 
+bool SceneManager::BuildNewScene(SceneID id) {
+    bool status = false;
 
-	if (currentScene != nullptr) {
-		currentScene->OnDestroy();
-		delete currentScene;
-		currentScene = nullptr;
-	}
+    if (currentScene != nullptr) {
+        currentScene->OnDestroy();
+        delete currentScene;
+        currentScene = nullptr;
+    }
 
-	switch (scene) {
-	case SCENE_NUMBER::SCENETITLE:
-		currentScene = new SceneTitle();
-		status = currentScene->OnCreate();
-		break;
+    switch (id) {
+    case SceneID::TITLE:
+        currentScene = new SceneTitle();
+        status = currentScene->OnCreate();
+        currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
+        break;
 
-	case SCENE_NUMBER::SCENESTG:
-		currentScene = new SceneSTG();
-		status = currentScene->OnCreate();
-		break;
+    case SceneID::STG:
+        currentScene = new SceneSTG();
+        status = currentScene->OnCreate();
+        currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
+        break;
 
-	case SCENE_NUMBER::SCENEJA:
-		currentScene = new SceneJA();
-		status = currentScene->OnCreate();
-		break;
+    case SceneID::JA:
+        currentScene = new SceneJA();
+        status = currentScene->OnCreate();
+        currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
+        break;
 
-	case SCENE_NUMBER::SCENEMUN:
-		currentScene = new SceneMuntasir();
-		status = currentScene->OnCreate();
-		break;
+    case SceneID::MUN:
+        currentScene = new SceneMuntasir();
+        status = currentScene->OnCreate();
+        currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
+        break;
 
-	default:
-		Debug::Error("Incorrect scene number assigned in the manager", __FILE__, __LINE__);
-		currentScene = nullptr;
+    default:
+        Debug::Error("Unknown scene ID in BuildNewScene", __FILE__, __LINE__);
+        currentScene = nullptr;
 		return false;
 	}
 

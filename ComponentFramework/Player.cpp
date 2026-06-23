@@ -1,5 +1,6 @@
 #include "Player.h"
 #include "Mesh.h"
+#include "GameConstants.h"
 #include <MMath.h>
 #include <glew.h>
 #include <iostream>
@@ -18,22 +19,30 @@ Player::Player() :  mesh { nullptr },
 					maxSpeed { 10.0f },
 					shieldActive { false },
 					shieldTimer { 0.0f },
-					shieldDuration { 5.0f },
-					shieldCooldown { 15.0f },
-					shieldCooldownTimer { 0.0f },
-					shieldOnCooldown { false },
+					shieldDuration { 10.0f },
+					shieldRechargeRate { 1.0f },
 					shieldMesh { nullptr },
 					shieldSweepTimer { 0.0f },
 					shieldSweepPeriod { 1.2f },
 					shieldYRadius { 2.5f },
 					shieldZRadius { 3.0f },
 					shieldGlowRadius { 1.4f },
-					rollAngle        { 0.0f },
-					rollVelocity     { 0.0f },
-					rollStiffness    { 100.0f },
-					rollDamping      { 16.0f },
-					maxRollAngle     { 5.0f },
-					thrustTimer      { 0.0f }
+					rollAngle            { 0.0f },
+					rollVelocity         { 0.0f },
+					rollStiffness        { 100.0f },
+					rollDamping          { 16.0f },
+					maxRollAngle         { 5.0f },
+					thrustTimer          { 0.0f },
+					sfxStream            { nullptr },
+					sfxShieldPhase01     { nullptr },
+					sfxShieldPhase02     { nullptr },
+					sfxShieldRecharged   { nullptr },
+					sfxShieldDrain       { nullptr },
+					prevShieldCharge     { 1.0f },
+					prevShieldRecharging { false },
+					shieldPhase01Cooldown   { 0.0f },
+					shieldPhase02Cooldown   { 0.0f },
+					shieldRechargedCooldown { 0.0f }
 {
 	// leave Empty
 }
@@ -79,6 +88,16 @@ bool Player::OnCreate(const char* meshFile) {
 	pos = Vec3(0.0f, 0.0f, -10.0f);
 	modelMatrix = MMath::translate(pos) *
 				  MMath::scale(0.5f, 0.5f, 0.5f);
+
+	sfxShieldPhase01 = new Sound("audio/sfx/AWshieldPhase01.wav");
+	sfxShieldPhase01->OnCreate();
+	sfxShieldPhase02 = new Sound("audio/sfx/AWshieldPhase02.wav");
+	sfxShieldPhase02->OnCreate();
+	sfxShieldRecharged = new Sound("audio/sfx/AWshieldRecharged.wav");
+	sfxShieldRecharged->OnCreate();
+	sfxShieldDrain = new Sound("audio/sfx/AWshieldDrain.wav");
+	sfxShieldDrain->OnCreate();
+
 	return true;
 }
 
@@ -112,6 +131,11 @@ void Player::OnDestroy() {
 		delete thrustMesh;
 		thrustMesh = nullptr;
 	}
+
+	if (sfxShieldPhase01)   { sfxShieldPhase01->OnDestroy();   delete sfxShieldPhase01;   sfxShieldPhase01   = nullptr; }
+	if (sfxShieldPhase02)   { sfxShieldPhase02->OnDestroy();   delete sfxShieldPhase02;   sfxShieldPhase02   = nullptr; }
+	if (sfxShieldRecharged) { sfxShieldRecharged->OnDestroy(); delete sfxShieldRecharged; sfxShieldRecharged = nullptr; }
+	if (sfxShieldDrain)     { sfxShieldDrain->OnDestroy();     delete sfxShieldDrain;     sfxShieldDrain     = nullptr; }
 }
 
 void Player::HandleEvents(const SDL_Event& sdlEvent) {
@@ -152,11 +176,11 @@ void Player::Update(float deltaTime) {
 	// Move the position
 	pos += velocity * deltaTime;
 
-	// Screen Boundary
-	if (pos.x < -8.0f) { pos.x = -8.0f; velocity.x = 0.0f; }
-	if (pos.x >  8.0f) { pos.x =  8.0f; velocity.x = 0.0f; }
-	if (pos.y < -4.5f) { pos.y = -4.5f; velocity.y = 0.0f; }
-	if (pos.y >  4.5f) { pos.y =  4.5f; velocity.y = 0.0f; }
+	// Screen Boundary — dynamic bounds computed from the current aspect ratio via GameConst::ComputeWorldBounds()
+	if (pos.x < -GameConst::kWorldBoundX) { pos.x = -GameConst::kWorldBoundX; velocity.x = 0.0f; }
+	if (pos.x >  GameConst::kWorldBoundX) { pos.x =  GameConst::kWorldBoundX; velocity.x = 0.0f; }
+	if (pos.y < -GameConst::kWorldBoundY) { pos.y = -GameConst::kWorldBoundY; velocity.y = 0.0f; }
+	if (pos.y >  GameConst::kWorldBoundY) { pos.y =  GameConst::kWorldBoundY; velocity.y = 0.0f; }
 
 
 	thrustTimer += deltaTime;
@@ -169,25 +193,53 @@ void Player::Update(float deltaTime) {
 				  MMath::rotate(rollAngle, Vec3(0.0f, 0.0f, 1.0f)) *
 				  MMath::scale(0.3f, 0.3f, 0.3f);
 
-	// Shield active countdown
 	if (shieldActive) {
 		shieldTimer += deltaTime;
 		if (shieldTimer >= shieldDuration) {
-			// Shield ran out
-			shieldActive = false;
-			shieldOnCooldown = true;
-			shieldCooldownTimer = 0.0f;
+			shieldTimer        = shieldDuration;
+			shieldActive       = false;
+			shieldRechargeRate = kRecharge90Rate; // expired = worst penalty
+		}
+	} else if (shieldTimer > 0.0f) {
+		shieldTimer -= deltaTime * shieldRechargeRate;
+		if (shieldTimer <= 0.0f) {
+			shieldTimer        = 0.0f;
+			shieldRechargeRate = kBaseRechargeRate; // fully recharged — reset rate
 		}
 	}
 
-	// Shield recharging
-	if (shieldOnCooldown) {
-		shieldCooldownTimer += deltaTime;
-		if (shieldCooldownTimer >= shieldCooldown) {
-			// Fully recharged
-			shieldOnCooldown = false;
-			shieldCooldownTimer = 0.0f;
+	// Shield phase transition sounds
+	if (sfxStream) {
+		float curCharge     = GetShieldChargeFraction();
+		bool  curRecharging = IsShieldRecharging();
+
+		if (shieldPhase01Cooldown    > 0.0f) shieldPhase01Cooldown    -= deltaTime;
+		if (shieldPhase02Cooldown    > 0.0f) shieldPhase02Cooldown    -= deltaTime;
+		if (shieldRechargedCooldown  > 0.0f) shieldRechargedCooldown  -= deltaTime;
+
+		// Phase sounds — drain direction only (charge falling through threshold)
+		if (shieldPhase01Cooldown <= 0.0f &&
+			prevShieldCharge > 0.20f && curCharge <= 0.20f) {
+			sfxShieldPhase01->Play(sfxStream);
+			shieldPhase01Cooldown = kShieldPhaseCooldown;
 		}
+		if (shieldPhase02Cooldown <= 0.0f &&
+			prevShieldCharge > 0.10f && curCharge <= 0.10f) {
+			sfxShieldPhase02->Play(sfxStream);
+			shieldPhase02Cooldown = kShieldPhaseCooldown;
+		}
+		// Fully depleted — shield expired (charge hit 0)
+		if (prevShieldCharge > 0.01f && curCharge <= 0.01f) {
+			sfxShieldDrain->Play(sfxStream);
+		}
+		if (shieldRechargedCooldown <= 0.0f &&
+			prevShieldRecharging && !curRecharging && !shieldActive) {
+			sfxShieldRecharged->Play(sfxStream);
+			shieldRechargedCooldown = kShieldRechargedCooldown;
+		}
+
+		prevShieldCharge     = curCharge;
+		prevShieldRecharging = curRecharging;
 	}
 }
 
@@ -274,8 +326,8 @@ void Player::Render(Shader* shader,
 }
 
 void Player::TakeDamage(float amount) {
-	//Shield blocks all damage!
 	if (shieldActive) return;
+	if (lives <= 0) return;
 
 	health -= amount;
 	if (health <= 0.0f) {
@@ -285,11 +337,17 @@ void Player::TakeDamage(float amount) {
 }
 
 void Player::ActivateShield() {
-	// Only active if not already active and not on cooldown
-	if (!shieldActive && !shieldOnCooldown) {
-		shieldActive = true;
-		shieldTimer = 0.0f;
-		shieldSweepTimer = 0.0f; // sweep restarts from the top each activation
+	if (shieldActive) {
+		// Deactivate — lock in recharge rate based on usage at this moment
+		float usagePct = shieldTimer / shieldDuration;
+		if      (usagePct >= 0.9f) shieldRechargeRate = kRecharge90Rate;
+		else if (usagePct >= 0.8f) shieldRechargeRate = kRecharge80Rate;
+		else                       shieldRechargeRate = kBaseRechargeRate;
+		shieldActive = false;
+	} else if (shieldTimer < shieldDuration) {
+		// Activate — any charge remaining is enough
+		shieldActive     = true;
+		shieldSweepTimer = 0.0f;
 	}
 }
 
@@ -300,9 +358,8 @@ void Player::Reset() {
 	velocity = Vec3(0.0f, 0.0f, 0.0f);
 	rollAngle = 0.0f;
 	rollVelocity = 0.0f;
-	shieldActive = false;
-	shieldTimer = 0.0f;
-	shieldOnCooldown = false;
-	shieldCooldownTimer = 0.0f;
+	shieldActive       = false;
+	shieldTimer        = 0.0f;
+	shieldRechargeRate = kBaseRechargeRate;
 	thrustTimer = 0.0f;
 }

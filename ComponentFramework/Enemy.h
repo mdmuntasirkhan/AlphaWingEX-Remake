@@ -10,114 +10,30 @@
 
 using namespace MATH;
 
-enum class EnemyType {
-	ASTEROID,	// wave 1
-	BOT01,		// wave 2
-};
-
 struct Debris {
-	Vec3  pos;
-	Vec3  vel;
-	Vec3  color;
-	float angle;
-	float spinSpeed;
-	float lifetime;
-	float maxLifetime;
-	float pieceScale;
+	Vec3  pos{};
+	Vec3  vel{};
+	Vec3  color{};
+	float angle       = 0.0f;
+	float spinSpeed   = 0.0f;
+	float lifetime    = 0.0f;
+	float maxLifetime = 0.0f;
+	float pieceScale  = 0.0f;
 };
 
 class Enemy {
-private:
-	// Meshes
-	Mesh* asteroidMesh;
-	Mesh* bot01Mesh;
-	Mesh* bot01ThrustMesh;
-
-	float thrustTimer;
-
-	// Positions
-	std::vector<Vec3> asteroidPositions;
-	std::vector<Vec3> smallAsteroidPositions;
-	std::vector<Vec3> bot01Positions;
-
-	// Spin
-	std::vector<float> asteroidAngles;
-	std::vector<float> asteroidSpinSpeeds;
-	std::vector<float> smallAsteroidAngles;
-	std::vector<float> smallAsteroidSpinSpeeds;
-
-	// Per-asteroid HP and current scale (destructible system)
-	std::vector<int>   asteroidHP;
-	std::vector<float> asteroidScales;
-	std::vector<int>   smallAsteroidHP;
-	std::vector<float> smallAsteroidScales;
-
-	// Bot01 Y-axis steering + state
-	std::vector<float> bot01YVelocities;
-	std::vector<int>   bot01HP;
-	std::vector<float> bot01HitTimers;   // white flash timer per bot01
-	float bot01SteerForce;
-	float bot01YDamping;
-	float bot01YMaxSpeed;
-
-	// Debris
+protected:
 	std::vector<Debris> debris;
 	void SpawnHitDebris (const Vec3& pos, const Vec3& color, int count);
 	void SpawnKillDebris(const Vec3& pos, const Vec3& color, int count);
 
-	// speed
-	float asteroidSpeed;
-	float smallAsteroidSpeed;
-	float bot01Speed;
-
-	// Spawn timers
-	float asteroidSpawnTimer;
-	float asteroidSpawnInterval;
-	float smallAsteroidSpawnTimer;
-	float smallAsteroidSpawnInterval;
-	float bot01SpawnTimer;
-	float bot01SpawnInterval;
-
-	// wave timer
-	float totalTime;
-
 public:
-	Enemy();
-	~Enemy();
-
-	bool OnCreate(const char* asteroidFile,
-				  const char* bot01File);
-	void OnDestroy();
-	void Update(float deltaTime, float playerY = 0.0f);
-	void Render(Shader* shader,
-		const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const;
-
-	// Getters for collision
-	std::vector<Vec3>& GetAsteroidPositions()      { return asteroidPositions; }
-	std::vector<Vec3>& GetSmallAsteroidPositions() { return smallAsteroidPositions; }
-	std::vector<Vec3>& GetBot01Positions()         { return bot01Positions; }
-
-	// Getters for missile guidance
-	float GetAsteroidSpeed()      const { return asteroidSpeed; }
-	float GetSmallAsteroidSpeed() const { return smallAsteroidSpeed; }
-	float GetBot01Speed()         const { return bot01Speed; }
-
-	// Wave-progression time (save/load)
-	float GetTotalTime()        const { return totalTime; }
-	void  SetTotalTime(float t)       { totalTime = t; }
-
-	// Damage
-	bool DamageAsteroid(int index);
-	bool DamageSmallAsteroid(int index);
-	bool DamageBot01(int index);
-
-	// Remove by index
-	void RemoveAsteroid(int index);
-	void RemoveSmallAsteroid(int index);
-	void RemoveBot01(int index);
-
-	// Reset
-	void Reset();
-
+	virtual ~Enemy() = default;
+	virtual void OnDestroy() = 0;
+	virtual void Update(float deltaTime, float playerX = 0.0f, float playerY = 0.0f) = 0;
+	virtual void Render(Shader* shader,
+		const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const = 0;
+	virtual void Reset() = 0;
 };
-#endif // !ENEMY_H
+
+#endif // ENEMY_H

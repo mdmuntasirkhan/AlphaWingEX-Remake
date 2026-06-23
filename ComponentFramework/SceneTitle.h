@@ -20,6 +20,7 @@ private:
     char                     nameBuf[32];
     std::vector<std::string> profiles;
     bool                     showSettings;
+    bool                     showCredits;
     int                      pendingDeleteIndex;
 
     // Leaderboard cache (sorted by high score descending)
@@ -38,6 +39,7 @@ private:
     int  pendingResIndex;
     bool pendingFullscreen;
     int  pendingVsync;
+    int  pendingTargetFPS;
 
     void PlaySelect();
     void PlayHover();

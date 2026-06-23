@@ -5,6 +5,11 @@
 #include <SDL.h>
 #include <SDL3/SDL_events.h>
 #include "SceneMuntasir.h"
+#include "GameConstants.h"
+#include "Version.h"
+#include "AppFonts.h"
+#include "Level01Script.h"
+#include "Level02Script.h"
 #include <MMath.h>
 #include "Debug.h"
 #include "Mesh.h"
@@ -13,8 +18,11 @@
 
 // Constructor
 SceneMuntasir::SceneMuntasir() :
+    levelDirector{ nullptr },
     player{ nullptr },
-    enemy{ nullptr },
+    asteroid{ nullptr },
+    bot01{ nullptr },
+    bot02{ nullptr },
     bullet{ nullptr },
     environment{ nullptr },
     shader{ nullptr },
@@ -23,17 +31,23 @@ SceneMuntasir::SceneMuntasir() :
     score{ 0 },
     shardCount{ 0 },
     shardMesh{ nullptr },
-    lostShards{},
-    hasLostShards{ false },
+    shardBeacon{ nullptr },
+    beaconTriggerTime{ 0.0f },
     prevLives{ 3 },
     autoSaveTimer{ 0.0f },
-    explosionCooldown{ 2.0f },
+    currentPhase{ 1 },
+    explosionCooldown{ 0.8f },
     explosionCooldownTimer{ 0.0f },
-    audioPlayer{ nullptr },
+    shieldHitCooldownTimer{ 0.0f },
+    bgmPlayer{ nullptr },
     sfxPlayer{ nullptr },
+    sfxLaserHitStream{ nullptr },
     sfxLaser{ nullptr },
+    sfxLaserHit{ nullptr },
     sfxExplosion{ nullptr },
-    audioTest{ nullptr },
+    sfxMissileHit{ nullptr },
+    sfxShieldHit{ nullptr },
+    bgmMusic{ nullptr },
     musicVolume{ 0.1f },
     sfxVolume{ 0.05f },
     musicPaused{ false },
@@ -42,6 +56,16 @@ SceneMuntasir::SceneMuntasir() :
     pendingResIndex{ SaveData::current.resolutionIndex },
     pendingFullscreen{ SaveData::current.fullscreen },
     pendingVsync{ SaveData::current.vsyncMode },
+    pendingTargetFPS{ SaveData::current.targetFPS },
+    debugOverlay{ nullptr },
+    showDebugOverlay{ true },
+    f11Held{ false },
+    f11HoldTimer{ 0.0f },
+    prevWarping{ false },
+    postWarpTimer{ 0.0f },
+    showCameraDebug{ true },
+    debugCameraFOV{ 48.0f },
+    currentAspect{ 16.0f / 9.0f },
     hoverStream{ nullptr },
     uiClickSound{ nullptr },
     lastHoveredId{ 0 },
@@ -65,11 +89,31 @@ bool SceneMuntasir::OnCreate() {
         return false;
     }
 
-    // Enemy - handles asteroids and Bot01
-    enemy = new Enemy();
-    if (enemy->OnCreate("meshes/Temp_Asteroid.obj",
-        "meshes/Temp_AlphaWing_Enemy_Bot01.obj") == false) {
-        std::cout << "Enemy failed to load!\n";
+    // Asteroid
+    asteroid = new Asteroid();
+    if (asteroid->OnCreate("meshes/Temp_Asteroid.obj") == false) {
+        std::cout << "Asteroid failed to load!\n";
+        return false;
+    }
+
+    // Bot01
+    bot01 = new Bot01();
+    if (bot01->OnCreate("meshes/Temp_AlphaWing_Enemy_Bot01.obj",
+        "meshes/Temp_Asteroid.obj") == false) {
+        std::cout << "Bot01 failed to load!\n";
+        return false;
+    }
+
+    // Bot02
+    bot02 = new Bot02();
+    if (bot02->OnCreate(
+        "meshes/Temp_AlphaWingEX_Bot02.obj",
+        "meshes/Temp_AlphaWingEX_Bot02_Cockpit.obj",
+        "meshes/Temp_AlphaWingEX_Bot02_Fin.obj",
+        "meshes/Temp_AlphaWingEX_Bot02_Thrust.obj",
+        "meshes/Temp_Asteroid.obj",
+        "meshes/Temp_AlphaWingEX_Bot02_Bullet.obj") == false) {
+        std::cout << "Bot02 failed to load!\n";
         return false;
     }
 
@@ -81,9 +125,11 @@ bool SceneMuntasir::OnCreate() {
         return false;
     }
 
-    // Environment - starfield
+    // Environment - starfield (use actual viewport pixel size, not hardcoded 1920x1080)
+    GLint vp[4];
+    glGetIntegerv(GL_VIEWPORT, vp);
     environment = new Environment();
-    if (environment->OnCreate(1920.0f, 1080.0f) == false) {
+    if (environment->OnCreate((float)vp[2], (float)vp[3]) == false) {
         std::cout << "Environment failed to load!\n";
         return false;
     }
@@ -104,25 +150,28 @@ bool SceneMuntasir::OnCreate() {
 
     // Camera
     viewMatrix = MMath::lookAt(
-        Vec3(0.0f, 0.0f, 0.0f),
+        Vec3(0.0f, 0.0f, GameConst::kCameraZ),
         Vec3(0.0f, 0.0f, -1.0f),
-        Vec3(0.0f, 1.0f, 0.0f)
+        Vec3(0.0f, 1.0f,  0.0f)
     );
-    projectionMatrix = MMath::perspective(45.0f, 16.0f / 9.0f, 0.1f, 100.0f);
+    currentAspect = static_cast<float>(SaveData::kResolutionW[SaveData::current.resolutionIndex]) /
+                    static_cast<float>(SaveData::kResolutionH[SaveData::current.resolutionIndex]);
+    GameConst::ComputeWorldBounds(currentAspect);
+    projectionMatrix = MMath::perspective(48.0f, currentAspect, 0.1f, 100.0f);
 
     // Audio Setup
-    SDL_AudioSpec defaultSpec;
-    defaultSpec.freq = 44100;
+    SDL_AudioSpec defaultSpec{};
+    defaultSpec.freq = GameConst::kAudioSampleRate;
     defaultSpec.channels = 2;
     defaultSpec.format = SDL_AUDIO_S16;
 
     // Music stream
-    audioPlayer = SDL_OpenAudioDeviceStream(
+    bgmPlayer = SDL_OpenAudioDeviceStream(
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
         &defaultSpec, nullptr, nullptr);
-    if (!audioPlayer) std::cout << "Failed to create music player\n";
-    SDL_SetAudioStreamGain(audioPlayer, musicVolume);
-    SDL_ResumeAudioStreamDevice(audioPlayer);
+    if (!bgmPlayer) std::cout << "Failed to create music player\n";
+    SDL_SetAudioStreamGain(bgmPlayer, musicVolume);
+    SDL_ResumeAudioStreamDevice(bgmPlayer);
 
     // SFX stream
     sfxPlayer = SDL_OpenAudioDeviceStream(
@@ -132,28 +181,47 @@ bool SceneMuntasir::OnCreate() {
     SDL_SetAudioStreamGain(sfxPlayer, sfxVolume);
     SDL_ResumeAudioStreamDevice(sfxPlayer);
 
+    // Dedicated stream for laser hit — cleared before each play for instant response
+    sfxLaserHitStream = SDL_OpenAudioDeviceStream(
+        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+        &defaultSpec, nullptr, nullptr);
+    if (!sfxLaserHitStream) std::cout << "Failed to create laser hit stream\n";
+    SDL_SetAudioStreamGain(sfxLaserHitStream, sfxVolume * 2.0f);
+    SDL_ResumeAudioStreamDevice(sfxLaserHitStream);
+
     // Music
-    audioTest = new Sound("audio/music/deadmou5-gg.wav");
-    audioTest->OnCreate();
-    audioTest->Play(audioPlayer);
+    bgmMusic = new Sound("audio/music/deadmou5-gg.wav");
+    bgmMusic->OnCreate();
+    bgmMusic->Play(bgmPlayer);
 
     // SFX
     sfxLaser = new Sound("audio/sfx/LaserShoot.wav");
     sfxLaser->OnCreate();
 
-    sfxExplosion = new Sound("audio/sfx/Explosion03.wav");
+    sfxLaserHit = new Sound("audio/sfx/AlphaWingEX_Laser_Hit.wav");
+    sfxLaserHit->OnCreate();
+
+    sfxExplosion = new Sound("audio/sfx/Explosion04.wav");
     sfxExplosion->OnCreate();
+
+    sfxMissileHit = new Sound("audio/sfx/missileHit.wav");
+    sfxMissileHit->OnCreate();
+
+    sfxShieldHit = new Sound("audio/sfx/AWshieldDamageWarning.wav");
+    sfxShieldHit->OnCreate();
+
+    player->SetSFXStream(sfxPlayer);
 
     hoverStream = SDL_OpenAudioDeviceStream(
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &defaultSpec, nullptr, nullptr);
     if (hoverStream) {
-        SDL_SetAudioStreamGain(hoverStream, sfxVolume * 0.35f);
+        SDL_SetAudioStreamGain(hoverStream, sfxVolume * GameConst::kHoverStreamGain);
         SDL_ResumeAudioStreamDevice(hoverStream);
     }
     uiClickSound = new Sound("audio/sfx/Select01.wav");
     uiClickSound->OnCreate();
 
-    SDL_Log("Music queued bytes: %d", SDL_GetAudioStreamQueued(audioPlayer));
+    SDL_Log("Music queued bytes: %d", SDL_GetAudioStreamQueued(bgmPlayer));
     SDL_Log("SFX queued bytes: %d", SDL_GetAudioStreamQueued(sfxPlayer));
 
     // Restore full game state from save (works for both New Game and Load Game)
@@ -164,34 +232,89 @@ bool SceneMuntasir::OnCreate() {
     player->SetLives   (SaveData::current.lives);
     player->SetPosition(SaveData::current.posX, SaveData::current.posY);
 
-    enemy->SetTotalTime(SaveData::current.waveTime);
+    bot01->SetTotalTime(SaveData::current.waveTime);
 
-    // Restore lost shard pile
-    hasLostShards = SaveData::current.hasLostShards;
-    if (hasLostShards) {
-        lostShards.pos   = Vec3(SaveData::current.lostShardPosX,
-                                SaveData::current.lostShardPosY, -10.0f);
-        lostShards.count = SaveData::current.lostShardCount;
-        lostShards.pulseTimer = 0.0f;
+    // Shard beacon — satellite marker placed at death position
+    shardBeacon = new ShardBeacon();
+    if (!shardBeacon->OnCreate()) return false;
+    if (SaveData::current.hasLostShards) {
+        if (SaveData::current.deathLevelTime > 0.0f) {
+            // Beacon is pending — activate when level timeline reaches the death moment
+            beaconTriggerTime = SaveData::current.deathLevelTime;
+        } else {
+            // Beacon was already triggered last session — restore immediately
+            shardBeacon->Place(
+                Vec3(SaveData::current.lostShardPosX,
+                     SaveData::current.lostShardPosY, -10.0f),
+                SaveData::current.lostShardCount);
+        }
     }
 
     prevLives = player->GetLives();
 
     // Apply saved audio preferences
-    SDL_SetAudioStreamGain(audioPlayer, SaveData::current.musicVolume);
+    SDL_SetAudioStreamGain(bgmPlayer, SaveData::current.musicVolume);
     SDL_SetAudioStreamGain(sfxPlayer,   SaveData::current.sfxVolume);
     musicVolume = SaveData::current.musicVolume;
     sfxVolume   = SaveData::current.sfxVolume;
 
+    // Level director — loads all environment chunk meshes up front, no runtime stutter
+    levelDirector = new LevelDirector();
+    levelDirector->SetPhaseCallback([this](int id) { currentPhase = id; });
+    levelDirector->SetBot01Callback([this](int count, float interval, bool shielded) {
+        bot01->TriggerWave(shielded ? Bot01WaveType::SHIELDED : Bot01WaveType::STANDARD,
+                           count, interval);
+    });
+    levelDirector->SetBot02Callback([this]() {
+        if (bot02->GetCount() == 0)
+            bot02->Spawn(player->GetPosition().y);
+    });
+    levelDirector->SetAsteroidCallback([this](float largeInterval, float smallInterval) {
+        asteroid->SetSpawnRates(largeInterval, smallInterval);
+    });
+    levelDirector->AddScript(new Level01Script(), 0.0f);
+    // Level02 starts at t=180s. Bring offset down to ~158s for a 22s overlap window
+    // where both zones' chunks scroll on screen simultaneously (seamless transition).
+    levelDirector->AddScript(new Level02Script(), 180.0f);
+
+    debugOverlay = new DebugOverlay();
+
     return true;
+}
+
+void SceneMuntasir::OnVideoChanged(int w, int h) {
+    currentAspect = static_cast<float>(w) / static_cast<float>(h);
+    GameConst::ComputeWorldBounds(currentAspect);
+    projectionMatrix = MMath::perspective(debugCameraFOV, currentAspect, 0.1f, 100.0f);
+    environment->OnResize((float)w, (float)h);
 }
 
 // OnDestroy
 void SceneMuntasir::OnDestroy() {
     Debug::Info("Deleting assets SceneMuntasir: ", __FILE__, __LINE__);
 
-    // Auto-save full state on scene exit (covers quit, title-return, etc.)
-    SaveGame();
+    // On a complete death: reset only run-specific fields so the next load starts fresh.
+    // highScore was committed at game-over detection; shard pile was saved at last life-loss.
+    // On a normal mid-run exit: full mid-session save so the player can resume.
+    if (gameOver) {
+        SaveData::current.lives       = 3;
+        SaveData::current.health      = 100.0f;
+        SaveData::current.score       = 0;
+        SaveData::current.shardCount  = 0;
+        SaveData::current.posX        = 0.0f;
+        SaveData::current.posY        = 0.0f;
+        SaveData::current.waveTime    = 0.0f;
+        SaveData::current.Save();
+    } else {
+        SaveGame();
+    }
+
+    // Level director
+    if (levelDirector) {
+        levelDirector->OnDestroy();
+        delete levelDirector;
+        levelDirector = nullptr;
+    }
 
     // Shards
     shards.clear();
@@ -200,15 +323,28 @@ void SceneMuntasir::OnDestroy() {
         delete shardMesh;
         shardMesh = nullptr;
     }
+    if (shardBeacon) {
+        shardBeacon->OnDestroy();
+        delete shardBeacon;
+        shardBeacon = nullptr;
+    }
 
     // Game classes
     player->OnDestroy();
     delete player;
     player = nullptr;
 
-    enemy->OnDestroy();
-    delete enemy;
-    enemy = nullptr;
+    asteroid->OnDestroy();
+    delete asteroid;
+    asteroid = nullptr;
+
+    bot01->OnDestroy();
+    delete bot01;
+    bot01 = nullptr;
+
+    bot02->OnDestroy();
+    delete bot02;
+    bot02 = nullptr;
 
     bullet->OnDestroy();
     delete bullet;
@@ -226,8 +362,17 @@ void SceneMuntasir::OnDestroy() {
     sfxLaser->OnDestroy();
     delete sfxLaser;
 
+    sfxLaserHit->OnDestroy();
+    delete sfxLaserHit;
+
     sfxExplosion->OnDestroy();
     delete sfxExplosion;
+
+    sfxMissileHit->OnDestroy();
+    delete sfxMissileHit;
+
+    sfxShieldHit->OnDestroy();
+    delete sfxShieldHit;
 
     if (uiClickSound) {
         uiClickSound->OnDestroy();
@@ -240,10 +385,14 @@ void SceneMuntasir::OnDestroy() {
     }
 
     // Audio
-    SDL_DestroyAudioStream(audioPlayer);
+    SDL_DestroyAudioStream(bgmPlayer);
     SDL_DestroyAudioStream(sfxPlayer);
-    audioTest->OnDestroy();
-    delete audioTest;
+    SDL_DestroyAudioStream(sfxLaserHitStream);
+    bgmMusic->OnDestroy();
+    delete bgmMusic;
+
+    delete debugOverlay;
+    debugOverlay = nullptr;
 }
 
 // HandleEvents
@@ -253,6 +402,22 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
         switch (sdlEvent.key.scancode) {
         case SDL_SCANCODE_ESCAPE:
             if (!gameOver) gamePaused = !gamePaused;
+            break;
+        case SDL_SCANCODE_F9:
+            if (!showDebugOverlay) {
+                showDebugOverlay = true;
+                debugOverlay->SetMode(DebugOverlay::Mode::MINIMAL);
+            } else if (debugOverlay->GetMode() == DebugOverlay::Mode::MINIMAL) {
+                debugOverlay->SetMode(DebugOverlay::Mode::DETAILED);
+            } else {
+                showDebugOverlay = false;
+            }
+            break;
+        case SDL_SCANCODE_F10:
+            showCameraDebug = !showCameraDebug;
+            break;
+        case SDL_SCANCODE_Q:
+            f11Held = true;
             break;
         case SDL_SCANCODE_F12:
             drawInWireMode = !drawInWireMode;
@@ -268,6 +433,13 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
         }
         break;
 
+    case SDL_EVENT_KEY_UP:
+        if (sdlEvent.key.scancode == SDL_SCANCODE_Q) {
+            f11Held      = false;
+            f11HoldTimer = 0.0f;   // release before 3 s cancels the charge
+        }
+        break;
+
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
         if (sdlEvent.button.button == SDL_BUTTON_LEFT) {
             if (!ImGui::GetIO().WantCaptureMouse) {
@@ -278,15 +450,37 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
         }
         // Right click - homing missile
         if (sdlEvent.button.button == SDL_BUTTON_RIGHT) {
-            if (!ImGui::GetIO().WantCaptureMouse) {
-                if (enemy->GetBot01Positions().size() > 0) {
+            if (!ImGui::GetIO().WantCaptureMouse && bullet->GetMissileCount() > 0) {
+                auto nearestIdx = [&](const std::vector<Vec3>& pool) -> int {
+                    Vec3 p = player->GetPosition();
+                    int best = 0;
+                    float bestDist = -1.0f;
+                    for (int i = 0; i < (int)pool.size(); i++) {
+                        float dx = pool[i].x - p.x, dy = pool[i].y - p.y;
+                        float d = dx*dx + dy*dy;
+                        if (bestDist < 0.0f || d < bestDist) { bestDist = d; best = i; }
+                    }
+                    return best;
+                };
+
+                bool launched = false;
+                if (!bot02->GetPositions().empty()) {
                     bullet->SpawnHoming(player->GetPosition(),
-                        MissileTargetType::BOT01, 0);
+                        MissileTargetType::BOT02, nearestIdx(bot02->GetPositions()));
+                    launched = true;
                 }
-                else if (enemy->GetAsteroidPositions().size() > 0) {
+                else if (!bot01->GetBot01Positions().empty()) {
                     bullet->SpawnHoming(player->GetPosition(),
-                        MissileTargetType::ASTEROID, 0);
+                        MissileTargetType::BOT01, nearestIdx(bot01->GetBot01Positions()));
+                    launched = true;
                 }
+                else if (!asteroid->GetAsteroidPositions().empty()) {
+                    bullet->SpawnHoming(player->GetPosition(),
+                        MissileTargetType::ASTEROID, nearestIdx(asteroid->GetAsteroidPositions()));
+                    launched = true;
+                }
+                if (launched)
+                    player->ApplyImpulse(Vec3(-3.5f, 0.0f, 0.0f)); // heavier recoil than laser
             }
         }
         break;
@@ -301,15 +495,27 @@ void SceneMuntasir::SaveGame() {
     SaveData::current.lives           = player->GetLives();
     SaveData::current.posX            = player->GetPosition().x;
     SaveData::current.posY            = player->GetPosition().y;
-    SaveData::current.waveTime        = enemy->GetTotalTime();
-    SaveData::current.hasLostShards   = hasLostShards;
-    SaveData::current.lostShardPosX   = hasLostShards ? lostShards.pos.x : 0.0f;
-    SaveData::current.lostShardPosY   = hasLostShards ? lostShards.pos.y : 0.0f;
-    SaveData::current.lostShardCount  = hasLostShards ? lostShards.count : 0;
+    SaveData::current.waveTime        = bot01->GetTotalTime();
+    if (shardBeacon->IsActive()) {
+        // Beacon is visible — sync from beacon object; reload should show it immediately
+        SaveData::current.hasLostShards  = true;
+        SaveData::current.lostShardPosX  = shardBeacon->GetPosition().x;
+        SaveData::current.lostShardPosY  = shardBeacon->GetPosition().y;
+        SaveData::current.lostShardCount = shardBeacon->GetCount();
+        SaveData::current.deathLevelTime = 0.0f;
+    } else if (beaconTriggerTime > 0.0f) {
+        // Beacon is pending — level hasn't reached the death time yet; keep pos/count as-is
+        SaveData::current.hasLostShards  = true;
+        SaveData::current.deathLevelTime = beaconTriggerTime;
+    } else {
+        SaveData::current.hasLostShards  = false;
+        SaveData::current.lostShardPosX  = 0.0f;
+        SaveData::current.lostShardPosY  = 0.0f;
+        SaveData::current.lostShardCount = 0;
+        SaveData::current.deathLevelTime = 0.0f;
+    }
     SaveData::current.musicVolume     = musicVolume;
     SaveData::current.sfxVolume       = sfxVolume;
-    if (score > SaveData::current.highScore)
-        SaveData::current.highScore   = score;
     SaveData::current.Save();
 }
 
@@ -328,15 +534,16 @@ void SceneMuntasir::SpawnShards(const Vec3& pos, int count) {
 
 // Update
 void SceneMuntasir::Update(const float deltaTime) {
+    debugOverlay->Update(deltaTime);
+
     if (gamePaused) return;
 
-    static float totalTime = 0.0f;
-    totalTime += deltaTime;
-
-    // Explosion cooldown timer
-    if (explosionCooldownTimer > 0.0f) {
+    // Cooldown timers
+    if (explosionCooldownTimer > 0.0f)
         explosionCooldownTimer -= deltaTime;
-    }
+    if (shieldHitCooldownTimer > 0.0f)
+        shieldHitCooldownTimer -= deltaTime;
+
 
     // Periodic auto-save (only while alive)
     if (!gameOver) {
@@ -349,12 +556,59 @@ void SceneMuntasir::Update(const float deltaTime) {
 
     if (gameOver) return;
 
-    // Update all classes
-    player->Update(deltaTime);
-    bullet->Update(deltaTime,
-        enemy->GetAsteroidPositions(), Vec3(-enemy->GetAsteroidSpeed(), 0.0f, 0.0f),
-        enemy->GetBot01Positions(), Vec3(-enemy->GetBot01Speed(), 0.0f, 0.0f));
-    enemy->Update(deltaTime, player->GetPosition().y);
+    // Advance level timeline and scroll environment chunks
+    levelDirector->Update(deltaTime);
+
+    // Trigger warp animations requested by the level script
+    if (levelDirector->PopWarpEnterRequest()) environment->TriggerWarpEnter(6.0f);
+    if (levelDirector->PopWarpExitRequest())  environment->TriggerWarpExit(8.0f);
+    if (levelDirector->PopWarpFullRequest())  environment->TriggerWarp(8.0f);
+
+    // Q hold-to-warp — charge for 3 s then fire
+    if (f11Held && !environment->IsWarpActive()) {
+        f11HoldTimer += deltaTime;
+        if (f11HoldTimer >= 3.0f) {
+            environment->TriggerWarp(10.0f);
+            f11Held      = false;
+            f11HoldTimer = 0.0f;
+        }
+    } else if (!f11Held) {
+        f11HoldTimer = 0.0f;
+    }
+
+    // During a hyperspace warp the world freezes — enemies and bullets pause
+    bool warping = environment->IsWarpActive();
+
+    // Detect warp end — kick off the post-warp ease-in timer
+    if (prevWarping && !warping) postWarpTimer = kPostWarpEaseDuration;
+    prevWarping = warping;
+
+    // Compute player speed multiplier: dampened during warp, smoothly eases to full after
+    float dtMult;
+    if (warping) {
+        dtMult = 0.35f;
+    } else if (postWarpTimer > 0.0f) {
+        postWarpTimer -= deltaTime;
+        if (postWarpTimer < 0.0f) postWarpTimer = 0.0f;
+        float t    = 1.0f - (postWarpTimer / kPostWarpEaseDuration); // 0 → 1
+        float ease = t * t * (3.0f - 2.0f * t);                     // smoothstep
+        dtMult = 0.35f + ease * 0.65f;                               // 0.35 → 1.0
+    } else {
+        dtMult = 1.0f;
+    }
+    player->Update(dtMult * deltaTime);
+
+    if (!warping) {
+        bullet->Update(deltaTime,
+            asteroid->GetAsteroidPositions(), Vec3(-asteroid->GetAsteroidSpeed(), 0.0f, 0.0f),
+            bot01->GetBot01Positions(),       Vec3(-bot01->GetBot01Speed(), 0.0f, 0.0f),
+            bot02->GetPositions(),            Vec3(0.0f, 0.0f, 0.0f));
+        asteroid->Update(deltaTime);
+        bot01->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
+        bot01->UpdateShields(deltaTime, bullet->GetMissilePositions());
+        bot02->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
+    }
+
     environment->Update(deltaTime);
 
     // Shard physics — drift, magnet pull, collect, cull
@@ -389,26 +643,53 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
 
         // Cull off-screen
-        if (shards[i].pos.x < -16.0f || shards[i].pos.x > 16.0f ||
+        if (shards[i].pos.x < GameConst::kCullX || shards[i].pos.x > GameConst::kSpawnX ||
             shards[i].pos.y < -10.0f || shards[i].pos.y >  10.0f) {
             shards.erase(shards.begin() + i);
         }
     }
 
-    // Lost shard pile — pulse + collect (larger 1.2-unit radius so it feels good)
-    if (hasLostShards) {
-        lostShards.pulseTimer += deltaTime;
-        float ldx = ppos.x - lostShards.pos.x;
-        float ldy = ppos.y - lostShards.pos.y;
-        if (ldx*ldx + ldy*ldy < 1.2f * 1.2f) {
-            shardCount   += lostShards.count;
-            hasLostShards = false;
-            SaveGame();   // immediately bank the recovered shards
-        }
+    // Shard beacon — activate when level timeline reaches recorded death moment
+    if (!shardBeacon->IsActive() && beaconTriggerTime > 0.0f &&
+        levelDirector->GetTime() >= beaconTriggerTime) {
+        shardBeacon->Place(
+            Vec3(SaveData::current.lostShardPosX,
+                 SaveData::current.lostShardPosY, -10.0f),
+            SaveData::current.lostShardCount);
+        beaconTriggerTime = 0.0f;
+    }
+
+    // Update animation, then check pickup
+    shardBeacon->Update(deltaTime);
+    int recovered = shardBeacon->TryCollect(ppos);
+    if (recovered > 0) {
+        shardCount += recovered;
+        SaveData::current.hasLostShards  = false;
+        SaveData::current.lostShardPosX  = 0.0f;
+        SaveData::current.lostShardPosY  = 0.0f;
+        SaveData::current.lostShardCount = 0;
+        SaveData::current.deathLevelTime = 0.0f;
+        beaconTriggerTime = 0.0f;
+        SaveGame();
     }
 
     // Check game over
     if (player->IsGameOver()) {
+        if (score > SaveData::current.highScore)
+            SaveData::current.highScore = score;
+        if (shardCount > 0) {
+            // Drop ALL shards at final death position — replaces any existing beacon
+            shardBeacon->Clear();
+            SaveData::current.hasLostShards  = true;
+            SaveData::current.lostShardPosX  = player->GetPosition().x;
+            SaveData::current.lostShardPosY  = player->GetPosition().y;
+            SaveData::current.lostShardCount = shardCount;
+            SaveData::current.deathLevelTime = levelDirector->GetTime();
+            SaveData::current.shardCount     = 0;
+            beaconTriggerTime = SaveData::current.deathLevelTime;
+            shardCount = 0;
+        }
+        // shardCount == 0: any existing beacon from a prior run survives untouched
         gameOver = true;
     }
 
@@ -417,13 +698,17 @@ void SceneMuntasir::Update(const float deltaTime) {
 
     // Bullet hits Bot01
     for (int b = bullet->GetPositions().size() - 1; b >= 0; b--) {
-        for (int e = enemy->GetBot01Positions().size() - 1; e >= 0; e--) {
-            float dx = bullet->GetPositions()[b].x - enemy->GetBot01Positions()[e].x;
-            float dy = bullet->GetPositions()[b].y - enemy->GetBot01Positions()[e].y;
+        for (int e = bot01->GetBot01Positions().size() - 1; e >= 0; e--) {
+            float dx = bullet->GetPositions()[b].x - bot01->GetBot01Positions()[e].x;
+            float dy = bullet->GetPositions()[b].y - bot01->GetBot01Positions()[e].y;
             if ((dx*dx)/(0.6f*0.6f) + (dy*dy)/(0.32f*0.32f) < 1.0f) {
-                Vec3 deathPos = enemy->GetBot01Positions()[e];
+                Vec3 deathPos = bot01->GetBot01Positions()[e];
                 bullet->RemoveAt(b);
-                if (enemy->DamageBot01(e)) {
+                bot01->PushX(e, 1.0f);
+                bot01->PushY(e, 0.0f);
+                SDL_ClearAudioStream(sfxLaserHitStream);
+                sfxLaserHit->Play(sfxLaserHitStream);
+                if (bot01->DamageBot01(e)) {
                     SpawnShards(deathPos, 5);
                     score += 100;
                     if (explosionCooldownTimer <= 0.0f) {
@@ -438,13 +723,16 @@ void SceneMuntasir::Update(const float deltaTime) {
 
     // Bullet hits large asteroid
     for (int b = bullet->GetPositions().size() - 1; b >= 0; b--) {
-        for (int a = enemy->GetAsteroidPositions().size() - 1; a >= 0; a--) {
-            float dx = bullet->GetPositions()[b].x - enemy->GetAsteroidPositions()[a].x;
-            float dy = bullet->GetPositions()[b].y - enemy->GetAsteroidPositions()[a].y;
+        for (int a = asteroid->GetAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = bullet->GetPositions()[b].x - asteroid->GetAsteroidPositions()[a].x;
+            float dy = bullet->GetPositions()[b].y - asteroid->GetAsteroidPositions()[a].y;
             if ((dx*dx)/(0.85f*0.85f) + (dy*dy)/(0.7f*0.7f) < 1.0f) {
-                Vec3 deathPos = enemy->GetAsteroidPositions()[a];
+                Vec3 deathPos = asteroid->GetAsteroidPositions()[a];
                 bullet->RemoveAt(b);
-                if (enemy->DamageAsteroid(a)) {
+                asteroid->PushAsteroid(a, 1.5f, 0.0f);
+                SDL_ClearAudioStream(sfxLaserHitStream);
+                sfxLaserHit->Play(sfxLaserHitStream);
+                if (asteroid->DamageAsteroid(a)) {
                     SpawnShards(deathPos, 3);
                     score += 50;
                     if (explosionCooldownTimer <= 0.0f) {
@@ -459,13 +747,16 @@ void SceneMuntasir::Update(const float deltaTime) {
 
     // Bullet hits small asteroid
     for (int b = bullet->GetPositions().size() - 1; b >= 0; b--) {
-        for (int a = enemy->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
-            float dx = bullet->GetPositions()[b].x - enemy->GetSmallAsteroidPositions()[a].x;
-            float dy = bullet->GetPositions()[b].y - enemy->GetSmallAsteroidPositions()[a].y;
+        for (int a = asteroid->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = bullet->GetPositions()[b].x - asteroid->GetSmallAsteroidPositions()[a].x;
+            float dy = bullet->GetPositions()[b].y - asteroid->GetSmallAsteroidPositions()[a].y;
             if ((dx*dx)/(0.45f*0.45f) + (dy*dy)/(0.38f*0.38f) < 1.0f) {
-                Vec3 deathPos = enemy->GetSmallAsteroidPositions()[a];
+                Vec3 deathPos = asteroid->GetSmallAsteroidPositions()[a];
                 bullet->RemoveAt(b);
-                if (enemy->DamageSmallAsteroid(a)) {
+                asteroid->PushSmallAsteroid(a, 2.5f, 0.0f);
+                SDL_ClearAudioStream(sfxLaserHitStream);
+                sfxLaserHit->Play(sfxLaserHitStream);
+                if (asteroid->DamageSmallAsteroid(a)) {
                     SpawnShards(deathPos, 2);
                     score += 25;
                     if (explosionCooldownTimer <= 0.0f) {
@@ -478,78 +769,300 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // Missile hits Bot01
-    for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
-        for (int e = enemy->GetBot01Positions().size() - 1; e >= 0; e--) {
-            float dx = bullet->GetMissilePositions()[m].x - enemy->GetBot01Positions()[e].x;
-            float dy = bullet->GetMissilePositions()[m].y - enemy->GetBot01Positions()[e].y;
+    // Missile hits Bot01 — 4x damage, knockback, SFX+shards on every hit
+    // Shielded bots absorb the missile without taking damage (shield blocks it)
+    for (int m = (int)bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
+        for (int e = (int)bot01->GetBot01Positions().size() - 1; e >= 0; e--) {
+            float dx = bullet->GetMissilePositions()[m].x - bot01->GetBot01Positions()[e].x;
+            float dy = bullet->GetMissilePositions()[m].y - bot01->GetBot01Positions()[e].y;
             if ((dx*dx)/(0.65f*0.65f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
-                Vec3 deathPos = enemy->GetBot01Positions()[e];
+                if (bot01->IsBot01ShieldActive(e)) {
+                    bullet->RemoveMissileAt(m);
+                    break;
+                }
+                Vec3 deathPos = bot01->GetBot01Positions()[e];
+                // Derive impact direction from missile velocity at moment of hit.
+                // normalize(vel) gives the true 3D approach angle — diagonal curve
+                // hits split force across X and Y naturally (industry standard).
+                Vec3  mVel   = bullet->GetMissileVelocities()[m];
+                float mSpd   = sqrtf(mVel.x*mVel.x + mVel.y*mVel.y);
+                float iDirX  = (mSpd > 0.001f) ? mVel.x / mSpd : 1.0f;
+                float iDirY  = (mSpd > 0.001f) ? mVel.y / mSpd : 0.0f;
+                bot01->PushX(e, iDirX * 3.0f); // backward push proportional to X angle
+                bot01->PushY(e, iDirY * 5.5f); // Y push proportional to actual curve angle
                 bullet->RemoveMissileAt(m);
-                if (enemy->DamageBot01(e)) {
-                    SpawnShards(deathPos, 5);
+                if (bot01->DamageBot01(e, 4)) {
+                    SpawnShards(deathPos, 7);
                     score += 100;
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
                         explosionCooldownTimer = explosionCooldown;
                     }
+                } else {
+                    SpawnShards(deathPos, 2);
+                    sfxMissileHit->Play(sfxPlayer);
                 }
                 break;
             }
         }
     }
 
-    // Missile hits large asteroid
-    for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
-        for (int a = enemy->GetAsteroidPositions().size() - 1; a >= 0; a--) {
-            float dx = bullet->GetMissilePositions()[m].x - enemy->GetAsteroidPositions()[a].x;
-            float dy = bullet->GetMissilePositions()[m].y - enemy->GetAsteroidPositions()[a].y;
+    // Missile hits large asteroid — 3x damage, SFX+shards on every hit
+    for (int m = (int)bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
+        for (int a = (int)asteroid->GetAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = bullet->GetMissilePositions()[m].x - asteroid->GetAsteroidPositions()[a].x;
+            float dy = bullet->GetMissilePositions()[m].y - asteroid->GetAsteroidPositions()[a].y;
             if ((dx*dx)/(0.9f*0.9f) + (dy*dy)/(0.75f*0.75f) < 1.0f) {
-                Vec3 deathPos = enemy->GetAsteroidPositions()[a];
+                Vec3 deathPos = asteroid->GetAsteroidPositions()[a];
+                Vec3  mVelA  = bullet->GetMissileVelocities()[m];
+                float mSpdA  = sqrtf(mVelA.x*mVelA.x + mVelA.y*mVelA.y);
+                float iDirAX = (mSpdA > 0.001f) ? mVelA.x / mSpdA : 1.0f;
+                float iDirAY = (mSpdA > 0.001f) ? mVelA.y / mSpdA : 0.0f;
+                asteroid->PushAsteroid(a, iDirAX * 2.5f, iDirAY * 1.5f);
                 bullet->RemoveMissileAt(m);
-                if (enemy->DamageAsteroid(a)) {
+                if (asteroid->DamageAsteroid(a, 3)) {
+                    SpawnShards(deathPos, 5);
+                    score += 50;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
+                } else {
+                    SpawnShards(deathPos, 2);
+                    sfxMissileHit->Play(sfxPlayer);
+                }
+                break;
+            }
+        }
+    }
+
+    // Missile hits small asteroid — 3x damage (instant kill), SFX+shards
+    for (int m = (int)bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
+        for (int a = (int)asteroid->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = bullet->GetMissilePositions()[m].x - asteroid->GetSmallAsteroidPositions()[a].x;
+            float dy = bullet->GetMissilePositions()[m].y - asteroid->GetSmallAsteroidPositions()[a].y;
+            if ((dx*dx)/(0.5f*0.5f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
+                Vec3 deathPos = asteroid->GetSmallAsteroidPositions()[a];
+                Vec3  mVelS  = bullet->GetMissileVelocities()[m];
+                float mSpdS  = sqrtf(mVelS.x*mVelS.x + mVelS.y*mVelS.y);
+                float iDirSX = (mSpdS > 0.001f) ? mVelS.x / mSpdS : 1.0f;
+                float iDirSY = (mSpdS > 0.001f) ? mVelS.y / mSpdS : 0.0f;
+                asteroid->PushSmallAsteroid(a, iDirSX * 4.0f, iDirSY * 2.5f);
+                bullet->RemoveMissileAt(m);
+                if (asteroid->DamageSmallAsteroid(a, 3)) {
                     SpawnShards(deathPos, 3);
+                    score += 25;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
+                } else {
+                    SpawnShards(deathPos, 1);
+                    sfxMissileHit->Play(sfxPlayer);
+                }
+                break;
+            }
+        }
+    }
+
+    // === Shield bubble collision — anything entering the ellipse is destroyed ===
+    // Ellipse shape matches the rendered mesh exactly: X half-axis 1.05, Y 0.75 world units.
+    if (player->IsShieldActive()) {
+        const Vec3  sp  = player->GetPosition();
+        const float srx = player->GetShieldRadiusX();
+        const float sry = player->GetShieldRadiusY();
+        const float srx2 = srx * srx;
+        const float sry2 = sry * sry;
+
+        // Large asteroids
+        for (int a = (int)asteroid->GetAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = asteroid->GetAsteroidPositions()[a].x - sp.x;
+            float dy = asteroid->GetAsteroidPositions()[a].y - sp.y;
+            if ((dx*dx)/srx2 + (dy*dy)/sry2 < 1.0f) {
+                Vec3 pos = asteroid->GetAsteroidPositions()[a];
+                if (asteroid->DamageAsteroid(a, 999)) {
+                    SpawnShards(pos, 3);
+                    score += 10;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
+                }
+            }
+        }
+        // Small asteroids
+        for (int a = (int)asteroid->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
+            float dx = asteroid->GetSmallAsteroidPositions()[a].x - sp.x;
+            float dy = asteroid->GetSmallAsteroidPositions()[a].y - sp.y;
+            if ((dx*dx)/srx2 + (dy*dy)/sry2 < 1.0f) {
+                Vec3 pos = asteroid->GetSmallAsteroidPositions()[a];
+                if (asteroid->DamageSmallAsteroid(a, 999)) {
+                    SpawnShards(pos, 2);
+                    score += 5;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
+                }
+            }
+        }
+        // Bot01
+        for (int e = (int)bot01->GetBot01Positions().size() - 1; e >= 0; e--) {
+            float dx = bot01->GetBot01Positions()[e].x - sp.x;
+            float dy = bot01->GetBot01Positions()[e].y - sp.y;
+            if ((dx*dx)/srx2 + (dy*dy)/sry2 < 1.0f) {
+                Vec3 pos = bot01->GetBot01Positions()[e];
+                if (bot01->DamageBot01(e, 999)) {
+                    SpawnShards(pos, 5);
                     score += 50;
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
-                break;
+            }
+        }
+        // Bot02 bullets — moving-reflector ricochet.
+        //
+        // Why bullets always returned to Bot02 before: Bot02 fires straight at the
+        // player, so the incoming direction is antiparallel to the ellipse normal at
+        // contact — pure elastic reflection sends it exactly back. Adding the shield's
+        // own velocity (player velocity) breaks that symmetry: the reflection is
+        // computed in the shield's moving reference frame, so lateral movement "spins"
+        // the outgoing angle, making deflection skill-based rather than automatic.
+        //
+        // Steps (moving-wall / pool-cue physics):
+        //   1. Express bullet velocity relative to the moving shield: v_rel = v - v_shield
+        //   2. Reflect v_rel elastically off the ellipse normal
+        //   3. Add the shield velocity back to return to world frame
+        //   4. Scale v_shield contribution by kVelInfluence so even slow movement
+        //      visibly steers the shot without feeling random at high speed
+        //   5. Normalize and lock to kRicochetSpeed for consistent punch
+        static constexpr float kRicochetSpeed  = 7.5f;
+        static constexpr float kVelInfluence   = 0.3f; // how much shield motion steers the shot
+        const Vec3 pVel = player->GetVelocity();
+        for (int b = (int)bot02->GetBulletPositions().size() - 1; b >= 0; b--) {
+            Vec3& bPos = bot02->GetBulletPositions()[b];
+            Vec3& bVel = bot02->GetBulletVelocities()[b];
+            float rx = bPos.x - sp.x;
+            float ry = bPos.y - sp.y;
+            if ((rx*rx)/srx2 + (ry*ry)/sry2 < 1.0f) {
+                // Ellipse outward normal: gradient of x²/a² + y²/b²
+                float nx = rx / srx2;
+                float ny = ry / sry2;
+                float nlen = sqrtf(nx*nx + ny*ny);
+                if (nlen > 0.0001f) { nx /= nlen; ny /= nlen; }
+
+                // Bullet velocity in shield's reference frame
+                float rvx = bVel.x - pVel.x;
+                float rvy = bVel.y - pVel.y;
+                float relDotN = rvx * nx + rvy * ny;
+
+                if (relDotN < 0.0f) { // moving inward relative to shield — valid bounce
+                    // Elastic reflection in shield frame
+                    rvx -= 2.0f * relDotN * nx;
+                    rvy -= 2.0f * relDotN * ny;
+
+                    // Back to world frame, with scaled player velocity contribution
+                    float outVx = rvx + pVel.x * kVelInfluence;
+                    float outVy = rvy + pVel.y * kVelInfluence;
+
+                    // Normalize and set fixed punch speed
+                    float spd = sqrtf(outVx*outVx + outVy*outVy);
+                    if (spd > 0.001f) {
+                        bVel.x = outVx / spd * kRicochetSpeed;
+                        bVel.y = outVy / spd * kRicochetSpeed;
+                    }
+                    bot02->MarkBulletReflected(b);
+
+                    if (shieldHitCooldownTimer <= 0.0f) {
+                        sfxShieldHit->Play(sfxPlayer);
+                        shieldHitCooldownTimer = kShieldHitCooldown;
+                    }
+                }
             }
         }
     }
 
-    // Missile hits small asteroid
-    for (int m = bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
-        for (int a = enemy->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
-            float dx = bullet->GetMissilePositions()[m].x - enemy->GetSmallAsteroidPositions()[a].x;
-            float dy = bullet->GetMissilePositions()[m].y - enemy->GetSmallAsteroidPositions()[a].y;
+    // Reflected Bot02 bullets hit any destructible — consumed on first hit
+    for (int b = (int)bot02->GetBulletPositions().size() - 1; b >= 0; b--) {
+        if (!bot02->IsBulletReflected(b)) continue;
+        bool hit = false;
+
+        // Bot02 — 2 damage
+        for (int e = (int)bot02->GetPositions().size() - 1; e >= 0 && !hit; e--) {
+            float dx = bot02->GetBulletPositions()[b].x - bot02->GetPositions()[e].x;
+            float dy = bot02->GetBulletPositions()[b].y - bot02->GetPositions()[e].y;
+            if ((dx*dx)/(0.75f*0.75f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
+                Vec3 deathPos = bot02->GetPositions()[e];
+                bot02->RemoveBullet(b);
+                if (bot02->DamageBot02(e, 2)) {
+                    SpawnShards(deathPos, 8);
+                    score += 300;
+                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
+                }
+                hit = true;
+            }
+        }
+
+        // Bot01 — 2 damage
+        for (int e = (int)bot01->GetBot01Positions().size() - 1; e >= 0 && !hit; e--) {
+            float dx = bot02->GetBulletPositions()[b].x - bot01->GetBot01Positions()[e].x;
+            float dy = bot02->GetBulletPositions()[b].y - bot01->GetBot01Positions()[e].y;
+            if ((dx*dx)/(0.65f*0.65f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
+                Vec3 deathPos = bot01->GetBot01Positions()[e];
+                bot02->RemoveBullet(b);
+                if (bot01->DamageBot01(e, 2)) {
+                    SpawnShards(deathPos, 5);
+                    score += 100;
+                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
+                }
+                hit = true;
+            }
+        }
+
+        // Large asteroid — 3 damage
+        for (int a = (int)asteroid->GetAsteroidPositions().size() - 1; a >= 0 && !hit; a--) {
+            float dx = bot02->GetBulletPositions()[b].x - asteroid->GetAsteroidPositions()[a].x;
+            float dy = bot02->GetBulletPositions()[b].y - asteroid->GetAsteroidPositions()[a].y;
+            if ((dx*dx)/(0.9f*0.9f) + (dy*dy)/(0.75f*0.75f) < 1.0f) {
+                Vec3 deathPos = asteroid->GetAsteroidPositions()[a];
+                bot02->RemoveBullet(b);
+                if (asteroid->DamageAsteroid(a, 3)) {
+                    SpawnShards(deathPos, 3);
+                    score += 50;
+                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
+                }
+                hit = true;
+            }
+        }
+
+        // Small asteroid — 3 damage (instant kill)
+        for (int a = (int)asteroid->GetSmallAsteroidPositions().size() - 1; a >= 0 && !hit; a--) {
+            float dx = bot02->GetBulletPositions()[b].x - asteroid->GetSmallAsteroidPositions()[a].x;
+            float dy = bot02->GetBulletPositions()[b].y - asteroid->GetSmallAsteroidPositions()[a].y;
             if ((dx*dx)/(0.5f*0.5f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
-                Vec3 deathPos = enemy->GetSmallAsteroidPositions()[a];
-                bullet->RemoveMissileAt(m);
-                if (enemy->DamageSmallAsteroid(a)) {
+                Vec3 deathPos = asteroid->GetSmallAsteroidPositions()[a];
+                bot02->RemoveBullet(b);
+                if (asteroid->DamageSmallAsteroid(a, 3)) {
                     SpawnShards(deathPos, 2);
                     score += 25;
-                    if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
-                        explosionCooldownTimer = explosionCooldown;
-                    }
+                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
                 }
-                break;
+                hit = true;
             }
         }
     }
 
     // Asteroid hits player
-    for (int a = enemy->GetAsteroidPositions().size() - 1; a >= 0; a--) {
-        float dx = player->GetPosition().x - enemy->GetAsteroidPositions()[a].x;
-        float dy = player->GetPosition().y - enemy->GetAsteroidPositions()[a].y;
+    for (int a = asteroid->GetAsteroidPositions().size() - 1; a >= 0; a--) {
+        float dx = player->GetPosition().x - asteroid->GetAsteroidPositions()[a].x;
+        float dy = player->GetPosition().y - asteroid->GetAsteroidPositions()[a].y;
         if ((dx*dx)/(1.0f*1.0f) + (dy*dy)/(0.5f*0.5f) < 1.0f) {
-            Vec3 deathPos = enemy->GetAsteroidPositions()[a];
+            Vec3 deathPos = asteroid->GetAsteroidPositions()[a];
             float len = sqrtf(dx*dx + dy*dy);
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx/len * 4.0f, dy/len * 4.0f, 0.0f));
-            enemy->RemoveAsteroid(a);
+            asteroid->RemoveAsteroid(a);
             SpawnShards(deathPos, 3);
             player->TakeDamage(25.0f);
             if (explosionCooldownTimer <= 0.0f) {
@@ -560,14 +1073,14 @@ void SceneMuntasir::Update(const float deltaTime) {
     }
 
     // Small asteroid hits player
-    for (int a = enemy->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
-        float dx = player->GetPosition().x - enemy->GetSmallAsteroidPositions()[a].x;
-        float dy = player->GetPosition().y - enemy->GetSmallAsteroidPositions()[a].y;
+    for (int a = asteroid->GetSmallAsteroidPositions().size() - 1; a >= 0; a--) {
+        float dx = player->GetPosition().x - asteroid->GetSmallAsteroidPositions()[a].x;
+        float dy = player->GetPosition().y - asteroid->GetSmallAsteroidPositions()[a].y;
         if ((dx*dx)/(0.65f*0.65f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
-            Vec3 deathPos = enemy->GetSmallAsteroidPositions()[a];
+            Vec3 deathPos = asteroid->GetSmallAsteroidPositions()[a];
             float len = sqrtf(dx*dx + dy*dy);
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx/len * 2.5f, dy/len * 2.5f, 0.0f));
-            enemy->RemoveSmallAsteroid(a);
+            asteroid->RemoveSmallAsteroid(a);
             SpawnShards(deathPos, 2);
             player->TakeDamage(10.0f);
             if (explosionCooldownTimer <= 0.0f) {
@@ -578,14 +1091,14 @@ void SceneMuntasir::Update(const float deltaTime) {
     }
 
     // Bot01 hits player
-    for (int e = enemy->GetBot01Positions().size() - 1; e >= 0; e--) {
-        float dx = player->GetPosition().x - enemy->GetBot01Positions()[e].x;
-        float dy = player->GetPosition().y - enemy->GetBot01Positions()[e].y;
+    for (int e = bot01->GetBot01Positions().size() - 1; e >= 0; e--) {
+        float dx = player->GetPosition().x - bot01->GetBot01Positions()[e].x;
+        float dy = player->GetPosition().y - bot01->GetBot01Positions()[e].y;
         if ((dx*dx)/(0.75f*0.75f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
-            Vec3 deathPos = enemy->GetBot01Positions()[e];
+            Vec3 deathPos = bot01->GetBot01Positions()[e];
             float len = sqrtf(dx*dx + dy*dy);
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx/len * 5.0f, dy/len * 5.0f, 0.0f));
-            enemy->RemoveBot01(e);
+            bot01->RemoveBot01(e);
             SpawnShards(deathPos, 5);
             player->TakeDamage(40.0f);
             if (explosionCooldownTimer <= 0.0f) {
@@ -595,20 +1108,112 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
+    // Bullet hits Bot02
+    for (int b = bullet->GetPositions().size() - 1; b >= 0; b--) {
+        for (int e = bot02->GetPositions().size() - 1; e >= 0; e--) {
+            float dx = bullet->GetPositions()[b].x - bot02->GetPositions()[e].x;
+            float dy = bullet->GetPositions()[b].y - bot02->GetPositions()[e].y;
+            if ((dx*dx)/(0.7f*0.7f) + (dy*dy)/(0.35f*0.35f) < 1.0f) {
+                Vec3 deathPos = bot02->GetPositions()[e];
+                bullet->RemoveAt(b);
+                bot02->PushBot02(e, 0.5f, 0.0f);
+                if (bot02->DamageBot02(e)) {
+                    SpawnShards(deathPos, 8);
+                    score += 300;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    // Missile hits Bot02 — 4x damage, SFX+shards on every hit
+    for (int m = (int)bullet->GetMissilePositions().size() - 1; m >= 0; m--) {
+        for (int e = (int)bot02->GetPositions().size() - 1; e >= 0; e--) {
+            float dx = bullet->GetMissilePositions()[m].x - bot02->GetPositions()[e].x;
+            float dy = bullet->GetMissilePositions()[m].y - bot02->GetPositions()[e].y;
+            if ((dx*dx)/(0.75f*0.75f) + (dy*dy)/(0.4f*0.4f) < 1.0f) {
+                Vec3 deathPos = bot02->GetPositions()[e];
+                Vec3  mVel2  = bullet->GetMissileVelocities()[m];
+                float mSpd2  = sqrtf(mVel2.x*mVel2.x + mVel2.y*mVel2.y);
+                float iDirX2 = (mSpd2 > 0.001f) ? mVel2.x / mSpd2 : 1.0f;
+                float iDirY2 = (mSpd2 > 0.001f) ? mVel2.y / mSpd2 : 0.0f;
+                bot02->PushBot02(e, iDirX2 * 2.0f, iDirY2 * 3.5f);
+                bullet->RemoveMissileAt(m);
+                if (bot02->DamageBot02(e, 4)) {
+                    SpawnShards(deathPos, 10);
+                    score += 300;
+                    if (explosionCooldownTimer <= 0.0f) {
+                        sfxExplosion->Play(sfxPlayer);
+                        explosionCooldownTimer = explosionCooldown;
+                    }
+                } else {
+                    SpawnShards(deathPos, 3);
+                    sfxMissileHit->Play(sfxPlayer);
+                }
+                break;
+            }
+        }
+    }
+
+    // Bot02 hits player
+    for (int e = bot02->GetPositions().size() - 1; e >= 0; e--) {
+        float dx = player->GetPosition().x - bot02->GetPositions()[e].x;
+        float dy = player->GetPosition().y - bot02->GetPositions()[e].y;
+        if ((dx*dx)/(0.8f*0.8f) + (dy*dy)/(0.45f*0.45f) < 1.0f) {
+            Vec3 deathPos = bot02->GetPositions()[e];
+            float len = sqrtf(dx*dx + dy*dy);
+            if (len > 0.001f) player->ApplyImpulse(Vec3(dx/len * 6.0f, dy/len * 6.0f, 0.0f));
+            bot02->RemoveBot02(e);
+            SpawnShards(deathPos, 8);
+            player->TakeDamage(50.0f);
+            if (explosionCooldownTimer <= 0.0f) {
+                sfxExplosion->Play(sfxPlayer);
+                explosionCooldownTimer = explosionCooldown;
+            }
+        }
+    }
+
+    // Bot02 bullet hits player — slow, precise, heavy impact
+    for (int b = (int)bot02->GetBulletPositions().size() - 1; b >= 0; b--) {
+        float dx = player->GetPosition().x - bot02->GetBulletPositions()[b].x;
+        float dy = player->GetPosition().y - bot02->GetBulletPositions()[b].y;
+        if (dx*dx + dy*dy < 0.35f * 0.35f) {
+            if (player->IsShieldActive()) {
+                bot02->RemoveBullet(b);
+                if (shieldHitCooldownTimer <= 0.0f) {
+                    sfxShieldHit->Play(sfxPlayer);
+                    shieldHitCooldownTimer = kShieldHitCooldown;
+                }
+            } else {
+                Vec3 vel = bot02->GetBulletVelocities()[b];
+                float vlen = sqrtf(vel.x*vel.x + vel.y*vel.y);
+                if (vlen > 0.001f)
+                    player->ApplyImpulse(Vec3(vel.x/vlen * -5.0f, vel.y/vlen * -5.0f, 0.0f));
+                bot02->RemoveBullet(b);
+                player->TakeDamage(25.0f);
+                if (explosionCooldownTimer <= 0.0f) {
+                    sfxExplosion->Play(sfxPlayer);
+                    explosionCooldownTimer = explosionCooldown;
+                }
+            }
+        }
+    }
+
+    // All spawning is driven by the level script.
+    // The only phase gates remaining are the Bot02 intro window (phase 3) pause flags.
+    bool asteroidsSpawning = currentPhase < 3 || currentPhase >= 4;
+    bot01->SetSpawningEnabled(currentPhase != 3);
+    asteroid->SetSpawningEnabled(asteroidsSpawning);
+
     // Life-loss detection — after all collision damage this frame.
     int currentLives = player->GetLives();
     if (currentLives < prevLives) {
-        if (shardCount > 0) {
-            // Drop shards at death position — replaces any previous pile
-            lostShards.pos        = player->GetPosition();
-            lostShards.count      = shardCount;
-            lostShards.pulseTimer = 0.0f;
-            hasLostShards         = true;
-            shardCount            = 0;
-        }
-        // If shardCount == 0: keep any existing pile — dying broke doesn't erase
-        // previously dropped shards (player still has a chance to recover them)
-        SaveGame();  // snapshot: one fewer life, 0 shards, pile recorded
+        // Shards stay on individual life loss — only a complete game over drops them
+        SaveGame();
     }
     prevLives = currentLives;
 }
@@ -655,40 +1260,39 @@ void SceneMuntasir::RenderBackground() {
 
 // Render
 void SceneMuntasir::Render() const {
+    bool anyWarp = environment->IsWarpActive();
+
     glEnable(GL_DEPTH_TEST);
     glClear(GL_DEPTH_BUFFER_BIT); // color already set by RenderBackground
 
-    // Wireframe
-    if (drawInWireMode) {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    }
-    else {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    }
+    if (drawInWireMode) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    else                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     glUseProgram(shader->GetProgram());
 
-    // Light and camera position (sent to frag shader)
-    glUniform3f(shader->GetUniformID("lightPos"), 0.0f, 50.0f, 10.0f);
-    glUniform3f(shader->GetUniformID("viewPos"), 0.0f, 0.0f, 10.0f);
+    glUniform3f(shader->GetUniformID("lightPos"), 0.0f, 50.0f, GameConst::kCameraZ);
+    glUniform3f(shader->GetUniformID("viewPos"),  0.0f,  0.0f, GameConst::kCameraZ);
 
-    // Player — colors set per-part inside Player::Render()
+    // Player always visible during any warp
     player->Render(shader, projectionMatrix, viewMatrix);
 
-    // Bullets — YELLOW
-    glUniform4f(shader->GetUniformID("color"), 1.0f, 1.0f, 0.0f, 1.0f);
-    bullet->Render(shader, projectionMatrix, viewMatrix);
+    // Enemies, bullets and level geometry hidden during any warp
+    if (!anyWarp) {
+        glUniform4f(shader->GetUniformID("color"), 1.0f, 1.0f, 0.0f, 1.0f);
+        bullet->Render(shader, projectionMatrix, viewMatrix);
 
-    enemy->Render(shader, projectionMatrix, viewMatrix);
+        levelDirector->Render(shader, projectionMatrix, viewMatrix);
+        asteroid->Render(shader, projectionMatrix, viewMatrix);
+        bot01->Render(shader, projectionMatrix, viewMatrix);
+        bot02->Render(shader, projectionMatrix, viewMatrix);
+    }
 
-    // Energy shards + lost shard pile — additive emissive
-    if (!shards.empty() || hasLostShards) {
+    // Energy shards — additive emissive spinning orbs
+    if (!shards.empty()) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE);
         glDepthMask(GL_FALSE);
         glUniform1f(shader->GetUniformID("emissive"), 1.0f);
-
-        // Regular shards — spinning gold orbs (scale 0.12, visible now)
         glUniform4f(shader->GetUniformID("color"), 1.0f, 0.85f, 0.1f, 0.9f);
         for (int i = 0; i < (int)shards.size(); i++) {
             Matrix4 m = MMath::translate(shards[i].pos) *
@@ -697,32 +1301,13 @@ void SceneMuntasir::Render() const {
             glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
             shardMesh->Render();
         }
-
-        // Lost shard pile — larger pulsing white-gold cluster at death position
-        if (hasLostShards) {
-            float pulse = 0.55f + 0.45f * sinf(lostShards.pulseTimer * 4.5f);
-            glUniform4f(shader->GetUniformID("color"), 1.0f, 0.92f, 0.4f, pulse);
-            // Draw 3 orbs in a small cluster around the drop point
-            const Vec3 offsets[3] = {
-                Vec3( 0.00f,  0.00f, 0.0f),
-                Vec3( 0.18f,  0.10f, 0.0f),
-                Vec3(-0.18f,  0.10f, 0.0f)
-            };
-            for (int k = 0; k < 3; k++) {
-                Vec3 p = lostShards.pos + offsets[k];
-                float spin = lostShards.pulseTimer * 60.0f + k * 120.0f;
-                Matrix4 m = MMath::translate(p) *
-                            MMath::rotate(spin, Vec3(0.0f, 0.0f, 1.0f)) *
-                            MMath::scale(0.18f, 0.18f, 0.18f);
-                glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, m);
-                shardMesh->Render();
-            }
-        }
-
         glUniform1f(shader->GetUniformID("emissive"), 0.0f);
         glDepthMask(GL_TRUE);
         glDisable(GL_BLEND);
     }
+
+    // Shard beacon — satellite marker at death position (manages its own GL state)
+    shardBeacon->Render(shader, projectionMatrix, viewMatrix);
 
     glUseProgram(0);
 
@@ -730,22 +1315,88 @@ void SceneMuntasir::Render() const {
     environment->Render();
 }
 
-// DrawGui
+// Plays a quiet click when the cursor first moves onto a new ImGui widget.
+void SceneMuntasir::PlayHoverSound() {
+    if (!uiClickSound || !hoverStream || !ImGui::IsItemHovered()) return;
+    unsigned int id  = ImGui::GetItemID();
+    Uint64       now = SDL_GetTicks();
+    if (id == lastHoveredId || now - lastHoverTick < 150) return;
+    lastHoveredId = id;
+    lastHoverTick = now;
+    uiClickSound->Play(hoverStream);
+}
+
 void SceneMuntasir::DrawGui() {
+    if (showDebugOverlay) debugOverlay->Draw();
 
-    auto chkHov = [&]() {
-        if (!uiClickSound || !hoverStream || !ImGui::IsItemHovered()) return;
-        unsigned int id  = ImGui::GetItemID();
-        Uint64       now = SDL_GetTicks();
-        if (id == lastHoveredId || now - lastHoverTick < 150) return;
-        lastHoveredId = id;
-        lastHoverTick = now;
-        uiClickSound->Play(hoverStream);
-    };
+    // ── Camera Debug (F10) ────────────────────────────────────────────────────
+    if (showCameraDebug) {
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, 20.0f), ImGuiCond_Always, ImVec2(0.5f, 0.0f));
+        ImGui::SetNextWindowSize(ImVec2(380, 0), ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.88f);
+        ImGui::Begin("##camdbg", nullptr,
+            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize   |
+            ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoScrollbar |
+            ImGuiWindowFlags_AlwaysAutoResize);
 
-    // Game HUD (always visible)
+        ImGui::TextColored(ImVec4(0.4f, 0.9f, 1.0f, 1.0f), "CAMERA DEBUG  [F10]");
+        ImGui::Separator();
+
+        bool changed = ImGui::SliderFloat("FOV", &debugCameraFOV, 25.0f, 75.0f, "%.1f deg");
+
+        // Preset buttons
+        ImGui::Spacing();
+        static const char*  presetLabels[] = { "30deg", "40deg", "48deg", "50deg", "60deg", "70deg" };
+        static const float  presetFOVs[]   = {  30.0f,   40.0f,   48.0f,   50.0f,   60.0f,   70.0f };
+        for (int i = 0; i < 6; i++) {
+            if (ImGui::Button(presetLabels[i])) { debugCameraFOV = presetFOVs[i]; changed = true; }
+            ImGui::SameLine();
+        }
+        ImGui::NewLine();
+
+        // Show derived camera Z
+        float halfFov  = debugCameraFOV * GameConst::kPi / 180.0f * 0.5f;
+        float dist     = 7.0f / tanf(halfFov);
+        float camZ     = GameConst::kWorldZ + dist;
+        ImGui::TextDisabled("Camera Z: %.2f   Dist to objects: %.2f", camZ, dist);
+
+        // Dev key reference — collapsed by default, click to expand
+        ImGui::Spacing();
+        ImGui::Separator();
+        if (ImGui::CollapsingHeader("DEV KEYS")) {
+            ImGui::TextDisabled("F1   SceneSTG (placeholder)");
+            ImGui::TextDisabled("F2   SceneJA  (Jacky test scene)");
+            ImGui::TextDisabled("F3   SceneMuntasir (skip title)");
+            ImGui::TextDisabled("F9   Debug overlay  (Minimal / Detailed)");
+            ImGui::TextDisabled("F10  This window");
+            ImGui::TextDisabled("Q    Hold 3s — trigger full warp");
+            ImGui::TextDisabled("F12  Wireframe toggle");
+        }
+
+        ImGui::End();
+
+        // Apply live — rebuild matrices whenever slider or button changed
+        if (changed) {
+            viewMatrix       = MMath::lookAt(Vec3(0.0f, 0.0f, camZ), Vec3(0.0f, 0.0f, -1.0f), Vec3(0.0f, 1.0f, 0.0f));
+            projectionMatrix = MMath::perspective(debugCameraFOV, currentAspect, 0.1f, 100.0f);
+            glUseProgram(shader->GetProgram());
+            glUniform3f(shader->GetUniformID("viewPos"), 0.0f, 0.0f, camZ);
+        }
+    }
+
+    if (environment->IsFullWarp()) return;       // hide all HUD during cinematic warp
+    DrawHUD();
+    DrawPauseMenu();
+    DrawGameOver();
+}
+
+// ── HUD — always-visible overlay ─────────────────────────────────────────────
+void SceneMuntasir::DrawHUD() {
+
+    // ── Game HUD (always visible) ─────────────────────────────────────────
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(280, 210), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(318, 292), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.75f);
     ImGui::Begin("##hud", nullptr,
         ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoMove        |
@@ -756,8 +1407,36 @@ void SceneMuntasir::DrawGui() {
         "PILOT: %s", SaveData::current.profileName.c_str());
     ImGui::Text("SCORE: %-8d   HI: %d", score, SaveData::current.highScore);
     ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.1f, 1.0f), "SHARDS: %d", shardCount);
-    ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.1f, 1.0f),
-        "MISSILES: %d / %d", bullet->GetMissileCount(), bullet->GetMaxMissiles());
+    // Missile slots — solid colored bars (green=ready, dark=spent) + vertical reload bar
+    ImGui::Text("MISSILES");
+    const ImVec2 slotSize(14.0f, 22.0f);
+    const float  slotGap  = 3.0f;
+    int maxM = bullet->GetMaxMissiles();
+    int curM = bullet->GetMissileCount();
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    for (int mi = 0; mi < maxM; mi++) {
+        if (mi > 0) ImGui::SameLine(0.0f, slotGap);
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        bool  ready = (mi < curM);
+        ImU32 fill  = ready ? IM_COL32(55, 210, 80, 255) : IM_COL32(28, 28, 28, 220);
+        dl->AddRectFilled(p, ImVec2(p.x + slotSize.x, p.y + slotSize.y), fill, 2.0f);
+        dl->AddRect(p, ImVec2(p.x + slotSize.x, p.y + slotSize.y), IM_COL32(160, 160, 160, 200), 2.0f);
+        ImGui::Dummy(slotSize);
+    }
+    // Vertical reload bar — fills from the bottom up while a slot reloads
+    if (curM < maxM) {
+        ImGui::SameLine(0.0f, slotGap * 2.0f);
+        float   frac    = bullet->GetReloadFraction();
+        ImVec2  p       = ImGui::GetCursorScreenPos();
+        ImVec2  barSize(7.0f, slotSize.y);
+        float   fillH   = barSize.y * frac;
+        dl->AddRectFilled(p, ImVec2(p.x + barSize.x, p.y + barSize.y), IM_COL32(28, 28, 28, 220), 2.0f);
+        dl->AddRectFilled(ImVec2(p.x, p.y + barSize.y - fillH),
+                          ImVec2(p.x + barSize.x, p.y + barSize.y),
+                          IM_COL32(255, 165, 30, 230), 2.0f);
+        dl->AddRect(p, ImVec2(p.x + barSize.x, p.y + barSize.y), IM_COL32(160, 160, 160, 200), 2.0f);
+        ImGui::Dummy(barSize);
+    }
 
     // Lives
     ImGui::Text("LIVES:");
@@ -772,34 +1451,191 @@ void SceneMuntasir::DrawGui() {
                  : hp > 0.3f ? ImVec4(1.0f, 1.0f, 0.0f, 1.0f)
                              : ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
     ImGui::PushStyleColor(ImGuiCol_PlotHistogram, hpCol);
-    ImGui::ProgressBar(hp, ImVec2(250, 18), "");
+    ImGui::ProgressBar(hp, ImVec2(-1.0f, 20.0f), "");
     ImGui::PopStyleColor();
 
-    // Shield status
-    if (player->IsShieldActive()) {
-        ImGui::TextColored(ImVec4(0.0f, 0.5f, 1.0f, 1.0f), "SHIELD ACTIVE!");
-    } else if (player->IsShieldOnCooldown()) {
-        ImGui::Text("Shield Recharging...");
-        ImGui::ProgressBar(player->GetShieldCooldownPercent(), ImVec2(250, 12), "");
-    } else {
-        ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "SHIELD READY  [E]");
+    // Shield — three-chunk bar: red (critical) | orange (warning) | cyan (safe)
+    // Chunks match the three recharge penalty tiers locked in at deactivation.
+    {
+        float charge = player->GetShieldChargeFraction(); // 1=full, 0=empty
+
+        if (player->IsShieldActive()) {
+            ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "SHIELD ACTIVE  [E]");
+        } else if (player->IsShieldRecharging()) {
+            ImGui::TextColored(ImVec4(0.75f, 0.75f, 0.75f, 1.0f), "SHIELD RECHARGING");
+        } else {
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "SHIELD READY  [E]");
+        }
+
+        ImDrawList* dl   = ImGui::GetWindowDrawList();
+        ImVec2      pos  = ImGui::GetCursorScreenPos();
+        float       barW = ImGui::GetContentRegionAvail().x;
+        const float barH = 12.0f;
+        const float gap  = 3.0f;
+
+        // Chunk widths — proportional to their charge range
+        float wRed  = barW * 0.10f;
+        float wOrg  = barW * 0.10f;
+        float wCyan = barW * 0.80f - gap * 2.0f;
+
+        float xRed  = pos.x;
+        float xOrg  = xRed  + wRed  + gap;
+        float xCyan = xOrg  + wOrg  + gap;
+        float y0    = pos.y;
+        float y1    = pos.y + barH;
+
+        // Fill fractions — each chunk fills independently for its tier
+        float fRed  = charge <= 0.10f ? charge / 0.10f : 1.0f;
+        float fOrg  = charge <= 0.10f ? 0.0f : charge <= 0.20f ? (charge - 0.10f) / 0.10f : 1.0f;
+        float fCyan = charge <= 0.20f ? 0.0f : (charge - 0.20f) / 0.80f;
+
+        const ImU32 bgCol   = IM_COL32( 25,  25,  45, 210);
+        const ImU32 redCol  = IM_COL32(220,  35,  35, 255);
+        const ImU32 orgCol  = IM_COL32(255, 140,   0, 255);
+        const ImU32 cyanCol = IM_COL32(  0, 185, 255, 255);
+        const ImU32 rimCol  = IM_COL32(255, 255, 255,  35);
+        const float r       = 2.0f;
+
+        // Red chunk
+        dl->AddRectFilled(ImVec2(xRed,  y0), ImVec2(xRed  + wRed,  y1), bgCol,  r);
+        if (fRed  > 0.0f) dl->AddRectFilled(ImVec2(xRed,  y0), ImVec2(xRed  + wRed  * fRed,  y1), redCol,  r);
+        dl->AddRect(      ImVec2(xRed,  y0), ImVec2(xRed  + wRed,  y1), rimCol, r);
+
+        // Orange chunk
+        dl->AddRectFilled(ImVec2(xOrg,  y0), ImVec2(xOrg  + wOrg,  y1), bgCol,  r);
+        if (fOrg  > 0.0f) dl->AddRectFilled(ImVec2(xOrg,  y0), ImVec2(xOrg  + wOrg  * fOrg,  y1), orgCol,  r);
+        dl->AddRect(      ImVec2(xOrg,  y0), ImVec2(xOrg  + wOrg,  y1), rimCol, r);
+
+        // Cyan chunk
+        dl->AddRectFilled(ImVec2(xCyan, y0), ImVec2(xCyan + wCyan, y1), bgCol,  r);
+        if (fCyan > 0.0f) dl->AddRectFilled(ImVec2(xCyan, y0), ImVec2(xCyan + wCyan * fCyan, y1), cyanCol, r);
+        dl->AddRect(      ImVec2(xCyan, y0), ImVec2(xCyan + wCyan, y1), rimCol, r);
+
+        ImGui::Dummy(ImVec2(barW, barH));
     }
 
-    // Lost shard warning
-    if (hasLostShards) {
+    // Lost shard beacon status
+    if (beaconTriggerTime > 0.0f && !shardBeacon->IsActive()) {
+        float timeLeft = beaconTriggerTime - levelDirector->GetTime();
+        ImGui::TextColored(ImVec4(1.0f, 0.70f, 0.10f, 0.85f),
+            "BEACON IN %.0fs  [%d shards]",
+            timeLeft, SaveData::current.lostShardCount);
+    } else if (shardBeacon->IsActive()) {
         ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.05f, 1.0f),
-            ">> LOST SHARDS: %d", lostShards.count);
+            ">> RECOVER %d LOST SHARDS", shardBeacon->GetCount());
+    }
+
+    // Warp Drive charge — always visible in HUD
+    ImGui::Separator();
+    {
+        bool  charging = f11Held && !environment->IsWarpActive();
+        float progress = charging ? (f11HoldTimer / 3.0f) : 0.0f;
+        float t        = (float)ImGui::GetTime();
+
+        // Label left, hint right-aligned to avoid border clipping
+        ImVec4 labelCol = charging
+            ? ImVec4(0.4f + progress * 0.6f, 0.7f + progress * 0.3f, 1.0f, 1.0f)
+            : ImVec4(0.55f, 0.80f, 1.0f, 0.95f);
+        ImGui::TextColored(labelCol, "WARP DRIVE");
+        const char* hint = charging ? "release to cancel" : "HOLD Q";
+        float hintW = ImGui::CalcTextSize(hint).x;
+        ImGui::SameLine(0, 0);
+        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - hintW - ImGui::GetStyle().WindowPadding.x);
+        ImGui::TextDisabled("%s", hint);
+
+        // Full-width bar
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.04f, 0.04f, 0.12f, 0.95f));
+        if (charging) {
+            // Charging: dark-blue → bright cyan fill
+            ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
+                ImVec4(progress * 0.15f, 0.35f + progress * 0.65f, 1.0f, 1.0f));
+            ImGui::ProgressBar(progress, ImVec2(-1.0f, 16.0f), "");
+            ImGui::PopStyleColor(2);
+        } else {
+            // Idle: full bar with animated electric-blue → violet gradient
+            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.05f, 0.08f, 0.18f, 1.0f));
+            ImGui::ProgressBar(1.0f, ImVec2(-1.0f, 16.0f), "");
+            ImGui::PopStyleColor(2);
+            float  pulse = 0.70f + 0.30f * sinf(t * 1.4f);
+            int    a     = (int)(248 * pulse);
+            ImVec2 bMin  = ImGui::GetItemRectMin();
+            ImVec2 bMax  = ImGui::GetItemRectMax();
+            ImGui::GetWindowDrawList()->AddRectFilledMultiColor(
+                bMin, bMax,
+                IM_COL32(0,   195, 255, a),   // electric blue (left)
+                IM_COL32(160,  35, 255, a),   // violet (right)
+                IM_COL32(160,  35, 255, a),
+                IM_COL32(0,   195, 255, a)
+            );
+        }
     }
 
     ImGui::TextDisabled("ESC  Pause");
-
     ImGui::End();
 
-    // Pause Menu
-    if (gamePaused) {
-        ImGuiIO& io   = ImGui::GetIO();
+    // ── Level Timer — top, left of camera debug panel ────────────────────────
+    {
+        float levelSec = levelDirector->GetTime();
+        int   mm       = (int)(levelSec / 60.0f);
+        int   ss       = (int)(levelSec) % 60;
+        float t        = (float)ImGui::GetTime();
+
+        ImGuiIO& io = ImGui::GetIO();
+        // Camera debug sits at cx ± 190 (380 px wide, centered).
+        // Pin the timer's right edge 10 px left of that panel's left edge.
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f - 200.0f, 20.0f),
+                                ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.03f, 0.05f, 0.13f, 0.90f));
+        ImGui::PushStyleColor(ImGuiCol_Border,   ImVec4(0.15f, 0.55f, 1.0f,  0.55f));
+        ImGui::Begin("##leveltimer", nullptr,
+            ImGuiWindowFlags_NoTitleBar     | ImGuiWindowFlags_AlwaysAutoResize |
+            ImGuiWindowFlags_NoMove         | ImGuiWindowFlags_NoScrollbar      |
+            ImGuiWindowFlags_NoSavedSettings| ImGuiWindowFlags_NoNav            |
+            ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+        // Small spaced header — body font (no scaling)
+        ImGui::TextDisabled("  L E V E L  ");
+
+        // Large MM:SS — dedicated 32 px raster, crisp at any resolution
+        ImGui::PushFont(AppFonts::large);
+        float colonAlpha = 0.35f + 0.65f * sinf(t * GameConst::kPi);
+        ImGui::TextColored(ImVec4(0.15f, 0.88f, 1.0f,  1.0f), "%02d", mm);
+        ImGui::SameLine(0, 0);
+        ImGui::TextColored(ImVec4(1.0f,  1.0f,  1.0f,  colonAlpha), ":");
+        ImGui::SameLine(0, 0);
+        ImGui::TextColored(ImVec4(0.65f, 0.25f, 1.0f,  1.0f), "%02d", ss);
+        ImGui::PopFont();
+
+        ImGui::End();
+        ImGui::PopStyleColor(2);
+    }
+
+    // ── Build Version — bottom-right ──────────────────────────────────────────
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 10.0f, io.DisplaySize.y - 10.0f),
+                                ImGuiCond_Always, ImVec2(1.0f, 1.0f));
+        ImGui::SetNextWindowBgAlpha(0.0f);
+        ImGui::Begin("##buildver", nullptr,
+            ImGuiWindowFlags_NoTitleBar     | ImGuiWindowFlags_AlwaysAutoResize |
+            ImGuiWindowFlags_NoMove         | ImGuiWindowFlags_NoScrollbar      |
+            ImGuiWindowFlags_NoSavedSettings| ImGuiWindowFlags_NoNav            |
+            ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoInputs);
+
+        ImGui::TextDisabled("Alpha Engine  v%d.%d.%d  build %d",
+            AppVersion::kMajor, AppVersion::kMinor, AppVersion::kPatch, AppVersion::kBuild);
+
+        ImGui::End();
+    }
+}
+
+// ── Pause Menu ────────────────────────────────────────────────────────────────
+void SceneMuntasir::DrawPauseMenu() {
+    if (!gamePaused) return;
+
+    ImGuiIO& io   = ImGui::GetIO();
         float    panW = 380.0f;
-        float    panH = pauseShowSettings ? 590.0f : 275.0f;
+        float    panH = pauseShowSettings ? 640.0f : 275.0f;
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
@@ -827,7 +1663,7 @@ void SceneMuntasir::DrawGui() {
         ImGui::SetCursorPosX(btnX);
         if (ImGui::Button("RESUME", ImVec2(btnW, 40.0f)))
             gamePaused = false;
-        chkHov();
+        PlayHoverSound();
 
         ImGui::Spacing();
 
@@ -839,45 +1675,47 @@ void SceneMuntasir::DrawGui() {
                 pendingResIndex   = SaveData::current.resolutionIndex;
                 pendingFullscreen = SaveData::current.fullscreen;
                 pendingVsync      = SaveData::current.vsyncMode;
+                pendingTargetFPS  = SaveData::current.targetFPS;
             }
             pauseShowSettings = !pauseShowSettings;
         }
-        chkHov();
+        PlayHoverSound();
 
         if (pauseShowSettings) {
-            // Audio
+            // ── Audio ──────────────────────────────────────────────────────
             ImGui::Spacing();
             ImGui::SetCursorPosX(btnX);
             ImGui::Text("Music Volume");
             ImGui::SetCursorPosX(btnX);
             ImGui::SetNextItemWidth(btnW);
             if (ImGui::SliderFloat("##music", &musicVolume, 0.0f, 1.0f))
-                SDL_SetAudioStreamGain(audioPlayer, musicVolume);
+                SDL_SetAudioStreamGain(bgmPlayer, musicVolume);
 
             ImGui::SetCursorPosX(btnX);
             ImGui::Text("SFX Volume");
             ImGui::SetCursorPosX(btnX);
             ImGui::SetNextItemWidth(btnW);
             if (ImGui::SliderFloat("##sfx", &sfxVolume, 0.0f, 1.0f)) {
-                SDL_SetAudioStreamGain(sfxPlayer,   sfxVolume);
-                if (hoverStream) SDL_SetAudioStreamGain(hoverStream, sfxVolume * 0.35f);
+                SDL_SetAudioStreamGain(sfxPlayer,        sfxVolume);
+                SDL_SetAudioStreamGain(sfxLaserHitStream, sfxVolume * 2.0f);
+                if (hoverStream) SDL_SetAudioStreamGain(hoverStream, sfxVolume * GameConst::kHoverStreamGain);
             }
 
             ImGui::SetCursorPosX(btnX);
             if (musicPaused) {
                 if (ImGui::Button("Play Music", ImVec2(btnW, 28.0f))) {
-                    SDL_ResumeAudioStreamDevice(audioPlayer);
+                    SDL_ResumeAudioStreamDevice(bgmPlayer);
                     musicPaused = false;
                 }
             } else {
                 if (ImGui::Button("Pause Music", ImVec2(btnW, 28.0f))) {
-                    SDL_PauseAudioStreamDevice(audioPlayer);
+                    SDL_PauseAudioStreamDevice(bgmPlayer);
                     musicPaused = true;
                 }
             }
-            chkHov();
+            PlayHoverSound();
 
-            // Video
+            // ── Video ──────────────────────────────────────────────────────
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
@@ -903,17 +1741,32 @@ void SceneMuntasir::DrawGui() {
             ImGui::SameLine();
             if (ImGui::RadioButton("Off##vs",      pendingVsync ==  0)) pendingVsync =  0;
 
+            // Frame Cap (only meaningful when Sync is Off)
+            ImGui::SetCursorPosX(btnX);
+            ImGui::Text("Frame Cap");
+            ImGui::SameLine();
+            {
+                static const char* capLabels[] = { "Uncapped", "240 FPS", "144 FPS", "120 FPS", "60 FPS" };
+                static const int   capValues[] = { 0, 240, 144, 120, 60 };
+                int capIdx = 0;
+                for (int ci = 0; ci < 5; ci++) if (capValues[ci] == pendingTargetFPS) { capIdx = ci; break; }
+                ImGui::SetNextItemWidth(btnW - 100.0f);
+                if (ImGui::Combo("##cap", &capIdx, capLabels, 5))
+                    pendingTargetFPS = capValues[capIdx];
+            }
+
             ImGui::Spacing();
             ImGui::SetCursorPosX(btnX);
             if (ImGui::Button("APPLY VIDEO", ImVec2(btnW, 30))) {
                 SaveData::current.resolutionIndex = pendingResIndex;
                 SaveData::current.fullscreen      = pendingFullscreen;
                 SaveData::current.vsyncMode       = pendingVsync;
+                SaveData::current.targetFPS       = pendingTargetFPS;
                 int w = SaveData::kResolutionW[pendingResIndex];
                 int h = SaveData::kResolutionH[pendingResIndex];
                 SceneSwitcher::RequestVideo(pendingFullscreen, w, h, pendingVsync);
             }
-            chkHov();
+            PlayHoverSound();
         }
 
         ImGui::Spacing();
@@ -925,7 +1778,7 @@ void SceneMuntasir::DrawGui() {
             gamePaused = false;
             SceneSwitcher::Request(GameScene::TITLE);
         }
-        chkHov();
+        PlayHoverSound();
 
         ImGui::Spacing();
 
@@ -934,18 +1787,20 @@ void SceneMuntasir::DrawGui() {
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.75f, 0.15f, 0.15f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(1.00f, 0.20f, 0.20f, 1.0f));
         if (ImGui::Button("QUIT GAME", ImVec2(btnW, 36.0f))) {
-            SDL_Event e; e.type = SDL_EVENT_QUIT;
+            SDL_Event e{}; e.type = SDL_EVENT_QUIT;
             SDL_PushEvent(&e);
         }
-        chkHov();
+        PlayHoverSound();
         ImGui::PopStyleColor(3);
 
-        ImGui::End();
-    }
+    ImGui::End();
+}
 
-    // Game Over screen
-    if (gameOver) {
-        ImGuiIO& io = ImGui::GetIO();
+// ── Game Over screen ──────────────────────────────────────────────────────────
+void SceneMuntasir::DrawGameOver() {
+    if (!gameOver) return;
+
+    ImGuiIO& io = ImGui::GetIO();
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
@@ -968,29 +1823,37 @@ void SceneMuntasir::DrawGui() {
         ImGui::Spacing();
         ImGui::SetCursorPosX(50);
         if (ImGui::Button("Try Again", ImVec2(120, 40))) {
-            gameOver      = false;
-            score         = 0;
-            shardCount    = 0;
-            hasLostShards = false;
+            gameOver   = false;
+            score      = 0;
+            shardCount = 0;
             shards.clear();
             autoSaveTimer = 0.0f;
+            currentPhase  = 1;
             player->Reset();
-            enemy->Reset();
+            asteroid->Reset();
+            bot01->Reset();
+            bot02->Reset();
+            levelDirector->Reset();
             prevLives = player->GetLives();
-            SaveData::current.Reset();
+            SaveData::current.lives    = 3;
+            SaveData::current.health   = 100.0f;
+            SaveData::current.score    = 0;
+            SaveData::current.posX     = 0.0f;
+            SaveData::current.posY     = 0.0f;
+            SaveData::current.waveTime = 0.0f;
+            SaveData::current.shardCount = 0;
             SaveData::current.Save();
         }
-        chkHov();
+        PlayHoverSound();
         ImGui::SameLine();
         if (ImGui::Button("Title", ImVec2(70, 40)))
             SceneSwitcher::Request(GameScene::TITLE);
-        chkHov();
+        PlayHoverSound();
         ImGui::SameLine();
         if (ImGui::Button("Exit", ImVec2(70, 40))) {
-            SDL_Event e; e.type = SDL_EVENT_QUIT;
+            SDL_Event e{}; e.type = SDL_EVENT_QUIT;
             SDL_PushEvent(&e);
         }
-        chkHov();
+        PlayHoverSound();
         ImGui::End();
-    }
 }

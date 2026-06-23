@@ -134,12 +134,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Asteroid.cpp" />
     <ClCompile Include="Body.cpp" />
+    <ClCompile Include="DebugOverlay.cpp" />
+    <ClCompile Include="Bot01.cpp" />
+    <ClCompile Include="Bot02.cpp" />
+    <ClCompile Include="ShardBeacon.cpp" />
+    <ClCompile Include="AppFonts.cpp" />
     <ClCompile Include="Bullet.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Debug.cpp" />
     <ClCompile Include="Enemy.cpp" />
     <ClCompile Include="Environment.cpp" />
+    <ClCompile Include="Level01Script.cpp" />
+    <ClCompile Include="Level02Script.cpp" />
+    <ClCompile Include="LevelDirector.cpp" />
     <ClCompile Include="imgui.cpp" />
     <ClCompile Include="imgui_demo.cpp" />
     <ClCompile Include="imgui_draw.cpp" />
@@ -165,12 +174,26 @@
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Asteroid.h" />
     <ClInclude Include="Body.h" />
+    <ClInclude Include="Bot01.h" />
+    <ClInclude Include="DebugOverlay.h" />
+    <ClInclude Include="AppFonts.h" />
+    <ClInclude Include="GameConstants.h" />
+    <ClInclude Include="Version.h" />
+    <ClInclude Include="Bot02.h" />
+    <ClInclude Include="ShardBeacon.h" />
     <ClInclude Include="Bullet.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Debug.h" />
     <ClInclude Include="Enemy.h" />
     <ClInclude Include="Environment.h" />
+    <ClInclude Include="EventType.h" />
+    <ClInclude Include="Level01Script.h" />
+    <ClInclude Include="Level02Script.h" />
+    <ClInclude Include="LevelDirector.h" />
+    <ClInclude Include="LevelEvent.h" />
+    <ClInclude Include="LevelScript.h" />
     <ClInclude Include="imconfig.h" />
     <ClInclude Include="imgui.h" />
     <ClInclude Include="imgui_impl_opengl3.h" />

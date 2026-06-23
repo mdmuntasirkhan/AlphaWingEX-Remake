@@ -22,11 +22,12 @@ struct SaveData {
     float posY     = 0.0f;
     float waveTime = 0.0f;   // enemy wave progression timer
 
-    // Lost shard pile state (persisted so reload restores the pile)
+    // Lost shard beacon (FromSoftware-style: drops on game over, recoverable next run)
     bool  hasLostShards    = false;
     float lostShardPosX    = 0.0f;
     float lostShardPosY    = 0.0f;
     int   lostShardCount   = 0;
+    float deathLevelTime   = 0.0f;  // level time at which the beacon activates (0 = immediate)
 
     // Audio preferences
     float musicVolume = 0.10f;
@@ -36,16 +37,23 @@ struct SaveData {
     bool fullscreen      = false;
     int  resolutionIndex = 0;    // index into kResolutionW / kResolutionH
     int  vsyncMode       = -1;   // -1=adaptive sync, 1=vsync, 0=uncapped
+    int  targetFPS       = 240;  // frame cap when vsync is off; 0 = uncapped
 
     static SaveData current;
 
     // Resolution table — shared by scenes and SceneManager
-    static constexpr int kResolutionCount = 4;
+    static constexpr int kResolutionCount = 7;
     static constexpr const char* kResolutionLabels[kResolutionCount] = {
-        "1280 x 720", "1600 x 900", "1920 x 1080", "2560 x 1440"
+        "1280 x 720",
+        "1600 x 900",
+        "1920 x 1080",
+        "2560 x 1440",
+        "3840 x 2160  (4K)",
+        "5120 x 2160  (5K2K)",
+        "7680 x 2160  (8K2K)"
     };
-    static constexpr int kResolutionW[kResolutionCount] = { 1280, 1600, 1920, 2560 };
-    static constexpr int kResolutionH[kResolutionCount] = {  720,  900, 1080, 1440 };
+    static constexpr int kResolutionW[kResolutionCount] = { 1280, 1600, 1920, 2560, 3840, 5120, 7680 };
+    static constexpr int kResolutionH[kResolutionCount] = {  720,  900, 1080, 1440, 2160, 2160, 2160 };
 
     std::string GetFilePath() const { return "profile_" + profileName + ".dat"; }
 
@@ -53,6 +61,11 @@ struct SaveData {
     bool Save()                            const;
     bool Load(const std::string& name);
     void Reset();
+
+    // Machine-level video/audio prefs — stored in settings.dat, NOT per-profile.
+    // SceneManager uses these so video changes never touch a profile file.
+    void SaveMachineSettings() const;
+    void LoadMachineSettings();
 
     // Lists all profile names found on disk (max kMaxProfiles)
     static std::vector<std::string> GetProfileList();
