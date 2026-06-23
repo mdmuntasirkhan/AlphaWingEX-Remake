@@ -1449,17 +1449,10 @@ void SceneMuntasir::DrawHUD() {
     ImGui::ProgressBar(hp, ImVec2(-1.0f, 20.0f), "");
     ImGui::PopStyleColor();
 
-    // Shield — single continuous charge bar.
-    // Bar drains while active, refills when off. Recharge rate depends on peak usage.
-    // Orange tick = 80% usage (slow recharge tier).  Red tick = 90% usage (heavy penalty tier).
+    // Shield — three-chunk bar: red (critical) | orange (warning) | cyan (safe)
+    // Chunks match the three recharge penalty tiers locked in at deactivation.
     {
         float charge = player->GetShieldChargeFraction(); // 1=full, 0=empty
-
-        // Bar colour follows current charge: cyan (safe) → orange (80% zone) → red (90% zone)
-        ImVec4 barCol =
-            charge > 0.20f ? ImVec4(0.0f, 0.7f, 1.0f, 1.0f) :
-            charge > 0.10f ? ImVec4(1.0f, 0.55f, 0.0f, 1.0f) :
-                             ImVec4(0.9f, 0.05f, 0.05f, 1.0f);
 
         if (player->IsShieldActive()) {
             ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "SHIELD ACTIVE  [E]");
@@ -1469,24 +1462,51 @@ void SceneMuntasir::DrawHUD() {
             ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "SHIELD READY  [E]");
         }
 
-        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, barCol);
-        ImGui::ProgressBar(charge, ImVec2(-1.0f, 12.0f), "");
-        ImGui::PopStyleColor();
+        ImDrawList* dl   = ImGui::GetWindowDrawList();
+        ImVec2      pos  = ImGui::GetCursorScreenPos();
+        float       barW = ImGui::GetContentRegionAvail().x;
+        const float barH = 12.0f;
+        const float gap  = 3.0f;
 
-        // Threshold ticks — visible whenever the bar isn't fully charged
-        if (charge < 1.0f) {
-            ImVec2 bMin = ImGui::GetItemRectMin();
-            ImVec2 bMax = ImGui::GetItemRectMax();
-            float  barW = bMax.x - bMin.x;
-            float tick80X = bMin.x + barW * 0.20f;
-            ImGui::GetWindowDrawList()->AddLine(
-                ImVec2(tick80X, bMin.y - 1.0f), ImVec2(tick80X, bMax.y + 1.0f),
-                IM_COL32(255, 150, 0, 220), 2.0f);
-            float tick90X = bMin.x + barW * 0.10f;
-            ImGui::GetWindowDrawList()->AddLine(
-                ImVec2(tick90X, bMin.y - 1.0f), ImVec2(tick90X, bMax.y + 1.0f),
-                IM_COL32(255, 30, 0, 230), 2.0f);
-        }
+        // Chunk widths — proportional to their charge range
+        float wRed  = barW * 0.10f;
+        float wOrg  = barW * 0.10f;
+        float wCyan = barW * 0.80f - gap * 2.0f;
+
+        float xRed  = pos.x;
+        float xOrg  = xRed  + wRed  + gap;
+        float xCyan = xOrg  + wOrg  + gap;
+        float y0    = pos.y;
+        float y1    = pos.y + barH;
+
+        // Fill fractions — each chunk fills independently for its tier
+        float fRed  = charge <= 0.10f ? charge / 0.10f : 1.0f;
+        float fOrg  = charge <= 0.10f ? 0.0f : charge <= 0.20f ? (charge - 0.10f) / 0.10f : 1.0f;
+        float fCyan = charge <= 0.20f ? 0.0f : (charge - 0.20f) / 0.80f;
+
+        const ImU32 bgCol   = IM_COL32( 25,  25,  45, 210);
+        const ImU32 redCol  = IM_COL32(220,  35,  35, 255);
+        const ImU32 orgCol  = IM_COL32(255, 140,   0, 255);
+        const ImU32 cyanCol = IM_COL32(  0, 185, 255, 255);
+        const ImU32 rimCol  = IM_COL32(255, 255, 255,  35);
+        const float r       = 2.0f;
+
+        // Red chunk
+        dl->AddRectFilled(ImVec2(xRed,  y0), ImVec2(xRed  + wRed,  y1), bgCol,  r);
+        if (fRed  > 0.0f) dl->AddRectFilled(ImVec2(xRed,  y0), ImVec2(xRed  + wRed  * fRed,  y1), redCol,  r);
+        dl->AddRect(      ImVec2(xRed,  y0), ImVec2(xRed  + wRed,  y1), rimCol, r);
+
+        // Orange chunk
+        dl->AddRectFilled(ImVec2(xOrg,  y0), ImVec2(xOrg  + wOrg,  y1), bgCol,  r);
+        if (fOrg  > 0.0f) dl->AddRectFilled(ImVec2(xOrg,  y0), ImVec2(xOrg  + wOrg  * fOrg,  y1), orgCol,  r);
+        dl->AddRect(      ImVec2(xOrg,  y0), ImVec2(xOrg  + wOrg,  y1), rimCol, r);
+
+        // Cyan chunk
+        dl->AddRectFilled(ImVec2(xCyan, y0), ImVec2(xCyan + wCyan, y1), bgCol,  r);
+        if (fCyan > 0.0f) dl->AddRectFilled(ImVec2(xCyan, y0), ImVec2(xCyan + wCyan * fCyan, y1), cyanCol, r);
+        dl->AddRect(      ImVec2(xCyan, y0), ImVec2(xCyan + wCyan, y1), rimCol, r);
+
+        ImGui::Dummy(ImVec2(barW, barH));
     }
 
     // Lost shard beacon status
