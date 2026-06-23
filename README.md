@@ -1,6 +1,6 @@
 # AlphaWingEX-Remake
 
-Just trying to recreate one of my favorite J2ME game in modern technology like OpenGL with C++
+Just trying to recreate one of my favorite J2ME games in modern technology like OpenGL with C++
 
 A 2.5D space shooter remake of classic J2ME mobile game Alpha Wing EX by Microspace,
 rebuilt from the ground up in C++ with modern graphics and audio.
@@ -19,7 +19,7 @@ What is in this game?
     - Health System (done)
     - Enemy spawn (6+ types)
         - Asteroid (types)
-        - Bot01 (varients)
+        - Bot01 (variants)
         - Bot02
         - 
     - weapon
@@ -28,8 +28,8 @@ What is in this game?
         - Shield (done) + Ricochet bullets
         - 
 - Background Music
-    - Keeping the original chores with my own remix(working progress)
-    - For now Level01 has an uplift beat from dedmou5, experimenting with tempo + gameplay sync memchanic(Experiment + work in progress)
+    - Keeping the original chords with my own remix(working progress)
+    - For now Level01 has an uplift beat from deadmau5, experimenting with tempo + gameplay sync mechanic(Experiment + work in progress)
 
 ---
 
@@ -72,12 +72,12 @@ How to play?
 ![Title](ComponentFramework/screenshots/title.png)
 ![Settings](ComponentFramework/screenshots/settings.png)
 ![Profile](ComponentFramework/screenshots/profile.png)
-![Gameplay](ComponentFramework/screenshots/gameplay01.png)
-![Gameplay](ComponentFramework/screenshots/gameplay02.png)
-![Gameplay](ComponentFramework/screenshots/gameplay03.png)
-![Gameplay](ComponentFramework/screenshots/gameplay03shield.png)
-![Gameplay](ComponentFramework/screenshots/gameplay04.png)
-![Gameplay](ComponentFramework/screenshots/pause.png)
+![Gameplay](ComponentFramework/screenshots/gameplayHyperJump.png)
+![Gameplay](ComponentFramework/screenshots/gameplayAsteroids.png)
+![Gameplay](ComponentFramework/screenshots/GameplayBot01.png)
+![Gameplay](ComponentFramework/screenshots/GameplayBot01Shielded.png)
+![Gameplay](ComponentFramework/screenshots/GameplayBot02.png)
+![Gameplay](ComponentFramework/screenshots/GameplayPaused.png)
 ![Gameplay](ComponentFramework/screenshots/gameover.png)
 
 
