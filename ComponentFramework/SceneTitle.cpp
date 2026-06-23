@@ -2,6 +2,7 @@
 #include "SceneSwitcher.h"
 #include "GameConstants.h"
 #include "Version.h"
+#include "AppFonts.h"
 #include <glew.h>
 #include <SDL3/SDL_events.h>
 #include "imgui.h"
@@ -138,28 +139,34 @@ void SceneTitle::DrawGui() {
 
     // ── title banner ───────────────────────────────────────────────────────
     ImGui::SetNextWindowPos(ImVec2(cx, cy * 0.32f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(500, 90), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(580, 108), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.0f);
     ImGui::Begin("##banner", nullptr,
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar |
         ImGuiWindowFlags_NoInputs);
     float iw = ImGui::GetContentRegionAvail().x;
-    ImGui::SetWindowFontScale(2.4f);
+
+    // Title — 40 px raster, crisp on all resolutions
+    ImGui::PushFont(AppFonts::title);
     ImVec2 tSz = ImGui::CalcTextSize("ALPHA WING EX");
     ImGui::SetCursorPosX((iw - tSz.x) * 0.5f);
     ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "ALPHA WING EX");
-    ImGui::SetWindowFontScale(0.85f);
+    ImGui::PopFont();
+
+    // Subtitle — 22 px raster
+    ImGui::PushFont(AppFonts::medium);
     ImVec2 sSz = ImGui::CalcTextSize("R  E  M  A  K  E");
     ImGui::SetCursorPosX((iw - sSz.x) * 0.5f);
     ImGui::TextColored(ImVec4(0.40f, 0.40f, 0.60f, 1.0f), "R  E  M  A  K  E");
-    ImGui::SetWindowFontScale(1.0f);
+    ImGui::PopFont();
+
     ImGui::End();
 
     // ── leaderboard panel (right side, always visible) ─────────────────────
     {
         float lbW = 290.0f;
-        float lbH = 76.0f + (float)(leaderboard.empty() ? 1 : (int)leaderboard.size()) * 21.0f;
+        float lbH = 88.0f + (float)(leaderboard.empty() ? 1 : (int)leaderboard.size()) * 21.0f;
         ImGui::SetNextWindowPos(
             ImVec2(io.DisplaySize.x - 20.0f, io.DisplaySize.y * 0.24f),
             ImGuiCond_Always, ImVec2(1.0f, 0.0f));
@@ -171,11 +178,11 @@ void SceneTitle::DrawGui() {
             ImGuiWindowFlags_NoInputs);
 
         float lbIW = ImGui::GetContentRegionAvail().x;
-        ImGui::SetWindowFontScale(1.25f);
+        ImGui::PushFont(AppFonts::medium);
         ImVec2 hSz = ImGui::CalcTextSize("HIGH SCORES");
         ImGui::SetCursorPosX((lbIW - hSz.x) * 0.5f);
         ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.1f, 1.0f), "HIGH SCORES");
-        ImGui::SetWindowFontScale(1.0f);
+        ImGui::PopFont();
         ImGui::Separator();
         ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), " %-3s %-14s %s", "#", "PILOT", "SCORE");
         ImGui::Separator();

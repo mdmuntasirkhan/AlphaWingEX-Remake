@@ -15,6 +15,7 @@
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
+#include "AppFonts.h"
 
 
 
@@ -67,6 +68,22 @@ bool SceneManager::Initialize(std::string name, int width, int height) {
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
+
+	// Load Exo 2 at four sizes for crisp text at every scale.
+	// Place fonts/Exo2-Regular.ttf in ComponentFramework/fonts/ to activate.
+	// Falls back to the built-in ImGui default if the file is missing.
+	{
+		ImGuiIO& io = ImGui::GetIO();
+		AppFonts::body = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 14.0f);
+		if (!AppFonts::body) {
+			io.Fonts->AddFontDefault();
+		} else {
+			AppFonts::medium = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 22.0f);
+			AppFonts::large  = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 32.0f);
+			AppFonts::title  = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 40.0f);
+		}
+	}
+
 	ImGui_ImplSDL3_InitForOpenGL(window->getWindow(), SDL_GL_GetCurrentContext());
 	ImGui_ImplOpenGL3_Init("#version 450");
 

@@ -7,6 +7,7 @@
 #include "SceneMuntasir.h"
 #include "GameConstants.h"
 #include "Version.h"
+#include "AppFonts.h"
 #include "Level01Script.h"
 #include "Level02Script.h"
 #include <MMath.h>
@@ -1592,20 +1593,19 @@ void SceneMuntasir::DrawHUD() {
             ImGuiWindowFlags_NoSavedSettings| ImGuiWindowFlags_NoNav            |
             ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-        // Small spaced header
-        ImGui::SetWindowFontScale(0.72f);
+        // Small spaced header — body font (no scaling)
         ImGui::TextDisabled("  L E V E L  ");
 
-        // Large MM:SS — cyan digits, violet seconds, colon pulses once per second
-        ImGui::SetWindowFontScale(1.75f);
+        // Large MM:SS — dedicated 32 px raster, crisp at any resolution
+        ImGui::PushFont(AppFonts::large);
         float colonAlpha = 0.35f + 0.65f * sinf(t * GameConst::kPi);
         ImGui::TextColored(ImVec4(0.15f, 0.88f, 1.0f,  1.0f), "%02d", mm);
         ImGui::SameLine(0, 0);
         ImGui::TextColored(ImVec4(1.0f,  1.0f,  1.0f,  colonAlpha), ":");
         ImGui::SameLine(0, 0);
         ImGui::TextColored(ImVec4(0.65f, 0.25f, 1.0f,  1.0f), "%02d", ss);
+        ImGui::PopFont();
 
-        ImGui::SetWindowFontScale(1.0f);
         ImGui::End();
         ImGui::PopStyleColor(2);
     }
