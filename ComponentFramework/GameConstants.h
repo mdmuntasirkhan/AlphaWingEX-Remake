@@ -37,8 +37,8 @@ namespace GameConst {
         const float dist  = kCameraZ - kWorldZ;            // 15.7 units — camera to object plane
         const float halfY = kTanHalfFOV * dist;            // visible half-height (≈ 6.99, same as before)
         const float halfX = halfY * aspect;                 // visible half-width scales with aspect
-        kWorldBoundX = halfX - 1.45f;
-        kWorldBoundY = halfY - 1.0f;
+        kWorldBoundX = halfX - 0.5f;
+        kWorldBoundY = halfY + 0.1f;
         kSpawnX      =  halfX + 2.55f;
         kCullX       = -(halfX + 2.55f);
     }
