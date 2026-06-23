@@ -233,11 +233,28 @@ DrawGui()
     ├── Camera debug window          — top-center, F10 toggle
     ├── [early return if fullWarp]   — hides everything below during WARP_FULL
     ├── DrawHUD()                    — top-left, always visible
+    │     ├── Level timer            — top, pinned left of camera debug panel
+    │     └── Build version label    — bottom-right, both game scene and title screen
     ├── DrawPauseMenu()              — center, ESC toggle
     └── DrawGameOver()               — center, on game over
 ```
 
 `DebugOverlay` (`DebugOverlay.h/.cpp`) shows FPS, CPU%, GPU% (via Windows PDH), and RAM% in Minimal (text) or Detailed (text + 30 px scrolling waveform, 128-sample ring buffer) modes. GPU monitoring gracefully shows "N/A" if the PDH counter is unavailable.
+
+**Level timer** — floating window pinned at `(cx - 200, 20)` pivot `(1, 0)`, sitting just left of the camera debug panel. Displays `L E V E L` header at body font, then large `MM:SS` digits in cyan (minutes) / pulsing white (colon, `sinf(t * kPi)`) / violet (seconds) using `AppFonts::large`. Uses a dark navy background with a cyan border via `PushStyleColor`.
+
+**Build version label** — transparent floating window anchored bottom-right `(x-10, y-10)` pivot `(1,1)` on both `SceneMuntasir` and `SceneTitle`. Displays `Alpha Engine  vMAJOR.MINOR.PATCH  build N` via `ImGui::TextDisabled`. To bump the version, edit only `Version.h`.
+
+**Font system (`AppFonts`)** — `AppFonts.h/.cpp` exposes four `ImFont*` pointers loaded in `SceneManager::Initialize()` after `ImGui::CreateContext()` from `fonts/Exo2-Regular.ttf` (Exo 2, Google Fonts, OFL):
+
+| Pointer | Size | Used for |
+|---------|------|----------|
+| `AppFonts::body` | 14 px | Global default — all general HUD / menu text |
+| `AppFonts::medium` | 22 px | Leaderboard header, banner subtitle |
+| `AppFonts::large` | 32 px | Timer MM:SS digits |
+| `AppFonts::title` | 40 px | "ALPHA WING EX" banner |
+
+Use `ImGui::PushFont(AppFonts::large)` / `ImGui::PopFont()` — never `SetWindowFontScale()`, which stretches the texture and causes blur. `PushFont(nullptr)` is safe and silently uses the current default. If the font file is missing, the system falls back to ImGui's built-in default automatically.
 
 **ImGui rules for this project:**
 - `NoDecoration` blocks `AlwaysAutoResize` — never combine them.
@@ -256,6 +273,10 @@ Music and SFX volumes are stored in `SaveData` and applied via ImGui sliders in 
 
 Video settings (resolution, fullscreen, vsync) follow a **pending/apply** pattern: both `SceneTitle` and `SceneMuntasir` copy `SaveData::current` values into local `pendingResIndex` / `pendingFullscreen` / `pendingVsync` fields when the settings panel opens. Changes only commit when the user presses **APPLY**. The `SaveData::kResolutionW/H` table has **7 presets**: 1280×720, 1600×900, 1920×1080, 2560×1440, 3840×2160 (4K), 5120×2160 (5K2K), 7680×2160 (8K2K).
 
+### Version system
+
+`Version.h` (header-only, no `.cpp`) exposes `AppVersion::kMajor`, `kMinor`, `kPatch`, `kBuild` as `static constexpr int`. This is the **only file to edit when releasing**. The version string is constructed at render time via `ImGui::Text("Alpha Engine  v%d.%d.%d  build %d", ...)` — no string constant to keep in sync.
+
 ### External libraries (vendored in-tree)
 
 - **ImGui** — all `imgui*.cpp/.h` files are checked in directly (SDL3 + OpenGL3 backends).
@@ -269,6 +290,7 @@ All runtime assets are relative paths from the working directory (the project fo
 - `meshes/` — OBJ files (player ship, cockpit, attachment, thrust, shield, bullet, missile, asteroid, bot01, bot02 parts)
 - `shaders/` — GLSL source files
 - `audio/music/` and `audio/sfx/` — WAV files
+- `fonts/` — `Exo2-Regular.ttf` (Exo 2, Google Fonts, OFL). Loaded by `AppFonts` at startup. Not bundled in the repo — must be present on disk.
 - `profile_<name>.dat` — plain-text save files, one per player profile
 - `settings.dat` — machine-level video/audio settings
 
