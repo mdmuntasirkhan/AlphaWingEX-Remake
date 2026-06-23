@@ -68,7 +68,7 @@ std::vector<LevelEvent> Level01Script::GetEvents() const {
         // { 5.0f, EventType::SPAWN_ENV_CHUNK, Vec3(15.0f, 0.0f, -10.0f), "meshes/level01_rock.obj", Vec3(0.5f, 0.5f, 0.6f), 1.0f, 1.5f },
 
         // Exit hyperspace jump — normal speed accelerates to peak, transitioning to Level 02
-        { 170.0f, EventType::WARP_EXIT,         {}, nullptr, {}, 0.0f, 0.0f, 0 },
+        { 180.0f, EventType::WARP_EXIT,         {}, nullptr, {}, 0.0f, 0.0f, 0 },
 
     };
 }
