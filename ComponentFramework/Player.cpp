@@ -27,12 +27,21 @@ Player::Player() :  mesh { nullptr },
 					shieldYRadius { 2.5f },
 					shieldZRadius { 3.0f },
 					shieldGlowRadius { 1.4f },
-					rollAngle        { 0.0f },
-					rollVelocity     { 0.0f },
-					rollStiffness    { 100.0f },
-					rollDamping      { 16.0f },
-					maxRollAngle     { 5.0f },
-					thrustTimer      { 0.0f }
+					rollAngle            { 0.0f },
+					rollVelocity         { 0.0f },
+					rollStiffness        { 100.0f },
+					rollDamping          { 16.0f },
+					maxRollAngle         { 5.0f },
+					thrustTimer          { 0.0f },
+					sfxStream            { nullptr },
+					sfxShieldPhase01     { nullptr },
+					sfxShieldPhase02     { nullptr },
+					sfxShieldRecharged   { nullptr },
+					prevShieldCharge     { 1.0f },
+					prevShieldRecharging { false },
+					shieldPhase01Cooldown   { 0.0f },
+					shieldPhase02Cooldown   { 0.0f },
+					shieldRechargedCooldown { 0.0f }
 {
 	// leave Empty
 }
@@ -78,6 +87,14 @@ bool Player::OnCreate(const char* meshFile) {
 	pos = Vec3(0.0f, 0.0f, -10.0f);
 	modelMatrix = MMath::translate(pos) *
 				  MMath::scale(0.5f, 0.5f, 0.5f);
+
+	sfxShieldPhase01 = new Sound("audio/sfx/AWshieldPhase01.wav");
+	sfxShieldPhase01->OnCreate();
+	sfxShieldPhase02 = new Sound("audio/sfx/AWshieldPhase02.wav");
+	sfxShieldPhase02->OnCreate();
+	sfxShieldRecharged = new Sound("audio/sfx/AWshieldRecharged.wav");
+	sfxShieldRecharged->OnCreate();
+
 	return true;
 }
 
@@ -111,6 +128,10 @@ void Player::OnDestroy() {
 		delete thrustMesh;
 		thrustMesh = nullptr;
 	}
+
+	if (sfxShieldPhase01)   { sfxShieldPhase01->OnDestroy();   delete sfxShieldPhase01;   sfxShieldPhase01   = nullptr; }
+	if (sfxShieldPhase02)   { sfxShieldPhase02->OnDestroy();   delete sfxShieldPhase02;   sfxShieldPhase02   = nullptr; }
+	if (sfxShieldRecharged) { sfxShieldRecharged->OnDestroy(); delete sfxShieldRecharged; sfxShieldRecharged = nullptr; }
 }
 
 void Player::HandleEvents(const SDL_Event& sdlEvent) {
@@ -181,6 +202,37 @@ void Player::Update(float deltaTime) {
 			shieldTimer        = 0.0f;
 			shieldRechargeRate = kBaseRechargeRate; // fully recharged — reset rate
 		}
+	}
+
+	// Shield phase transition sounds
+	if (sfxStream) {
+		float curCharge     = GetShieldChargeFraction();
+		bool  curRecharging = IsShieldRecharging();
+
+		if (shieldPhase01Cooldown    > 0.0f) shieldPhase01Cooldown    -= deltaTime;
+		if (shieldPhase02Cooldown    > 0.0f) shieldPhase02Cooldown    -= deltaTime;
+		if (shieldRechargedCooldown  > 0.0f) shieldRechargedCooldown  -= deltaTime;
+
+		if (shieldPhase01Cooldown <= 0.0f &&
+			((prevShieldCharge >  0.20f && curCharge <= 0.20f) ||
+			 (prevShieldCharge <= 0.20f && curCharge >  0.20f))) {
+			sfxShieldPhase01->Play(sfxStream);
+			shieldPhase01Cooldown = kShieldPhaseCooldown;
+		}
+		if (shieldPhase02Cooldown <= 0.0f &&
+			((prevShieldCharge >  0.10f && curCharge <= 0.10f) ||
+			 (prevShieldCharge <= 0.10f && curCharge >  0.10f))) {
+			sfxShieldPhase02->Play(sfxStream);
+			shieldPhase02Cooldown = kShieldPhaseCooldown;
+		}
+		if (shieldRechargedCooldown <= 0.0f &&
+			prevShieldRecharging && !curRecharging && !shieldActive) {
+			sfxShieldRecharged->Play(sfxStream);
+			shieldRechargedCooldown = kShieldRechargedCooldown;
+		}
+
+		prevShieldCharge     = curCharge;
+		prevShieldRecharging = curRecharging;
 	}
 }
 

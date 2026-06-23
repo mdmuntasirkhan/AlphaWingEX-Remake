@@ -4,9 +4,11 @@
 
 #include "Mesh.h"
 #include "Shader.h"
+#include "Sound.h"
 #include <Matrix.h>
 #include <Vector.h>
 #include <SDL3/SDL_events.h>
+#include <SDL3/SDL_audio.h>
 
 using namespace MATH;
 
@@ -52,6 +54,19 @@ private:
 	float shieldZRadius;
 	float shieldGlowRadius;
 
+	// Shield audio
+	SDL_AudioStream* sfxStream;
+	Sound* sfxShieldPhase01;
+	Sound* sfxShieldPhase02;
+	Sound* sfxShieldRecharged;
+	float  prevShieldCharge;
+	bool   prevShieldRecharging;
+	float  shieldPhase01Cooldown;
+	float  shieldPhase02Cooldown;
+	float  shieldRechargedCooldown;
+	static constexpr float kShieldPhaseCooldown     = 1.0f;
+	static constexpr float kShieldRechargedCooldown = 2.0f;
+
 	float rollAngle;
 	float rollVelocity;
 	float rollStiffness;
@@ -90,6 +105,7 @@ public:
 	void SetPosition(float x, float y){ pos    = Vec3(x, y, -10.0f); velocity = Vec3(0,0,0); }
 
 	// Shield
+	void SetSFXStream(SDL_AudioStream* stream) { sfxStream = stream; }
 	void  ActivateShield();
 	bool  IsShieldActive()     const { return shieldActive; }
 	bool  IsShieldRecharging() const { return !shieldActive && shieldTimer > 0.0f; }

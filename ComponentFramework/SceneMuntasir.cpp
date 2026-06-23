@@ -208,6 +208,8 @@ bool SceneMuntasir::OnCreate() {
     sfxShieldHit = new Sound("audio/sfx/AWshieldDamageWarning.wav");
     sfxShieldHit->OnCreate();
 
+    player->SetSFXStream(sfxPlayer);
+
     hoverStream = SDL_OpenAudioDeviceStream(
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &defaultSpec, nullptr, nullptr);
     if (hoverStream) {
@@ -539,6 +541,7 @@ void SceneMuntasir::Update(const float deltaTime) {
         explosionCooldownTimer -= deltaTime;
     if (shieldHitCooldownTimer > 0.0f)
         shieldHitCooldownTimer -= deltaTime;
+
 
     // Periodic auto-save (only while alive)
     if (!gameOver) {
