@@ -6,6 +6,7 @@
 #include <SDL3/SDL_events.h>
 #include "SceneMuntasir.h"
 #include "GameConstants.h"
+#include "Version.h"
 #include "Level01Script.h"
 #include "Level02Script.h"
 #include <MMath.h>
@@ -1571,23 +1572,58 @@ void SceneMuntasir::DrawHUD() {
     ImGui::TextDisabled("ESC  Pause");
     ImGui::End();
 
-    // ── Level Timer — floating window, bottom-right ───────────────────────────
+    // ── Level Timer — top, left of camera debug panel ────────────────────────
     {
         float levelSec = levelDirector->GetTime();
         int   mm       = (int)(levelSec / 60.0f);
         int   ss       = (int)(levelSec) % 60;
+        float t        = (float)ImGui::GetTime();
 
         ImGuiIO& io = ImGui::GetIO();
-        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 10.0f, io.DisplaySize.y - 10.0f),
-                                ImGuiCond_Always, ImVec2(1.0f, 1.0f));
-        ImGui::SetNextWindowBgAlpha(0.65f);
+        // Camera debug sits at cx ± 190 (380 px wide, centered).
+        // Pin the timer's right edge 10 px left of that panel's left edge.
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f - 200.0f, 20.0f),
+                                ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.03f, 0.05f, 0.13f, 0.90f));
+        ImGui::PushStyleColor(ImGuiCol_Border,   ImVec4(0.15f, 0.55f, 1.0f,  0.55f));
         ImGui::Begin("##leveltimer", nullptr,
             ImGuiWindowFlags_NoTitleBar     | ImGuiWindowFlags_AlwaysAutoResize |
             ImGuiWindowFlags_NoMove         | ImGuiWindowFlags_NoScrollbar      |
             ImGuiWindowFlags_NoSavedSettings| ImGuiWindowFlags_NoNav            |
             ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-        ImGui::TextColored(ImVec4(0.6f, 0.85f, 1.0f, 0.9f), "LEVEL  %02d:%02d", mm, ss);
+        // Small spaced header
+        ImGui::SetWindowFontScale(0.72f);
+        ImGui::TextDisabled("  L E V E L  ");
+
+        // Large MM:SS — cyan digits, violet seconds, colon pulses once per second
+        ImGui::SetWindowFontScale(1.75f);
+        float colonAlpha = 0.35f + 0.65f * sinf(t * GameConst::kPi);
+        ImGui::TextColored(ImVec4(0.15f, 0.88f, 1.0f,  1.0f), "%02d", mm);
+        ImGui::SameLine(0, 0);
+        ImGui::TextColored(ImVec4(1.0f,  1.0f,  1.0f,  colonAlpha), ":");
+        ImGui::SameLine(0, 0);
+        ImGui::TextColored(ImVec4(0.65f, 0.25f, 1.0f,  1.0f), "%02d", ss);
+
+        ImGui::SetWindowFontScale(1.0f);
+        ImGui::End();
+        ImGui::PopStyleColor(2);
+    }
+
+    // ── Build Version — bottom-right ──────────────────────────────────────────
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 10.0f, io.DisplaySize.y - 10.0f),
+                                ImGuiCond_Always, ImVec2(1.0f, 1.0f));
+        ImGui::SetNextWindowBgAlpha(0.0f);
+        ImGui::Begin("##buildver", nullptr,
+            ImGuiWindowFlags_NoTitleBar     | ImGuiWindowFlags_AlwaysAutoResize |
+            ImGuiWindowFlags_NoMove         | ImGuiWindowFlags_NoScrollbar      |
+            ImGuiWindowFlags_NoSavedSettings| ImGuiWindowFlags_NoNav            |
+            ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoInputs);
+
+        ImGui::TextDisabled("Alpha Engine  v%d.%d.%d  build %d",
+            AppVersion::kMajor, AppVersion::kMinor, AppVersion::kPatch, AppVersion::kBuild);
 
         ImGui::End();
     }

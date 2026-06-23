@@ -1,6 +1,7 @@
 #include "SceneTitle.h"
 #include "SceneSwitcher.h"
 #include "GameConstants.h"
+#include "Version.h"
 #include <glew.h>
 #include <SDL3/SDL_events.h>
 #include "imgui.h"
@@ -456,4 +457,21 @@ void SceneTitle::DrawGui() {
     }
 
     ImGui::End();
+
+    // ── Build Version — bottom-left ───────────────────────────────────────────
+    {
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 10.0f, io.DisplaySize.y - 10.0f),
+                                ImGuiCond_Always, ImVec2(1.0f, 1.0f));
+        ImGui::SetNextWindowBgAlpha(0.0f);
+        ImGui::Begin("##titlever", nullptr,
+            ImGuiWindowFlags_NoTitleBar     | ImGuiWindowFlags_AlwaysAutoResize |
+            ImGuiWindowFlags_NoMove         | ImGuiWindowFlags_NoScrollbar      |
+            ImGuiWindowFlags_NoSavedSettings| ImGuiWindowFlags_NoNav            |
+            ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoInputs);
+
+        ImGui::TextDisabled("Alpha Engine  v%d.%d.%d  build %d",
+            AppVersion::kMajor, AppVersion::kMinor, AppVersion::kPatch, AppVersion::kBuild);
+
+        ImGui::End();
+    }
 }
