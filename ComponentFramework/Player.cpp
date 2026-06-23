@@ -37,6 +37,7 @@ Player::Player() :  mesh { nullptr },
 					sfxShieldPhase01     { nullptr },
 					sfxShieldPhase02     { nullptr },
 					sfxShieldRecharged   { nullptr },
+					sfxShieldDrain       { nullptr },
 					prevShieldCharge     { 1.0f },
 					prevShieldRecharging { false },
 					shieldPhase01Cooldown   { 0.0f },
@@ -94,6 +95,8 @@ bool Player::OnCreate(const char* meshFile) {
 	sfxShieldPhase02->OnCreate();
 	sfxShieldRecharged = new Sound("audio/sfx/AWshieldRecharged.wav");
 	sfxShieldRecharged->OnCreate();
+	sfxShieldDrain = new Sound("audio/sfx/AWshieldDrain.wav");
+	sfxShieldDrain->OnCreate();
 
 	return true;
 }
@@ -132,6 +135,7 @@ void Player::OnDestroy() {
 	if (sfxShieldPhase01)   { sfxShieldPhase01->OnDestroy();   delete sfxShieldPhase01;   sfxShieldPhase01   = nullptr; }
 	if (sfxShieldPhase02)   { sfxShieldPhase02->OnDestroy();   delete sfxShieldPhase02;   sfxShieldPhase02   = nullptr; }
 	if (sfxShieldRecharged) { sfxShieldRecharged->OnDestroy(); delete sfxShieldRecharged; sfxShieldRecharged = nullptr; }
+	if (sfxShieldDrain)     { sfxShieldDrain->OnDestroy();     delete sfxShieldDrain;     sfxShieldDrain     = nullptr; }
 }
 
 void Player::HandleEvents(const SDL_Event& sdlEvent) {
@@ -213,17 +217,20 @@ void Player::Update(float deltaTime) {
 		if (shieldPhase02Cooldown    > 0.0f) shieldPhase02Cooldown    -= deltaTime;
 		if (shieldRechargedCooldown  > 0.0f) shieldRechargedCooldown  -= deltaTime;
 
+		// Phase sounds — drain direction only (charge falling through threshold)
 		if (shieldPhase01Cooldown <= 0.0f &&
-			((prevShieldCharge >  0.20f && curCharge <= 0.20f) ||
-			 (prevShieldCharge <= 0.20f && curCharge >  0.20f))) {
+			prevShieldCharge > 0.20f && curCharge <= 0.20f) {
 			sfxShieldPhase01->Play(sfxStream);
 			shieldPhase01Cooldown = kShieldPhaseCooldown;
 		}
 		if (shieldPhase02Cooldown <= 0.0f &&
-			((prevShieldCharge >  0.10f && curCharge <= 0.10f) ||
-			 (prevShieldCharge <= 0.10f && curCharge >  0.10f))) {
+			prevShieldCharge > 0.10f && curCharge <= 0.10f) {
 			sfxShieldPhase02->Play(sfxStream);
 			shieldPhase02Cooldown = kShieldPhaseCooldown;
+		}
+		// Fully depleted — shield expired (charge hit 0)
+		if (prevShieldCharge > 0.01f && curCharge <= 0.01f) {
+			sfxShieldDrain->Play(sfxStream);
 		}
 		if (shieldRechargedCooldown <= 0.0f &&
 			prevShieldRecharging && !curRecharging && !shieldActive) {

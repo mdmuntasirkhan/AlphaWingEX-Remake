@@ -59,6 +59,7 @@ private:
 	Sound* sfxShieldPhase01;
 	Sound* sfxShieldPhase02;
 	Sound* sfxShieldRecharged;
+	Sound* sfxShieldDrain;
 	float  prevShieldCharge;
 	bool   prevShieldRecharging;
 	float  shieldPhase01Cooldown;
