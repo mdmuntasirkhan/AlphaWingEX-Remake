@@ -159,7 +159,7 @@ bool SceneMuntasir::OnCreate() {
 
     // Audio Setup
     SDL_AudioSpec defaultSpec{};
-    defaultSpec.freq = 44100;
+    defaultSpec.freq = GameConst::kAudioSampleRate;
     defaultSpec.channels = 2;
     defaultSpec.format = SDL_AUDIO_S16;
 
@@ -213,7 +213,7 @@ bool SceneMuntasir::OnCreate() {
     hoverStream = SDL_OpenAudioDeviceStream(
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &defaultSpec, nullptr, nullptr);
     if (hoverStream) {
-        SDL_SetAudioStreamGain(hoverStream, sfxVolume * 0.35f);
+        SDL_SetAudioStreamGain(hoverStream, sfxVolume * GameConst::kHoverStreamGain);
         SDL_ResumeAudioStreamDevice(hoverStream);
     }
     uiClickSound = new Sound("audio/sfx/Select01.wav");
@@ -1662,7 +1662,7 @@ void SceneMuntasir::DrawPauseMenu() {
             if (ImGui::SliderFloat("##sfx", &sfxVolume, 0.0f, 1.0f)) {
                 SDL_SetAudioStreamGain(sfxPlayer,        sfxVolume);
                 SDL_SetAudioStreamGain(sfxLaserHitStream, sfxVolume * 2.0f);
-                if (hoverStream) SDL_SetAudioStreamGain(hoverStream, sfxVolume * 0.35f);
+                if (hoverStream) SDL_SetAudioStreamGain(hoverStream, sfxVolume * GameConst::kHoverStreamGain);
             }
 
             ImGui::SetCursorPosX(btnX);

@@ -1,5 +1,6 @@
 #include "SceneTitle.h"
 #include "SceneSwitcher.h"
+#include "GameConstants.h"
 #include <glew.h>
 #include <SDL3/SDL_events.h>
 #include "imgui.h"
@@ -28,7 +29,7 @@ SceneTitle::~SceneTitle() {}
 
 bool SceneTitle::OnCreate() {
     SDL_AudioSpec spec;
-    spec.freq     = 44100;
+    spec.freq     = GameConst::kAudioSampleRate;
     spec.channels = 2;
     spec.format   = SDL_AUDIO_S16;
 
@@ -62,7 +63,7 @@ bool SceneTitle::OnCreate() {
     hoverStream = SDL_OpenAudioDeviceStream(
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr);
     if (hoverStream) {
-        SDL_SetAudioStreamGain(hoverStream, SaveData::current.sfxVolume * 0.35f);
+        SDL_SetAudioStreamGain(hoverStream, SaveData::current.sfxVolume * GameConst::kHoverStreamGain);
         SDL_ResumeAudioStreamDevice(hoverStream);
     }
 
@@ -285,7 +286,7 @@ void SceneTitle::DrawGui() {
                 if (sfxStream)
                     SDL_SetAudioStreamGain(sfxStream,   SaveData::current.sfxVolume);
                 if (hoverStream)
-                    SDL_SetAudioStreamGain(hoverStream, SaveData::current.sfxVolume * 0.35f);
+                    SDL_SetAudioStreamGain(hoverStream, SaveData::current.sfxVolume * GameConst::kHoverStreamGain);
             }
 
             // ── Video ──────────────────────────────────────────────────────
