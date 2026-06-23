@@ -412,7 +412,7 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
         case SDL_SCANCODE_F10:
             showCameraDebug = !showCameraDebug;
             break;
-        case SDL_SCANCODE_F11:
+        case SDL_SCANCODE_Q:
             f11Held = true;
             break;
         case SDL_SCANCODE_F12:
@@ -430,7 +430,7 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
         break;
 
     case SDL_EVENT_KEY_UP:
-        if (sdlEvent.key.scancode == SDL_SCANCODE_F11) {
+        if (sdlEvent.key.scancode == SDL_SCANCODE_Q) {
             f11Held      = false;
             f11HoldTimer = 0.0f;   // release before 3 s cancels the charge
         }
@@ -559,7 +559,7 @@ void SceneMuntasir::Update(const float deltaTime) {
     if (levelDirector->PopWarpExitRequest())  environment->TriggerWarpExit(8.0f);
     if (levelDirector->PopWarpFullRequest())  environment->TriggerWarp(8.0f);
 
-    // F11 hold-to-warp — charge for 3 s then fire
+    // Q hold-to-warp — charge for 3 s then fire
     if (f11Held && !environment->IsWarpActive()) {
         f11HoldTimer += deltaTime;
         if (f11HoldTimer >= 3.0f) {
@@ -1255,7 +1255,7 @@ void SceneMuntasir::RenderBackground() {
 
 // Render
 void SceneMuntasir::Render() const {
-    bool fullWarp = environment->IsFullWarp();
+    bool anyWarp = environment->IsWarpActive();
 
     glEnable(GL_DEPTH_TEST);
     glClear(GL_DEPTH_BUFFER_BIT); // color already set by RenderBackground
@@ -1268,11 +1268,11 @@ void SceneMuntasir::Render() const {
     glUniform3f(shader->GetUniformID("lightPos"), 0.0f, 50.0f, GameConst::kCameraZ);
     glUniform3f(shader->GetUniformID("viewPos"),  0.0f,  0.0f, GameConst::kCameraZ);
 
-    // Player always visible — even during full warp
+    // Player always visible during any warp
     player->Render(shader, projectionMatrix, viewMatrix);
 
-    // Enemies, bullets and level geometry hidden during full warp cinematic
-    if (!fullWarp) {
+    // Enemies, bullets and level geometry hidden during any warp
+    if (!anyWarp) {
         glUniform4f(shader->GetUniformID("color"), 1.0f, 1.0f, 0.0f, 1.0f);
         bullet->Render(shader, projectionMatrix, viewMatrix);
 
@@ -1355,6 +1355,19 @@ void SceneMuntasir::DrawGui() {
         float dist     = 7.0f / tanf(halfFov);
         float camZ     = GameConst::kWorldZ + dist;
         ImGui::TextDisabled("Camera Z: %.2f   Dist to objects: %.2f", camZ, dist);
+
+        // Dev key reference — collapsed by default, click to expand
+        ImGui::Spacing();
+        ImGui::Separator();
+        if (ImGui::CollapsingHeader("DEV KEYS")) {
+            ImGui::TextDisabled("F1   SceneSTG (placeholder)");
+            ImGui::TextDisabled("F2   SceneJA  (Jacky test scene)");
+            ImGui::TextDisabled("F3   SceneMuntasir (skip title)");
+            ImGui::TextDisabled("F9   Debug overlay  (Minimal / Detailed)");
+            ImGui::TextDisabled("F10  This window");
+            ImGui::TextDisabled("Q    Hold 3s — trigger full warp");
+            ImGui::TextDisabled("F12  Wireframe toggle");
+        }
 
         ImGui::End();
 
@@ -1499,7 +1512,7 @@ void SceneMuntasir::DrawHUD() {
             ? ImVec4(0.4f + progress * 0.6f, 0.7f + progress * 0.3f, 1.0f, 1.0f)
             : ImVec4(0.55f, 0.80f, 1.0f, 0.95f);
         ImGui::TextColored(labelCol, "WARP DRIVE");
-        const char* hint = charging ? "release to cancel" : "HOLD F11";
+        const char* hint = charging ? "release to cancel" : "HOLD Q";
         float hintW = ImGui::CalcTextSize(hint).x;
         ImGui::SameLine(0, 0);
         ImGui::SetCursorPosX(ImGui::GetWindowWidth() - hintW - ImGui::GetStyle().WindowPadding.x);
@@ -1534,6 +1547,27 @@ void SceneMuntasir::DrawHUD() {
 
     ImGui::TextDisabled("ESC  Pause");
     ImGui::End();
+
+    // ── Level Timer — floating window, bottom-right ───────────────────────────
+    {
+        float levelSec = levelDirector->GetTime();
+        int   mm       = (int)(levelSec / 60.0f);
+        int   ss       = (int)(levelSec) % 60;
+
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 10.0f, io.DisplaySize.y - 10.0f),
+                                ImGuiCond_Always, ImVec2(1.0f, 1.0f));
+        ImGui::SetNextWindowBgAlpha(0.65f);
+        ImGui::Begin("##leveltimer", nullptr,
+            ImGuiWindowFlags_NoTitleBar     | ImGuiWindowFlags_AlwaysAutoResize |
+            ImGuiWindowFlags_NoMove         | ImGuiWindowFlags_NoScrollbar      |
+            ImGuiWindowFlags_NoSavedSettings| ImGuiWindowFlags_NoNav            |
+            ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+        ImGui::TextColored(ImVec4(0.6f, 0.85f, 1.0f, 0.9f), "LEVEL  %02d:%02d", mm, ss);
+
+        ImGui::End();
+    }
 }
 
 // ── Pause Menu ────────────────────────────────────────────────────────────────

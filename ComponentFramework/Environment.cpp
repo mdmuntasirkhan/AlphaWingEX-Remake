@@ -8,11 +8,13 @@ Environment::Environment() :
     screenWidth { 1920.0f },
     screenHeight{ 1080.0f },
     waterJitterTimer{ 0.0f },
-    warpMode    { WarpMode::FULL },
-    warpActive  { false },
-    warpTimer   { 0.0f  },
-    warpDuration{ 10.0f },
-    warpSpeed   { 1.0f  } {
+    warpMode         { WarpMode::FULL },
+    warpActive       { false },
+    warpTimer        { 0.0f  },
+    warpDuration     { 10.0f },
+    warpSpeed        { 1.0f  },
+    postWarpSpeed    { 1.0f  },
+    postWarpCooldown { 0.0f  } {
 }
 
 Environment::~Environment() {}
@@ -79,6 +81,11 @@ void Environment::Update(float deltaTime) {
         float t = warpTimer / warpDuration;   // 0..1
 
         if (t >= 1.0f) {
+            if (warpMode == WarpMode::EXIT) {
+                // Don't snap — smoothly decelerate stars back to normal over 2s
+                postWarpSpeed    = warpSpeed;
+                postWarpCooldown = 2.0f;
+            }
             warpActive = false;
             warpSpeed  = 1.0f;
         } else {
@@ -111,6 +118,14 @@ void Environment::Update(float deltaTime) {
         }
     }
 
+    // Post-exit deceleration — smoothly bleeds warpSpeed from peak back to 1×
+    if (!warpActive && postWarpCooldown > 0.0f) {
+        postWarpCooldown -= deltaTime;
+        if (postWarpCooldown < 0.0f) postWarpCooldown = 0.0f;
+        float p  = postWarpCooldown / 2.0f;                          // 1→0 as cooldown drains
+        warpSpeed = 1.0f + smoothstep(p) * (postWarpSpeed - 1.0f);  // peak → 1×
+    }
+
     // Scroll stars — warpSpeed multiplies each star's base speed
     for (int i = 0; i < (int)stars.size(); i++) {
         stars[i].x -= stars[i].speed * warpSpeed * deltaTime;
@@ -129,7 +144,7 @@ void Environment::Update(float deltaTime) {
 void Environment::Render() const {
     ImDrawList* drawList = ImGui::GetBackgroundDrawList();
 
-    bool streaking = warpActive && warpSpeed > 3.0f;
+    bool streaking = warpSpeed > 3.0f;  // covers active warp and post-exit deceleration
 
     for (int i = 0; i < (int)stars.size(); i++) {
         int brightness = 150 + (int)(stars[i].speed);

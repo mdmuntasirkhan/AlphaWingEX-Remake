@@ -45,7 +45,9 @@ private:
     bool     warpActive;
     float    warpTimer;
     float    warpDuration;
-    float    warpSpeed;    // current star speed multiplier (1.0 = normal)
+    float    warpSpeed;         // current star speed multiplier (1.0 = normal)
+    float    postWarpSpeed;     // speed at the moment EXIT warp ended
+    float    postWarpCooldown;  // seconds remaining in post-exit deceleration
 
 public:
     Environment();

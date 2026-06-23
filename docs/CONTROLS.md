@@ -16,6 +16,7 @@
 | `Space` or `Left Click` | Fire laser |
 | `Right Click` | Launch homing missile (finite supply, auto-reloads) |
 | `E` | Activate shield (10s active, tiered recharge penalty) |
+| `Q` (hold 3s) | Trigger hyperspace warp (release before 3s to cancel) |
 | `ESC` | Toggle pause menu |
 
 ---
@@ -25,7 +26,7 @@
 | Key / Input | Action |
 |-------------|--------|
 | `ESC` (title screen) | Quit game |
-| `Q` (title screen) | Quit game |
+| `Q` (title screen) | Quit game (title only) |
 | Mouse | Navigate menus, click buttons |
 
 ---
@@ -39,7 +40,6 @@
 | `F3` | Switch to SceneMuntasir | Skips title screen — useful during development |
 | `F9` | Cycle debug overlay | Hidden → Minimal → Detailed → Hidden |
 | `F10` | Toggle camera FOV debug window | Live FOV slider + preset buttons |
-| `F11` (hold 3s) | Trigger full hyperspace warp | Release before 3s to cancel |
 | `F12` | Toggle wireframe rendering | Shows mesh geometry |
 
 ---

@@ -184,10 +184,6 @@ void SceneManager::HandleEvents() {
 		}
 		else if (sdlEvent.type == SDL_EVENT_KEY_DOWN) {
 			switch (sdlEvent.key.scancode) {
-			case SDL_SCANCODE_Q:
-				isRunning = false;
-				return;
-
 			case SDL_SCANCODE_F1: BuildNewScene(SceneID::STG);   break;
 			case SDL_SCANCODE_F2: BuildNewScene(SceneID::JA);    break;
 			case SDL_SCANCODE_F3: BuildNewScene(SceneID::MUN);   break;
