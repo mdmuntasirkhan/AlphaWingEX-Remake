@@ -11,6 +11,7 @@
 SceneTitle::SceneTitle()
     : state(TitleState::MAIN)
     , showSettings(false)
+    , showCredits(false)
     , pendingDeleteIndex(-1)
     , bgmStream(nullptr)
     , bgmSound(nullptr)
@@ -211,7 +212,7 @@ void SceneTitle::DrawGui() {
     // ── main panel ─────────────────────────────────────────────────────────
     bool atCap = (int)profiles.size() >= SaveData::kMaxProfiles;
     float panH = 0.0f;
-    if      (state == TitleState::MAIN)          panH = 200.0f + (showSettings ? 345.0f : 0.0f) + (atCap ? 46.0f : 0.0f);
+    if      (state == TitleState::MAIN)          panH = 244.0f + (showSettings ? 345.0f : 0.0f) + (atCap ? 46.0f : 0.0f);
     else if (state == TitleState::NEW_GAME_NAME) panH = 160.0f;
     else if (state == TitleState::LOAD_SELECT)   panH = 60.0f + (float)profiles.size() * 52.0f + 50.0f;
 
@@ -353,6 +354,14 @@ void SceneTitle::DrawGui() {
         }
 
         ImGui::Spacing();
+        ImGui::SetCursorPosX(btnX);
+        if (ImGui::Button("CREDITS", ImVec2(btnW, 32))) {
+            PlaySelect();
+            showCredits = true;
+        }
+        if (ImGui::IsItemHovered()) PlayHover();
+
+        ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
         ImGui::SetCursorPosX(btnX);
@@ -464,6 +473,89 @@ void SceneTitle::DrawGui() {
     }
 
     ImGui::End();
+
+    // ── Credits modal ─────────────────────────────────────────────────────────
+    if (showCredits)
+        ImGui::OpenPopup("##credits");
+
+    if (showCredits) {
+        ImGui::SetNextWindowPos(ImVec2(cx, cy), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+        ImGui::SetNextWindowSize(ImVec2(400, 0), ImGuiCond_Always);
+        ImGui::PushStyleColor(ImGuiCol_WindowBg,   ImVec4(0.03f, 0.05f, 0.13f, 0.97f));
+        ImGui::PushStyleColor(ImGuiCol_Border,     ImVec4(0.15f, 0.55f, 1.0f,  0.60f));
+        ImGui::PushStyleColor(ImGuiCol_PopupBg,    ImVec4(0.03f, 0.05f, 0.13f, 0.97f));
+        if (ImGui::BeginPopupModal("##credits", nullptr,
+                ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                ImGuiWindowFlags_NoMove     | ImGuiWindowFlags_NoScrollbar)) {
+
+            float w = ImGui::GetContentRegionAvail().x;
+
+            // Header
+            ImGui::PushFont(AppFonts::medium);
+            ImVec2 hSz = ImGui::CalcTextSize("CREDITS");
+            ImGui::SetCursorPosX((w - hSz.x) * 0.5f);
+            ImGui::TextColored(ImVec4(0.15f, 0.88f, 1.0f, 1.0f), "CREDITS");
+            ImGui::PopFont();
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            // Developer name
+            ImGui::PushFont(AppFonts::large);
+            ImVec2 nSz = ImGui::CalcTextSize("Muntasir Khan");
+            ImGui::SetCursorPosX((w - nSz.x) * 0.5f);
+            ImGui::TextColored(ImVec4(0.95f, 0.95f, 1.0f, 1.0f), "Muntasir Khan");
+            ImGui::PopFont();
+
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            // Roles — centered, slightly dimmed
+            static const char* kRoles[] = {
+                "Lead Programmer",
+                "Game Designer",
+                "3D Artist",
+                "Composer & Audio Designer",
+            };
+            for (const char* role : kRoles) {
+                ImVec2 rSz = ImGui::CalcTextSize(role);
+                ImGui::SetCursorPosX((w - rSz.x) * 0.5f);
+                ImGui::TextColored(ImVec4(0.70f, 0.72f, 0.85f, 1.0f), "%s", role);
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            // Attribution footer
+            const char* footer1 = "Personal Project Showcase";
+            const char* footer2 = "Game Development Program  —  Humber College  2026";
+            ImVec2 f1Sz = ImGui::CalcTextSize(footer1);
+            ImVec2 f2Sz = ImGui::CalcTextSize(footer2);
+            ImGui::SetCursorPosX((w - f1Sz.x) * 0.5f);
+            ImGui::TextDisabled("%s", footer1);
+            ImGui::SetCursorPosX((w - f2Sz.x) * 0.5f);
+            ImGui::TextDisabled("%s", footer2);
+
+            ImGui::Spacing();
+            ImGui::Spacing();
+
+            // Close button
+            float closeBtnW = 120.0f;
+            ImGui::SetCursorPosX((w - closeBtnW) * 0.5f);
+            if (ImGui::Button("CLOSE", ImVec2(closeBtnW, 32))) {
+                PlaySelect();
+                showCredits = false;
+                ImGui::CloseCurrentPopup();
+            }
+            if (ImGui::IsItemHovered()) PlayHover();
+
+            ImGui::Spacing();
+            ImGui::EndPopup();
+        }
+        ImGui::PopStyleColor(3);
+    }
 
     // ── Build Version — bottom-left ───────────────────────────────────────────
     {
