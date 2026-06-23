@@ -212,9 +212,9 @@ void SceneTitle::DrawGui() {
     // ── main panel ─────────────────────────────────────────────────────────
     bool atCap = (int)profiles.size() >= SaveData::kMaxProfiles;
     float panH = 0.0f;
-    if      (state == TitleState::MAIN)          panH = 244.0f + (showSettings ? 345.0f : 0.0f) + (atCap ? 46.0f : 0.0f);
+    if      (state == TitleState::MAIN)          panH = 280.0f + (showSettings ? 345.0f : 0.0f) + (atCap ? 46.0f : 0.0f);
     else if (state == TitleState::NEW_GAME_NAME) panH = 160.0f;
-    else if (state == TitleState::LOAD_SELECT)   panH = 60.0f + (float)profiles.size() * 52.0f + 50.0f;
+    else if (state == TitleState::LOAD_SELECT)   panH = 70.0f + (float)profiles.size() * 52.0f + 50.0f;
 
     float panW = 420.0f;
     ImGui::SetNextWindowPos(ImVec2(cx, cy * 1.12f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
@@ -230,6 +230,7 @@ void SceneTitle::DrawGui() {
 
     // ── MAIN ──────────────────────────────────────────────────────────────
     if (state == TitleState::MAIN) {
+        ImGui::PushFont(AppFonts::medium);
         ImGui::SetCursorPosX(btnX);
         if (atCap) ImGui::BeginDisabled();
         if (ImGui::Button("NEW GAME", ImVec2(btnW, 44))) {
@@ -263,7 +264,7 @@ void SceneTitle::DrawGui() {
         ImGui::Spacing();
         ImGui::SetCursorPosX(btnX);
         if (ImGui::Button(showSettings ? "SETTINGS  [hide]" : "SETTINGS  [show]",
-                          ImVec2(btnW, 38))) {
+                          ImVec2(btnW, 44))) {
             PlaySelect();
             if (!showSettings) {
                 // Sync pending video to current applied settings when panel opens
@@ -275,6 +276,7 @@ void SceneTitle::DrawGui() {
             showSettings = !showSettings;
         }
         if (ImGui::IsItemHovered()) PlayHover();
+        ImGui::PopFont();
 
         if (showSettings) {
             // ── Audio ──────────────────────────────────────────────────────
@@ -353,9 +355,10 @@ void SceneTitle::DrawGui() {
             if (ImGui::IsItemHovered()) PlayHover();
         }
 
+        ImGui::PushFont(AppFonts::medium);
         ImGui::Spacing();
         ImGui::SetCursorPosX(btnX);
-        if (ImGui::Button("CREDITS", ImVec2(btnW, 32))) {
+        if (ImGui::Button("CREDITS", ImVec2(btnW, 44))) {
             PlaySelect();
             showCredits = true;
         }
@@ -365,12 +368,13 @@ void SceneTitle::DrawGui() {
         ImGui::Separator();
         ImGui::Spacing();
         ImGui::SetCursorPosX(btnX);
-        if (ImGui::Button("EXIT", ImVec2(btnW, 32))) {
+        if (ImGui::Button("EXIT", ImVec2(btnW, 44))) {
             PlaySelect();
             SDL_Event e; e.type = SDL_EVENT_QUIT;
             SDL_PushEvent(&e);
         }
         if (ImGui::IsItemHovered()) PlayHover();
+        ImGui::PopFont();
     }
 
     // ── NEW GAME — enter name ─────────────────────────────────────────────
@@ -415,6 +419,7 @@ void SceneTitle::DrawGui() {
         float spacing  = ImGui::GetStyle().ItemSpacing.x;
         float loadBtnW = btnW - delBtnW - spacing;
 
+        ImGui::PushFont(AppFonts::medium);
         for (int i = 0; i < (int)profiles.size(); i++) {
             std::string pname = profiles[i];
             ImGui::SetCursorPosX(btnX);
@@ -460,15 +465,18 @@ void SceneTitle::DrawGui() {
             }
         }
 
+        ImGui::PopFont();
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();
         ImGui::SetCursorPosX(btnX);
-        if (ImGui::Button("BACK", ImVec2(btnW, 34))) {
+        ImGui::PushFont(AppFonts::medium);
+        if (ImGui::Button("BACK", ImVec2(btnW, 44))) {
             PlaySelect();
             pendingDeleteIndex = -1;
             state = TitleState::MAIN;
         }
+        ImGui::PopFont();
         if (ImGui::IsItemHovered()) PlayHover();
     }
 
@@ -480,7 +488,7 @@ void SceneTitle::DrawGui() {
 
     if (showCredits) {
         ImGui::SetNextWindowPos(ImVec2(cx, cy), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-        ImGui::SetNextWindowSize(ImVec2(400, 0), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(520, 0), ImGuiCond_Always);
         ImGui::PushStyleColor(ImGuiCol_WindowBg,   ImVec4(0.03f, 0.05f, 0.13f, 0.97f));
         ImGui::PushStyleColor(ImGuiCol_Border,     ImVec4(0.15f, 0.55f, 1.0f,  0.60f));
         ImGui::PushStyleColor(ImGuiCol_PopupBg,    ImVec4(0.03f, 0.05f, 0.13f, 0.97f));
@@ -491,7 +499,7 @@ void SceneTitle::DrawGui() {
             float w = ImGui::GetContentRegionAvail().x;
 
             // Header
-            ImGui::PushFont(AppFonts::medium);
+            ImGui::PushFont(AppFonts::large);
             ImVec2 hSz = ImGui::CalcTextSize("CREDITS");
             ImGui::SetCursorPosX((w - hSz.x) * 0.5f);
             ImGui::TextColored(ImVec4(0.15f, 0.88f, 1.0f, 1.0f), "CREDITS");
@@ -502,7 +510,7 @@ void SceneTitle::DrawGui() {
             ImGui::Spacing();
 
             // Developer name
-            ImGui::PushFont(AppFonts::large);
+            ImGui::PushFont(AppFonts::title);
             ImVec2 nSz = ImGui::CalcTextSize("Muntasir Khan");
             ImGui::SetCursorPosX((w - nSz.x) * 0.5f);
             ImGui::TextColored(ImVec4(0.95f, 0.95f, 1.0f, 1.0f), "Muntasir Khan");
@@ -518,11 +526,13 @@ void SceneTitle::DrawGui() {
                 "3D Artist",
                 "Composer & Audio Designer",
             };
+            ImGui::PushFont(AppFonts::medium);
             for (const char* role : kRoles) {
                 ImVec2 rSz = ImGui::CalcTextSize(role);
                 ImGui::SetCursorPosX((w - rSz.x) * 0.5f);
                 ImGui::TextColored(ImVec4(0.70f, 0.72f, 0.85f, 1.0f), "%s", role);
             }
+            ImGui::PopFont();
 
             ImGui::Spacing();
             ImGui::Separator();
@@ -542,13 +552,15 @@ void SceneTitle::DrawGui() {
             ImGui::Spacing();
 
             // Close button
-            float closeBtnW = 120.0f;
+            float closeBtnW = 160.0f;
+            ImGui::PushFont(AppFonts::medium);
             ImGui::SetCursorPosX((w - closeBtnW) * 0.5f);
-            if (ImGui::Button("CLOSE", ImVec2(closeBtnW, 32))) {
+            if (ImGui::Button("CLOSE", ImVec2(closeBtnW, 44))) {
                 PlaySelect();
                 showCredits = false;
                 ImGui::CloseCurrentPopup();
             }
+            ImGui::PopFont();
             if (ImGui::IsItemHovered()) PlayHover();
 
             ImGui::Spacing();
