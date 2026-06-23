@@ -18,14 +18,14 @@ What is in this game?
 - TBA
     - Health System (done)
     - Enemy spawn (6+ types)
-        - Asteroid
-        - Bot01
+        - Asteroid (types)
+        - Bot01 (varients)
         - Bot02
         - 
     - weapon
         - Laser (done)
         - Missiles (done)
-        - Shield (done)
+        - Shield (done) + Ricochet bullets
         - 
 - Background Music
     - Keeping the original chores with my own remix(working progress)
@@ -50,7 +50,7 @@ Built with
 
 How to run this on your PC?
 
-- Download and install Visual Studio on windows (other OS!, you are on your own for now)
+- Download and install Visual Studio on windows, Probably need Microsoft Visual C++ library (other OS!, you are on your own for now)
 - Setup GameDev library (find the GameDev.7z inside, extract it directly to your C drive "C:\GameDev")
 - Clone/Download, Open ComponentFramework.sln in VS and run in x86
 - Enjoy
@@ -60,8 +60,10 @@ How to run this on your PC?
 How to play?
 
 - W A S D for movement
-- Spacebar/M1 to shoot
+- M1 to shoot/Spacebar
 - M2 to missile
+- E to use shield
+- Q to Hyper Sonic Jump
 
 ---
 
