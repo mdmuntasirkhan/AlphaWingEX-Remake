@@ -79,5 +79,19 @@ How to play?
 ![Gameplay](ComponentFramework/screenshots/gameover.png)
 
 
+---
+
+## Developer Documentation
+
+| Document | What it covers |
+|----------|---------------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Engine structure — frame loop, scene lifecycle, data flow |
+| [docs/SYSTEMS.md](docs/SYSTEMS.md) | How each system works — level scripting, enemies, warp, save/load, audio, camera |
+| [docs/HOW_TO_ADD.md](docs/HOW_TO_ADD.md) | Step-by-step recipes — add an enemy, a level, a HUD element, a save field |
+| [docs/CONTROLS.md](docs/CONTROLS.md) | Every key binding — gameplay and debug shortcuts |
+| [CLAUDE.md](CLAUDE.md) | Deep technical reference, updated automatically during AI-assisted development |
+
+---
+
 Sincerely,
 Muntasir
