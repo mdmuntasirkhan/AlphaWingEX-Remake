@@ -284,12 +284,20 @@ ImGui::TextDisabled("%s", str);
 
 // Separator line
 ImGui::Separator();
+
+// Larger text — use PushFont, NOT SetWindowFontScale (scale blurs the texture)
+ImGui::PushFont(AppFonts::large);   // 32 px
+ImGui::Text("BIG TEXT");
+ImGui::PopFont();
+// AppFonts::body=14px  medium=22px  large=32px  title=40px
+// PushFont(nullptr) is safe — falls back to default
 ```
 
 **ImGui rules:**
 - Every `PushStyleColor(n)` needs `PopStyleColor(n)` with the same count.
 - Multiple progress bars in the same window need unique IDs: `"##bar1"`, `"##bar2"`.
 - `NoDecoration` blocks `AlwaysAutoResize` — never combine them.
+- Never use `SetWindowFontScale()` — it stretches the font texture and causes blur.
 
 ---
 
