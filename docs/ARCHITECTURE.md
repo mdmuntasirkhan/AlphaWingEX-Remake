@@ -118,7 +118,7 @@ OnDestroy()         — free all resources allocated in OnCreate()
 
 | Scene class | When active | Purpose |
 |-------------|-------------|---------|
-| `SceneTitle` | On launch | Profile select, new game, leaderboard |
+| `SceneTitle` | On launch | Profile select, new game, leaderboard, credits |
 | `SceneMuntasir` | Main gameplay | The actual game |
 | `SceneJA` | F2 shortcut | Teammate test scene |
 | `SceneSTG` | F1 shortcut | Placeholder / experiment |

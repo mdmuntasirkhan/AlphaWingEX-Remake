@@ -75,7 +75,7 @@ OnCreate() → Update(dt) → RenderBackground() → Render() → DrawGui() → 
 `HandleEvents()` is called by `SceneManager::HandleEvents()` for every SDL event. `Render()` is `const` — all state changes happen in `Update()` or `DrawGui()`.
 
 Concrete scenes:
-- **`SceneTitle`** — profile selector / new-game flow. Three internal states (`MAIN`, `NEW_GAME_NAME`, `LOAD_SELECT`). Maintains a leaderboard cache (`vector<pair<string,int>>`) sorted by high score descending. On launch it calls `SceneSwitcher::Request(GameScene::MUN)` to hand off to the main game.
+- **`SceneTitle`** — profile selector / new-game flow. Three internal states (`MAIN`, `NEW_GAME_NAME`, `LOAD_SELECT`). Maintains a leaderboard cache (`vector<pair<string,int>>`) sorted by high score descending. On launch it calls `SceneSwitcher::Request(GameScene::MUN)` to hand off to the main game. The MAIN state also has a CREDITS button that opens a `BeginPopupModal("##credits")` overlay — `OpenPopup` must be called from the root context (after all `ImGui::End()` calls) so the popup ID resolves correctly; the `showCredits` bool bridges the button handler and the popup call.
 - **`SceneMuntasir`** — the real game.
 - **`SceneSTG`**, **`SceneJA`** — stubs/experiments used by teammates.
 

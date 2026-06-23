@@ -427,6 +427,7 @@ To bump the version, edit only `Version.h`.
 - All `PlotLines` / `ProgressBar` widgets in the same window must have **unique IDs**: `"##fps"`, `"##cpu"`, etc.
 - `PushStyleColor(n)` must always be followed by `PopStyleColor(n)` with the same count.
 - Right-align text without clipping: `SetCursorPosX(GetWindowWidth() - CalcTextSize(str).x - GetStyle().WindowPadding.x)`
+- **Modal popups:** `OpenPopup("##id")` must be called from the **root context** (after all `ImGui::End()` calls for the frame), not from inside a window block. Calling it inside a window and then `BeginPopupModal` outside causes the ID lookup to fail and the popup never opens. Use a bool flag set by the button, then call `OpenPopup` + `BeginPopupModal` together after all windows are closed.
 
 ---
 
