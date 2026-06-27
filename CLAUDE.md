@@ -17,6 +17,8 @@ AlphaWingEX-Remake is a 2.5D vertical-scrolling space shooter built in C++ with 
 
 **Running:** Press **F5** in Visual Studio to build and launch. At startup, `SceneTitle` loads first (profile select / new game). From there the game transitions to `SceneMuntasir`.
 
+**Adding new source files:** Every new `.h` and `.cpp` must be registered in `ComponentFramework.vcxproj` as `<ClInclude>` and `<ClCompile>` entries respectively, or Visual Studio will not compile them. Copy an existing entry (e.g. Bot01) and change the filename.
+
 **Controls:**
 
 | Key / Input | Action |
@@ -83,7 +85,11 @@ Concrete scenes:
 
 ### SceneSwitcher
 
-`SceneSwitcher` (in `SceneSwitcher.h`) is a zero-dependency static struct that breaks the circular-include problem between scenes and `SceneManager`. Any scene calls `SceneSwitcher::Request(GameScene::X)`; `SceneManager` checks `SceneSwitcher::hasPending` each frame after `DrawGui()`. No scene header needs to `#include "SceneManager.h"`.
+`SceneSwitcher` (in `SceneSwitcher.h`) is a zero-dependency static struct that breaks the circular-include problem between scenes and `SceneManager`. No scene header needs to `#include "SceneManager.h"`.
+
+Two entry points:
+- `SceneSwitcher::Request(GameScene::X)` — deferred scene transition; `SceneManager` drains `hasPending` after `DrawGui()` each frame.
+- `SceneSwitcher::RequestVideo(fullscreen, w, h, vsync)` — deferred video-mode change; `SceneManager` drains `hasVideoRequest` the same way. Both `SceneTitle` and `SceneMuntasir` call this when the user presses **APPLY** in settings.
 
 ### Level scripting system
 
@@ -109,6 +115,18 @@ Currently registered scripts in `SceneMuntasir::OnCreate()`:
 - **`Level02Script`** — offset 180 s (3 min in; Level02's first chunk enters exactly as Level01's last exits)
 
 **To add a new environment chunk:** export an OBJ from Blender into `meshes/`, then add one `LevelEvent` of type `SPAWN_ENV_CHUNK` inside the relevant `LevelXXScript.cpp`. No other file changes are required.
+
+**`LevelEvent` field semantics** — the same struct fields are reused with different meanings per event type:
+
+| EventType | `scale` | `scrollSpeed` | `position` / `meshFile` / `color` |
+|-----------|---------|---------------|------------------------------------|
+| `SPAWN_ENV_CHUNK` | uniform mesh scale | units/s leftward | world spawn pos / .obj path / RGB tint |
+| `SPAWN_BOT01_GROUP` / `SHIELDED` | bot count | seconds between bots | unused |
+| `SET_ASTEROID_RATE` | large spawn interval (s) | small spawn interval (s) | unused |
+| `PHASE_CHANGE` | unused | unused | `phaseId` field carries the new phase number |
+| Warp events / `SPAWN_BOT02` | unused | unused | unused |
+
+Events in a script use **local** timestamps starting from 0; `LevelDirector::AddScript(script, offset)` shifts them. Events do not need to be in time order — `LevelDirector` sorts them.
 
 **`EventType` values** defined in `EventType.h`:
 - `SPAWN_ENV_CHUNK` — spawns a mesh that scrolls left at `scrollSpeed` units/second.
@@ -255,6 +273,8 @@ DrawGui()
 | `AppFonts::title` | 40 px | "ALPHA WING EX" banner |
 
 Use `ImGui::PushFont(AppFonts::large)` / `ImGui::PopFont()` — never `SetWindowFontScale()`, which stretches the texture and causes blur. `PushFont(nullptr)` is safe and silently uses the current default. If the font file is missing, the system falls back to ImGui's built-in default automatically.
+
+**HUD window size** — `DrawHUD()` uses `ImGui::SetNextWindowSize(ImVec2(318, 292), ImGuiCond_Always)`. Increase the `292` if new elements make it taller.
 
 **ImGui rules for this project:**
 - `NoDecoration` blocks `AlwaysAutoResize` — never combine them.
