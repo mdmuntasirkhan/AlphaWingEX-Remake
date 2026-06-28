@@ -25,21 +25,11 @@ public:
 	Debug() = delete;
 	
 	static void DebugInit(const std::string& fileName_);
-
-	static void Info(const std::string& message_,
-		const std::string& fileName_, const int line_);
-
-	static void Trace(const std::string& message_,
-		const std::string& fileName_, const int line_);
-
-	static void Warning(const std::string& message_,
-		const std::string& fileName_, const int line_);
-
-	static void Error(const std::string& message_,
-		const std::string& fileName_, const int line_);
-
-	static void FatalError(const std::string& message_,
-		const std::string& fileName_, const int line_);
+	static void Info(const std::string& message_, const std::string& fileName_, const int line_);
+	static void Trace(const std::string& message_, const std::string& fileName_, const int line_);
+	static void Warning(const std::string& message_, const std::string& fileName_, const int line_);
+	static void Error(const std::string& message_, const std::string& fileName_, const int line_);
+	static void FatalError(const std::string& message_, const std::string& fileName_, const int line_);
 
 private:
 	static void Log(const MessageType type_,
@@ -49,4 +39,4 @@ private:
 	static std::string logFileName;
 };
 
-#endif // !DEBUG_H
+#endif // DEBUG_H

@@ -88,7 +88,7 @@ void SoundManager::adjustBackgroundMusicVolume(const float value) {
 	SDL_SetAudioStreamGain(BGMStream, value);
 }
 
-void SoundManager::adjustMasterVolume(const float value) {
+void SoundManager::adjustMasterVolume(const float value) const {
 	SDL_SetAudioDeviceGain(mainDevice, value);
 }
 

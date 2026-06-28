@@ -34,8 +34,7 @@ private:
     enum class SceneID {
         TITLE = 0,
         JA,
-        MUN,
-        STG
+        MUN
     };
 
     class Scene*  currentScene;

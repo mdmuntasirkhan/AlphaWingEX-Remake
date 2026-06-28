@@ -140,7 +140,7 @@
     <ClCompile Include="Bot01.cpp" />
     <ClCompile Include="Bot02.cpp" />
     <ClCompile Include="ShardBeacon.cpp" />
-    <ClCompile Include="AppFonts.cpp" />
+    <ClCompile Include="Fonts.cpp" />
     <ClCompile Include="Bullet.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Debug.cpp" />
@@ -164,7 +164,6 @@
     <ClCompile Include="SceneMuntasir.cpp" />
     <ClCompile Include="SceneSwitcher.cpp" />
     <ClCompile Include="SceneTitle.cpp" />
-    <ClCompile Include="SceneSTG.cpp" />
     <ClCompile Include="SceneTestJacky.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="Sound.cpp" />
@@ -178,8 +177,9 @@
     <ClInclude Include="Body.h" />
     <ClInclude Include="Bot01.h" />
     <ClInclude Include="DebugOverlay.h" />
-    <ClInclude Include="AppFonts.h" />
+    <ClInclude Include="Fonts.h" />
     <ClInclude Include="GameConstants.h" />
+    <ClInclude Include="SceneTitle.h" />
     <ClInclude Include="Version.h" />
     <ClInclude Include="Bot02.h" />
     <ClInclude Include="ShardBeacon.h" />
@@ -208,7 +208,6 @@
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="SceneMuntasir.h" />
-    <ClInclude Include="SceneSTG.h" />
     <ClInclude Include="SceneTestJacky.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="Sound.h" />

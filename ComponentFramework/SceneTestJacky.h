@@ -44,4 +44,4 @@ public:
 };
 
 
-#endif // SCENE0_H
+#endif // SCENEJA_H

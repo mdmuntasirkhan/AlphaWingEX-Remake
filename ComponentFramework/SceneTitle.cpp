@@ -2,7 +2,7 @@
 #include "SceneSwitcher.h"
 #include "GameConstants.h"
 #include "Version.h"
-#include "AppFonts.h"
+#include "Fonts.h"
 #include <glew.h>
 #include <SDL3/SDL_events.h>
 #include "imgui.h"
@@ -31,7 +31,7 @@ SceneTitle::SceneTitle()
 SceneTitle::~SceneTitle() {}
 
 bool SceneTitle::OnCreate() {
-    SDL_AudioSpec spec;
+    SDL_AudioSpec spec{};
     spec.freq     = GameConst::kAudioSampleRate;
     spec.channels = 2;
     spec.format   = SDL_AUDIO_S16;
@@ -149,14 +149,14 @@ void SceneTitle::DrawGui() {
     float iw = ImGui::GetContentRegionAvail().x;
 
     // Title — 40 px raster, crisp on all resolutions
-    ImGui::PushFont(AppFonts::title);
+    ImGui::PushFont(Fonts::title);
     ImVec2 tSz = ImGui::CalcTextSize("ALPHA WING EX");
     ImGui::SetCursorPosX((iw - tSz.x) * 0.5f);
     ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "ALPHA WING EX");
     ImGui::PopFont();
 
     // Subtitle — 22 px raster
-    ImGui::PushFont(AppFonts::medium);
+    ImGui::PushFont(Fonts::medium);
     ImVec2 sSz = ImGui::CalcTextSize("R  E  M  A  K  E");
     ImGui::SetCursorPosX((iw - sSz.x) * 0.5f);
     ImGui::TextColored(ImVec4(0.40f, 0.40f, 0.60f, 1.0f), "R  E  M  A  K  E");
@@ -179,7 +179,7 @@ void SceneTitle::DrawGui() {
             ImGuiWindowFlags_NoInputs);
 
         float lbIW = ImGui::GetContentRegionAvail().x;
-        ImGui::PushFont(AppFonts::medium);
+        ImGui::PushFont(Fonts::medium);
         ImVec2 hSz = ImGui::CalcTextSize("HIGH SCORES");
         ImGui::SetCursorPosX((lbIW - hSz.x) * 0.5f);
         ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.1f, 1.0f), "HIGH SCORES");
@@ -230,7 +230,7 @@ void SceneTitle::DrawGui() {
 
     // ── MAIN ──────────────────────────────────────────────────────────────
     if (state == TitleState::MAIN) {
-        ImGui::PushFont(AppFonts::medium);
+        ImGui::PushFont(Fonts::medium);
         ImGui::SetCursorPosX(btnX);
         if (atCap) ImGui::BeginDisabled();
         if (ImGui::Button("NEW GAME", ImVec2(btnW, 44))) {
@@ -355,7 +355,7 @@ void SceneTitle::DrawGui() {
             if (ImGui::IsItemHovered()) PlayHover();
         }
 
-        ImGui::PushFont(AppFonts::medium);
+        ImGui::PushFont(Fonts::medium);
         ImGui::Spacing();
         ImGui::SetCursorPosX(btnX);
         if (ImGui::Button("CREDITS", ImVec2(btnW, 44))) {
@@ -370,7 +370,7 @@ void SceneTitle::DrawGui() {
         ImGui::SetCursorPosX(btnX);
         if (ImGui::Button("EXIT", ImVec2(btnW, 44))) {
             PlaySelect();
-            SDL_Event e; e.type = SDL_EVENT_QUIT;
+            SDL_Event e{}; e.type = SDL_EVENT_QUIT;
             SDL_PushEvent(&e);
         }
         if (ImGui::IsItemHovered()) PlayHover();
@@ -419,7 +419,7 @@ void SceneTitle::DrawGui() {
         float spacing  = ImGui::GetStyle().ItemSpacing.x;
         float loadBtnW = btnW - delBtnW - spacing;
 
-        ImGui::PushFont(AppFonts::medium);
+        ImGui::PushFont(Fonts::medium);
         for (int i = 0; i < (int)profiles.size(); i++) {
             std::string pname = profiles[i];
             ImGui::SetCursorPosX(btnX);
@@ -470,7 +470,7 @@ void SceneTitle::DrawGui() {
         ImGui::Separator();
         ImGui::Spacing();
         ImGui::SetCursorPosX(btnX);
-        ImGui::PushFont(AppFonts::medium);
+        ImGui::PushFont(Fonts::medium);
         if (ImGui::Button("BACK", ImVec2(btnW, 44))) {
             PlaySelect();
             pendingDeleteIndex = -1;
@@ -499,7 +499,7 @@ void SceneTitle::DrawGui() {
             float w = ImGui::GetContentRegionAvail().x;
 
             // Header
-            ImGui::PushFont(AppFonts::large);
+            ImGui::PushFont(Fonts::large);
             ImVec2 hSz = ImGui::CalcTextSize("CREDITS");
             ImGui::SetCursorPosX((w - hSz.x) * 0.5f);
             ImGui::TextColored(ImVec4(0.15f, 0.88f, 1.0f, 1.0f), "CREDITS");
@@ -510,7 +510,7 @@ void SceneTitle::DrawGui() {
             ImGui::Spacing();
 
             // Developer name
-            ImGui::PushFont(AppFonts::title);
+            ImGui::PushFont(Fonts::title);
             ImVec2 nSz = ImGui::CalcTextSize("Muntasir Khan");
             ImGui::SetCursorPosX((w - nSz.x) * 0.5f);
             ImGui::TextColored(ImVec4(0.95f, 0.95f, 1.0f, 1.0f), "Muntasir Khan");
@@ -526,7 +526,7 @@ void SceneTitle::DrawGui() {
                 "3D Artist",
                 "Composer & Audio Designer",
             };
-            ImGui::PushFont(AppFonts::medium);
+            ImGui::PushFont(Fonts::medium);
             for (const char* role : kRoles) {
                 ImVec2 rSz = ImGui::CalcTextSize(role);
                 ImGui::SetCursorPosX((w - rSz.x) * 0.5f);
@@ -553,7 +553,7 @@ void SceneTitle::DrawGui() {
 
             // Close button
             float closeBtnW = 160.0f;
-            ImGui::PushFont(AppFonts::medium);
+            ImGui::PushFont(Fonts::medium);
             ImGui::SetCursorPosX((w - closeBtnW) * 0.5f);
             if (ImGui::Button("CLOSE", ImVec2(closeBtnW, 44))) {
                 PlaySelect();

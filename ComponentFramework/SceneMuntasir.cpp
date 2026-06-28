@@ -7,7 +7,7 @@
 #include "SceneMuntasir.h"
 #include "GameConstants.h"
 #include "Version.h"
-#include "AppFonts.h"
+#include "Fonts.h"
 #include "Level01Script.h"
 #include "Level02Script.h"
 #include <MMath.h>
@@ -59,8 +59,8 @@ SceneMuntasir::SceneMuntasir() :
     pendingTargetFPS{ SaveData::current.targetFPS },
     debugOverlay{ nullptr },
     showDebugOverlay{ true },
-    f11Held{ false },
-    f11HoldTimer{ 0.0f },
+    Q_Held{ false },
+    Q_HoldTimer{ 0.0f },
     prevWarping{ false },
     postWarpTimer{ 0.0f },
     showCameraDebug{ true },
@@ -417,7 +417,7 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
             showCameraDebug = !showCameraDebug;
             break;
         case SDL_SCANCODE_Q:
-            f11Held = true;
+            Q_Held = true;
             break;
         case SDL_SCANCODE_F12:
             drawInWireMode = !drawInWireMode;
@@ -435,8 +435,8 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
 
     case SDL_EVENT_KEY_UP:
         if (sdlEvent.key.scancode == SDL_SCANCODE_Q) {
-            f11Held      = false;
-            f11HoldTimer = 0.0f;   // release before 3 s cancels the charge
+            Q_Held      = false;
+            Q_HoldTimer = 0.0f;   // release before 3 s cancels the charge
         }
         break;
 
@@ -565,15 +565,15 @@ void SceneMuntasir::Update(const float deltaTime) {
     if (levelDirector->PopWarpFullRequest())  environment->TriggerWarp(8.0f);
 
     // Q hold-to-warp — charge for 3 s then fire
-    if (f11Held && !environment->IsWarpActive()) {
-        f11HoldTimer += deltaTime;
-        if (f11HoldTimer >= 3.0f) {
+    if (Q_Held && !environment->IsWarpActive()) {
+        Q_HoldTimer += deltaTime;
+        if (Q_HoldTimer >= 3.0f) {
             environment->TriggerWarp(10.0f);
-            f11Held      = false;
-            f11HoldTimer = 0.0f;
+            Q_Held      = false;
+            Q_HoldTimer = 0.0f;
         }
-    } else if (!f11Held) {
-        f11HoldTimer = 0.0f;
+    } else if (!Q_Held) {
+        Q_HoldTimer = 0.0f;
     }
 
     // During a hyperspace warp the world freezes — enemies and bullets pause
@@ -1528,8 +1528,8 @@ void SceneMuntasir::DrawHUD() {
     // Warp Drive charge — always visible in HUD
     ImGui::Separator();
     {
-        bool  charging = f11Held && !environment->IsWarpActive();
-        float progress = charging ? (f11HoldTimer / 3.0f) : 0.0f;
+        bool  charging = Q_Held && !environment->IsWarpActive();
+        float progress = charging ? (Q_HoldTimer / 3.0f) : 0.0f;
         float t        = (float)ImGui::GetTime();
 
         // Label left, hint right-aligned to avoid border clipping
@@ -1597,7 +1597,7 @@ void SceneMuntasir::DrawHUD() {
         ImGui::TextDisabled("  L E V E L  ");
 
         // Large MM:SS — dedicated 32 px raster, crisp at any resolution
-        ImGui::PushFont(AppFonts::large);
+        ImGui::PushFont(Fonts::large);
         float colonAlpha = 0.35f + 0.65f * sinf(t * GameConst::kPi);
         ImGui::TextColored(ImVec4(0.15f, 0.88f, 1.0f,  1.0f), "%02d", mm);
         ImGui::SameLine(0, 0);

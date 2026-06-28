@@ -1,6 +1,6 @@
-#include "AppFonts.h"
+#include "Fonts.h"
 
-namespace AppFonts {
+namespace Fonts {
     ImFont* body   = nullptr;
     ImFont* medium = nullptr;
     ImFont* large  = nullptr;
