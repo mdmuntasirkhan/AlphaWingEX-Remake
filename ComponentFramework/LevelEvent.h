@@ -1,4 +1,3 @@
-#pragma once
 #ifndef LEVELEVENT_H
 #define LEVELEVENT_H
 

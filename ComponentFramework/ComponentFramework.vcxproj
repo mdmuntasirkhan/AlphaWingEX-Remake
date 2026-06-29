@@ -179,6 +179,8 @@
     <ClInclude Include="DebugOverlay.h" />
     <ClInclude Include="Fonts.h" />
     <ClInclude Include="GameConstants.h" />
+    <ClInclude Include="SaveData.h" />
+    <ClInclude Include="SceneSwitcher.h" />
     <ClInclude Include="SceneTitle.h" />
     <ClInclude Include="Version.h" />
     <ClInclude Include="Bot02.h" />

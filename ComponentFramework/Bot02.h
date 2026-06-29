@@ -1,10 +1,13 @@
+// AlphaWingEX-Remake
+// Author: Muntasir
+// Brief:  Dual hovering gunship pair — always spawns as two units.
+
 #ifndef BOT02_H
 #define BOT02_H
 
 #include "Enemy.h"
 #include <vector>
 
-// Bot02 always spawns as two units "top + bottom" and a fixed hover position on the right side, then fires aimed slow bullets at the player.
 class Bot02 : public Enemy {
 private:
     // Meshes
@@ -17,14 +20,13 @@ private:
     float thrustTimer;
     float hoverTimer;
 
-    // Per instance data, all vectors stay in sync by index (always 0 or 2 active)
     std::vector<Vec3>  positions;
     std::vector<Vec3>  targetPositions; // fixed hover point each instance glides toward
     std::vector<float> hoverPhases;     // offset so top and bottom oscillate out of syn
     std::vector<int>   hp;
-    std::vector<float> hitTimers;       // white flash duration after taking a hit
-    std::vector<float> fireTimers;      // counts up to kFireInterval then fires
-    std::vector<float> knockVelX;       // knockback
+    std::vector<float> hitTimers;
+    std::vector<float> fireTimers;
+    std::vector<float> knockVelX;
     std::vector<float> knockVelY;
 
     // Bullet pool
@@ -33,16 +35,16 @@ private:
     std::vector<bool>  bulletReflected;
 
     // Tuning constants
-    static constexpr float kScale           = 0.17f; // uniform render scale (matches Bot01)
-    static constexpr float kKnockbackDecay  = 9.0f;  // exponential decay rate for knockback
+    static constexpr float kScale           = 0.17f;
+    static constexpr float kKnockbackDecay  = 9.0f;
     static constexpr float kHoverX         = 6.0f;
-    static constexpr float kHoverYOffset   = 3.0f;
+    static constexpr float kHoverYOffset   = 3.0f;      // top at +Y, bottom at -Y
     static constexpr float kApproachSpeed  = 3.0f;
     static constexpr float kHoverAmplitude = 0.15f;
     static constexpr float kHoverFrequency = 1.8f;
     static constexpr int   kHP             = 20;
-    static constexpr float kFireInterval   = 3.0f;  // seconds between per shots
-    static constexpr float kBulletSpeed    = 3.0f;  // slow but precise
+    static constexpr float kFireInterval   = 3.0f;
+    static constexpr float kBulletSpeed    = 3.0f;
     static constexpr float kBulletScale    = 0.08f;
 
 public:
@@ -58,7 +60,7 @@ public:
     void Render(Shader* shader, const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const override;
     void Reset() override;
 
-    // Spawn
+    // Spawn. Always creates the top + bottom pair together
     void Spawn(float playerY);
 
     // Getters for collision check in sceneMuntasir
@@ -67,8 +69,7 @@ public:
     std::vector<Vec3>& GetBulletVelocities(){ return bulletVelocities; }
     int GetCount() const { return (int)positions.size(); }
 
-    // Damage and removal
-    bool DamageBot02(int index, int amount = 1);
+    bool DamageBot02(int index, int amount = 1);        // returns true if destroyed
     void RemoveBot02(int index);
     void RemoveBullet(int index);
 

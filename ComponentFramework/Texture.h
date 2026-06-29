@@ -4,7 +4,9 @@
 #include <SDL3_image/SDL_image.h>
 
 class Texture {
+private:
 	GLuint textureID;
+
 public:
 	Texture();
 	~Texture();
@@ -12,4 +14,4 @@ public:
 	inline GLuint getTextureID() const { return textureID; }
 };
 
-#endif
+#endif // TEXTURE_H

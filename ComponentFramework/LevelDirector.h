@@ -1,4 +1,3 @@
-#pragma once
 #ifndef LEVELDIRECTOR_H
 #define LEVELDIRECTOR_H
 
@@ -14,73 +13,18 @@
 
 using namespace MATH;
 
-// Runs the master level timeline and renders all active environment chunks.
-//
-// Responsibilities:
-//   - Merges level script chunks into one sorted event list
-//   - Pre-loads every referenced .obj mesh at startup (no runtime stutter)
-//   - Fires events as levelTime advances in Update()
-//   - Scrolls active chunks left and culls them when off-screen
-//   - Draws them through the shared shader in Render()
-//
-// It does NOT touch enemies, bullets, the player, or save data.
+// Runs the master level timeline — merges scripts, pre-loads meshes,
+// fires timed events, scrolls and culls active env chunks.
+// Does not touch enemies, bullets, the player, or save data.
 class LevelDirector {
-public:
-    LevelDirector();
-    ~LevelDirector() = default;
-
-    // Merge a script chunk into the master timeline.
-    // timeOffset shifts all of the script's local timestamps to absolute time,
-    // allowing chunks to overlap seamlessly (Elden-ring style, no dead zones).
-    // Also pre-loads every mesh the script references. Takes ownership of script.
-    void AddScript(LevelScript* script, float timeOffset = 0.0f);
-
-    // Register a callback invoked whenever a PHASE_CHANGE event fires.
-    // SceneMuntasir calls this once after construction to drive enemy phase logic.
-    void SetPhaseCallback(std::function<void(int)> cb);
-
-    // Register a callback invoked whenever a SPAWN_BOT01_GROUP or SPAWN_BOT01_SHIELDED event fires.
-    // SceneMuntasir wires this to bot01->TriggerWave() so the level script owns wave timing.
-    // Signature: (count, spawnInterval, isShielded)
-    void SetBot01Callback(std::function<void(int, float, bool)> cb);
-
-    // Register a callback invoked whenever a SPAWN_BOT02 event fires.
-    void SetBot02Callback(std::function<void()> cb);
-
-    // Register a callback invoked whenever a SET_ASTEROID_RATE event fires.
-    // Signature: (largeInterval, smallInterval)
-    void SetAsteroidCallback(std::function<void(float, float)> cb);
-
-    // Reset the timeline back to t=0 (for Try Again). Meshes stay loaded.
-    void Reset();
-
-    // Pop warp requests — each returns true once when the matching event fires.
-    bool PopWarpEnterRequest() { bool v = warpEnterRequested; warpEnterRequested = false; return v; }
-    bool PopWarpExitRequest()  { bool v = warpExitRequested;  warpExitRequested  = false; return v; }
-    bool PopWarpFullRequest()  { bool v = warpFullRequested;  warpFullRequested  = false; return v; }
-
-    // Current position on the master timeline (seconds).
-    float GetTime() const;
-
-    // Call once per frame (not while paused).
-    void Update(float deltaTime);
-
-    // Call inside SceneMuntasir::Render() — draws all currently visible chunks.
-    void Render(Shader* shader,
-                const Matrix4& projectionMatrix,
-                const Matrix4& viewMatrix) const;
-
-    // Release all loaded meshes. Call before delete.
-    void OnDestroy();
-
 private:
-    // A mesh chunk currently scrolling through the scene
+    // A Blender mesh chunk currently scrolling through the scene
     struct ActiveChunk {
         Vec3   pos;
-        Mesh*  mesh        = nullptr;
+        Mesh* mesh           = nullptr;
         Vec3   color;
-        float  scale       = 0.0f;
-        float  scrollSpeed = 0.0f;
+        float  scale         = 0.0f;
+        float  scrollSpeed   = 0.0f;
     };
 
     float                        levelTime;
@@ -88,15 +32,48 @@ private:
     bool                         warpEnterRequested;
     bool                         warpExitRequested;
     bool                         warpFullRequested;
+
     std::vector<LevelEvent>      timeline;
     std::vector<ActiveChunk>     activeChunks;
-    std::map<std::string, Mesh*> meshPool;
-    std::function<void(int)>            phaseCallback;
-    std::function<void(int,float,bool)> bot01Callback;
-    std::function<void()>               bot02Callback;
-    std::function<void(float,float)>    asteroidCallback;
+    std::map<std::string, Mesh*> meshPool;                        // one mesh loaded per unique file path
+
+    // Callbacks — wired by SceneMuntasir after construction
+    std::function<void(int)>                 phaseCallback;       // PHASE_CHANGE
+    std::function<void(int, float, bool)>    bot01Callback;       // SPAWN_BOT01 (count, interval, shielded)
+    std::function<void()>                    bot02Callback;       // SPAWN_BOT02
+    std::function<void(float, float)>        asteroidCallback;    // SET_ASTEROID_RATE (large, small)
 
     void FireEvent(const LevelEvent& e);
+
+public:
+    LevelDirector();
+    ~LevelDirector() = default;
+
+    // Merges a script into the master timeline at the given time offset.
+    // Pre-loads every mesh the script references. Takes ownership of script.
+    void AddScript(LevelScript* script, float timeOffset = 0.0f);
+
+    // Callbacks — call once after construction before the first Update()
+    void SetPhaseCallback(std::function<void(int)> cb);
+    void SetBot01Callback(std::function<void(int, float, bool)> cb);        // (count, interval, shielded)
+    void SetBot02Callback(std::function<void()> cb);
+    void SetAsteroidCallback(std::function<void(float, float)> cb);         // (large interval, small interval)
+
+    // Resets timeline to t=0 for Try Again — loaded meshes are kept
+    void Reset();
+
+    // Each returns true once when the matching warp event fires
+    bool PopWarpEnterRequest() { bool v = warpEnterRequested; warpEnterRequested = false; return v; }
+    bool PopWarpExitRequest()  { bool v = warpExitRequested;  warpExitRequested  = false; return v; }
+    bool PopWarpFullRequest()  { bool v = warpFullRequested;  warpFullRequested  = false; return v; }
+
+    float GetTime() const;
+
+    void Update(float deltaTime);
+    void Render(Shader* shader,
+                const Matrix4& projectionMatrix,
+                const Matrix4& viewMatrix) const;
+    void OnDestroy();
 };
 
 #endif // LEVELDIRECTOR_H

@@ -1,4 +1,3 @@
-#pragma once
 #ifndef SCENETITLE_H
 #define SCENETITLE_H
 

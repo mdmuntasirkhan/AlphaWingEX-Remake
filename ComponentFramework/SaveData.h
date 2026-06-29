@@ -1,4 +1,3 @@
-#pragma once
 #ifndef SAVEDATA_H
 #define SAVEDATA_H
 
@@ -14,7 +13,7 @@ struct SaveData {
     int   shardCount  = 0;
     int   highScore   = 0;
 
-    // Full mid-session state (auto-saved continuously)
+    // Auto saved continuously
     float health   = 100.0f;
     int   lives    = 3;
     int   score    = 0;
@@ -62,12 +61,11 @@ struct SaveData {
     bool Load(const std::string& name);
     void Reset();
 
-    // Machine-level video/audio prefs — stored in settings.dat, NOT per-profile.
-    // SceneManager uses these so video changes never touch a profile file.
+    // Stored in settings.dat
     void SaveMachineSettings() const;
     void LoadMachineSettings();
 
-    // Lists all profile names found on disk (max kMaxProfiles)
+    // Lists all profile
     static std::vector<std::string> GetProfileList();
 
     // Returns all profiles with their high scores, sorted descending
@@ -79,4 +77,4 @@ struct SaveData {
     static constexpr int kMaxProfiles = 10;
 };
 
-#endif
+#endif // SAVEDATA_H

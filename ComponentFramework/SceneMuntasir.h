@@ -1,6 +1,6 @@
-#pragma once
 #ifndef SCENEMUNTASIR_H
 #define SCENEMUNTASIR_H
+
 #include "Scene.h"
 #include "Vector.h"
 #include <Matrix.h>

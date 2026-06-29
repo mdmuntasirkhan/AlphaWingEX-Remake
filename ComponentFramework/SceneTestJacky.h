@@ -1,5 +1,6 @@
 #ifndef SCENEJA_H
 #define SCENEJA_H
+
 #include "Scene.h"
 #include "Vector.h"
 #include <Matrix.h>
