@@ -1,3 +1,7 @@
+// AlphaWingEX-Remake
+// Author: Muntasir
+// Brief:  Main gameplay scene — player, enemies, bullets, shards, level timeline, HUD.
+
 #include <glew.h>
 #include <iostream>
 #include <cstdlib>
@@ -125,7 +129,7 @@ bool SceneMuntasir::OnCreate() {
         return false;
     }
 
-    // Environment - starfield (use actual viewport pixel size, not hardcoded 1920x1080)
+    // Environment - starfield (use actual viewport pixel size, do not hardcode resolution here)
     GLint vp[4];
     glGetIntegerv(GL_VIEWPORT, vp);
     environment = new Environment();
@@ -134,7 +138,7 @@ bool SceneMuntasir::OnCreate() {
         return false;
     }
 
-    // Shard mesh (placeholder: bullet OBJ spun tiny — swap later for a real crystal)
+    // Shard mesh
     shardMesh = new Mesh("meshes/Temp_AlphaWing_Bullet.obj");
     if (shardMesh->OnCreate() == false) {
         std::cout << "Shard mesh not found!\n";
@@ -181,7 +185,7 @@ bool SceneMuntasir::OnCreate() {
     SDL_SetAudioStreamGain(sfxPlayer, sfxVolume);
     SDL_ResumeAudioStreamDevice(sfxPlayer);
 
-    // Dedicated stream for laser hit — cleared before each play for instant response
+    // Dedicated stream — cleared before each play for instant response
     sfxLaserHitStream = SDL_OpenAudioDeviceStream(
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
         &defaultSpec, nullptr, nullptr);
@@ -258,7 +262,7 @@ bool SceneMuntasir::OnCreate() {
     musicVolume = SaveData::current.musicVolume;
     sfxVolume   = SaveData::current.sfxVolume;
 
-    // Level director — loads all environment chunk meshes up front, no runtime stutter
+    // Level director — loads all environment chunk meshes up front, no runtime stutter when events fire
     levelDirector = new LevelDirector();
     levelDirector->SetPhaseCallback([this](int id) { currentPhase = id; });
     levelDirector->SetBot01Callback([this](int count, float interval, bool shielded) {
@@ -294,8 +298,8 @@ void SceneMuntasir::OnDestroy() {
     Debug::Info("Deleting assets SceneMuntasir: ", __FILE__, __LINE__);
 
     // On a complete death: reset only run-specific fields so the next load starts fresh.
-    // highScore was committed at game-over detection; shard pile was saved at last life-loss.
-    // On a normal mid-run exit: full mid-session save so the player can resume.
+    // highScore was committed at gameover detection; shard pile was saved at last life loss.
+    // On a normal mid run exit: full mid session save so the player can resume.
     if (gameOver) {
         SaveData::current.lives       = 3;
         SaveData::current.health      = 100.0f;
@@ -354,11 +358,9 @@ void SceneMuntasir::OnDestroy() {
     delete environment;
     environment = nullptr;
 
-    // Shader
     shader->OnDestroy();
     delete shader;
 
-    // SFX
     sfxLaser->OnDestroy();
     delete sfxLaser;
 
@@ -590,9 +592,9 @@ void SceneMuntasir::Update(const float deltaTime) {
     } else if (postWarpTimer > 0.0f) {
         postWarpTimer -= deltaTime;
         if (postWarpTimer < 0.0f) postWarpTimer = 0.0f;
-        float t    = 1.0f - (postWarpTimer / kPostWarpEaseDuration); // 0 → 1
-        float ease = t * t * (3.0f - 2.0f * t);                     // smoothstep
-        dtMult = 0.35f + ease * 0.65f;                               // 0.35 → 1.0
+        float t    = 1.0f - (postWarpTimer / kPostWarpEaseDuration);
+        float ease = t * t * (3.0f - 2.0f * t);     // smoothstep
+        dtMult = 0.35f + ease * 0.65f;
     } else {
         dtMult = 1.0f;
     }
@@ -614,11 +616,11 @@ void SceneMuntasir::Update(const float deltaTime) {
     // Shard physics — drift, magnet pull, collect, cull
     Vec3 ppos = player->GetPosition();
     for (int i = (int)shards.size() - 1; i >= 0; i--) {
-        // Drift
+
         shards[i].pos   += shards[i].vel * deltaTime;
         shards[i].angle += shards[i].spinSpeed * deltaTime;
 
-        // Magnet attachment pull (inverse-linear: closer = stronger)
+        // Magnet attachment pull (inverse linear. closer = stronger)
         float dx   = ppos.x - shards[i].pos.x;
         float dy   = ppos.y - shards[i].pos.y;
         float dist = sqrtf(dx*dx + dy*dy);
@@ -865,7 +867,7 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // === Shield bubble collision — anything entering the ellipse is destroyed ===
+    // Shield bubble collision — anything entering the ellipse is destroyed
     // Ellipse shape matches the rendered mesh exactly: X half-axis 1.05, Y 0.75 world units.
     if (player->IsShieldActive()) {
         const Vec3  sp  = player->GetPosition();
@@ -1203,16 +1205,14 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
-    // All spawning is driven by the level script.
-    // The only phase gates remaining are the Bot02 intro window (phase 3) pause flags.
+    // Phase 3 = Bot02 intro window — pause other spawning during the encounter
     bool asteroidsSpawning = currentPhase < 3 || currentPhase >= 4;
     bot01->SetSpawningEnabled(currentPhase != 3);
     asteroid->SetSpawningEnabled(asteroidsSpawning);
 
-    // Life-loss detection — after all collision damage this frame.
+    // Save on each life lost
     int currentLives = player->GetLives();
     if (currentLives < prevLives) {
-        // Shards stay on individual life loss — only a complete game over drops them
         SaveGame();
     }
     prevLives = currentLives;
@@ -1329,7 +1329,7 @@ void SceneMuntasir::PlayHoverSound() {
 void SceneMuntasir::DrawGui() {
     if (showDebugOverlay) debugOverlay->Draw();
 
-    // ── Camera Debug (F10) ────────────────────────────────────────────────────
+    // Camera Debug
     if (showCameraDebug) {
         ImGuiIO& io = ImGui::GetIO();
         ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, 20.0f), ImGuiCond_Always, ImVec2(0.5f, 0.0f));
@@ -1391,10 +1391,10 @@ void SceneMuntasir::DrawGui() {
     DrawGameOver();
 }
 
-// ── HUD — always-visible overlay ─────────────────────────────────────────────
+// HUD
 void SceneMuntasir::DrawHUD() {
 
-    // ── Game HUD (always visible) ─────────────────────────────────────────
+    // Game HUD (always visible)
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(318, 292), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.75f);
@@ -1454,10 +1454,9 @@ void SceneMuntasir::DrawHUD() {
     ImGui::ProgressBar(hp, ImVec2(-1.0f, 20.0f), "");
     ImGui::PopStyleColor();
 
-    // Shield — three-chunk bar: red (critical) | orange (warning) | cyan (safe)
-    // Chunks match the three recharge penalty tiers locked in at deactivation.
+    // Three-chunk shield bar matching the three recharge penalty tiers
     {
-        float charge = player->GetShieldChargeFraction(); // 1=full, 0=empty
+        float charge = player->GetShieldChargeFraction();
 
         if (player->IsShieldActive()) {
             ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "SHIELD ACTIVE  [E]");
@@ -1573,7 +1572,7 @@ void SceneMuntasir::DrawHUD() {
     ImGui::TextDisabled("ESC  Pause");
     ImGui::End();
 
-    // ── Level Timer — top, left of camera debug panel ────────────────────────
+    // Level Timer
     {
         float levelSec = levelDirector->GetTime();
         int   mm       = (int)(levelSec / 60.0f);
@@ -1610,7 +1609,7 @@ void SceneMuntasir::DrawHUD() {
         ImGui::PopStyleColor(2);
     }
 
-    // ── Build Version — bottom-right ──────────────────────────────────────────
+    // Build Version
     {
         ImGuiIO& io = ImGui::GetIO();
         ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 10.0f, io.DisplaySize.y - 10.0f),
@@ -1629,7 +1628,7 @@ void SceneMuntasir::DrawHUD() {
     }
 }
 
-// ── Pause Menu ────────────────────────────────────────────────────────────────
+// Pause Menu
 void SceneMuntasir::DrawPauseMenu() {
     if (!gamePaused) return;
 
@@ -1682,7 +1681,7 @@ void SceneMuntasir::DrawPauseMenu() {
         PlayHoverSound();
 
         if (pauseShowSettings) {
-            // ── Audio ──────────────────────────────────────────────────────
+            // Audio
             ImGui::Spacing();
             ImGui::SetCursorPosX(btnX);
             ImGui::Text("Music Volume");
@@ -1715,7 +1714,7 @@ void SceneMuntasir::DrawPauseMenu() {
             }
             PlayHoverSound();
 
-            // ── Video ──────────────────────────────────────────────────────
+            // Video
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
@@ -1796,7 +1795,7 @@ void SceneMuntasir::DrawPauseMenu() {
     ImGui::End();
 }
 
-// ── Game Over screen ──────────────────────────────────────────────────────────
+// Game Over screen
 void SceneMuntasir::DrawGameOver() {
     if (!gameOver) return;
 
