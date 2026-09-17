@@ -16,6 +16,7 @@
 #include "LevelDirector.h"
 #include "ShardBeacon.h"
 #include "DebugOverlay.h"
+#include "HUDRenderer.h"
 #include <vector>
 
 using namespace MATH;
@@ -77,11 +78,8 @@ private:
 	void SaveGame();
 
 
-	// DrawGui HUD
-	void DrawHUD();
-	void DrawPauseMenu();
-	void DrawGameOver();
-	void PlayHoverSound();
+	// HUD, pause menu, and game-over screen — extracted into HUDRenderer
+	HUDRenderer* hudRenderer;
 
 
 	// Auto save
@@ -110,7 +108,6 @@ private:
 	Sound* bgmMusic;
 	float musicVolume;
 	float sfxVolume;
-	bool musicPaused;
 
 
 	// Cooldown prevents sound spam when bullets bounce rapidly off shield
@@ -120,14 +117,6 @@ private:
 
 	// Pause
 	bool gamePaused;
-	bool pauseShowSettings;
-
-
-	// video settings uncommitted until APPLY is pressed
-	int  pendingResIndex;
-	bool pendingFullscreen;
-	int  pendingVsync;
-	int  pendingTargetFPS;
 
 
 	// Debug overlay — toggled with F9
@@ -155,8 +144,6 @@ private:
 	// Hover — selectSound played on a low-gain stream
 	SDL_AudioStream* hoverStream;
 	Sound*           uiClickSound;
-	unsigned int     lastHoveredId;
-	Uint64           lastHoverTick;
 
 
 public:

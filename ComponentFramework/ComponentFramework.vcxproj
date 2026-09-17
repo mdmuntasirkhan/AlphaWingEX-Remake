@@ -146,6 +146,7 @@
     <ClCompile Include="Debug.cpp" />
     <ClCompile Include="Enemy.cpp" />
     <ClCompile Include="Environment.cpp" />
+    <ClCompile Include="HUDRenderer.cpp" />
     <ClCompile Include="Level01Script.cpp" />
     <ClCompile Include="Level02Script.cpp" />
     <ClCompile Include="LevelDirector.cpp" />
@@ -191,6 +192,7 @@
     <ClInclude Include="Enemy.h" />
     <ClInclude Include="Environment.h" />
     <ClInclude Include="EventType.h" />
+    <ClInclude Include="HUDRenderer.h" />
     <ClInclude Include="Level01Script.h" />
     <ClInclude Include="Level02Script.h" />
     <ClInclude Include="LevelDirector.h" />
