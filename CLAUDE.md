@@ -218,38 +218,38 @@ Uniforms are cached by name in `Shader`'s `unordered_map<string, GLuint>` and re
 
 `lightPos.Y` must stay ≥ 50 in `SceneMuntasir::Render()`. Moving the light closer causes a visible gradient color shift on the ship mesh.
 
-### HUD and ImGui
+### HUD system
 
-`DrawGui()` calls helpers in order:
+`SceneMuntasir::DrawGui()` draws the debug overlay and camera-debug window itself, then delegates everything else to `HUDRenderer`:
 
 ```
 DrawGui()
-    ├── debugOverlay->Draw()         — top-right, F9 toggle (Minimal / Detailed)
-    ├── Camera debug window          — top-center, F10 toggle
-    ├── [early return if fullWarp]   — hides everything below during WARP_FULL
-    ├── DrawHUD()                    — top-left, always visible
-    │     ├── Level timer            — top, pinned left of camera debug panel
-    │     └── Build version label    — bottom-right, both game scene and title screen
-    ├── DrawPauseMenu()              — center, ESC toggle
-    └── DrawGameOver()               — center, on game over
+    ├── debugOverlay->Draw()             — top-right, F9 toggle (Minimal / Detailed)
+    ├── Camera debug window              — top-center, F10 toggle
+    ├── [early return if fullWarp]       — hides everything below during WARP_FULL
+    ├── hudRenderer->DrawHUD()           — top-left HUD, level timer, build version label
+    ├── hudRenderer->DrawPauseMenu()     — center, ESC toggle
+    └── hudRenderer->DrawGameOver()      — center, on game over
 ```
+
+`HUDRenderer` (`HUDRenderer.h/.cpp`) owns all HUD, pause-menu, and game-over drawing — extracted out of `SceneMuntasir` so HUD code doesn't live inside the main scene class. It holds no game state itself: `SceneMuntasir::OnCreate()` builds a `HUDRenderer::Context` once, after every subsystem exists — subsystem pointers (`player`, `bullet`, `environment`, `shardBeacon`, `levelDirector`, `asteroid`, `bot01`, `bot02`), audio stream pointers, and raw pointers to the specific `SceneMuntasir` fields the HUD reads/writes (`score`, `shardCount`, `gamePaused`, `gameOver`, `currentPhase`, `prevLives`, `autoSaveTimer`, `beaconTriggerTime`, `Q_Held`, `Q_HoldTimer`, `musicVolume`, `sfxVolume`) — then calls `hudRenderer->Init(ctx)`. Presentation-only state nothing else touches (pending video settings, the pause menu's settings-panel toggle, hover-sound debounce) lives inside `HUDRenderer` itself. One field needs indirection instead of a raw pointer: `SceneMuntasir::shards` is a private nested-struct vector, so `Context` carries a `clearShards` callback (`[this]{ shards.clear(); }`) rather than exposing the vector's type across the header boundary.
 
 `DebugOverlay` (`DebugOverlay.h/.cpp`) shows FPS, CPU%, GPU% (via Windows PDH), and RAM% in Minimal (text) or Detailed (text + 30 px scrolling waveform, 128-sample ring buffer) modes.
 
-**Build version label** — transparent floating window anchored bottom-right `(x-10, y-10)` pivot `(1,1)` on both `SceneMuntasir` and `SceneTitle`. To bump the version, edit only `Version.h`.
+**Build version label** — transparent floating window anchored bottom-right `(x-10, y-10)` pivot `(1,1)`, drawn by `HUDRenderer` on `SceneMuntasir` and by `SceneTitle` itself. To bump the version, edit only `Version.h`.
 
-**Font system (`AppFonts`)** — `AppFonts.h/.cpp` exposes four `ImFont*` pointers loaded in `SceneManager::Initialize()` from `fonts/Exo2-Regular.ttf`:
+**Font system (`Fonts`)** — `Fonts.h/.cpp` exposes four `ImFont*` pointers loaded in `SceneManager::Initialize()` from `fonts/Exo2-Regular.ttf`:
 
 | Pointer | Size | Used for |
 |---------|------|----------|
-| `AppFonts::body` | 14 px | Global default — all general HUD / menu text |
-| `AppFonts::medium` | 22 px | Leaderboard header, banner subtitle |
-| `AppFonts::large` | 32 px | Timer MM:SS digits |
-| `AppFonts::title` | 40 px | "ALPHA WING EX" banner |
+| `Fonts::body` | 14 px | Global default — all general HUD / menu text |
+| `Fonts::medium` | 22 px | Leaderboard header, banner subtitle |
+| `Fonts::large` | 32 px | Timer MM:SS digits |
+| `Fonts::title` | 40 px | "ALPHA WING EX" banner |
 
-Use `ImGui::PushFont(AppFonts::large)` / `ImGui::PopFont()` — **never `SetWindowFontScale()`**, which stretches the texture and causes blur.
+Use `ImGui::PushFont(Fonts::large)` / `ImGui::PopFont()` — **never `SetWindowFontScale()`**, which stretches the texture and causes blur.
 
-**HUD window size** — `DrawHUD()` uses `ImGui::SetNextWindowSize(ImVec2(318, 292), ImGuiCond_Always)`. Increase the `292` if new elements make it taller.
+**HUD window size** — `HUDRenderer::DrawHUD()` uses `ImGui::SetNextWindowSize(ImVec2(318, 292), ImGuiCond_Always)`. Increase the `292` if new elements make it taller.
 
 **ImGui rules for this project:**
 - `NoDecoration` blocks `AlwaysAutoResize` — never combine them.
@@ -260,10 +260,11 @@ Use `ImGui::PushFont(AppFonts::large)` / `ImGui::PopFont()` — **never `SetWind
 
 ### Audio
 
-Two audio paths exist in parallel:
+`SoundManager` (`SoundManager.h/.cpp`) owns all audio streams and devices: one `BGMStream` on its own dedicated device, plus a 12-pipe SFX pool (`PIPE1`–`PIPE12`) sharing a second device for mixing. Both devices and every stream use `GameConst::kAudioSampleRate` (44100 Hz) stereo S16, matching every WAV asset under `audio/`. `Sound::Play()` never re-derives format from the WAV it loads — it just writes raw bytes into whatever stream it's given — so **stream and asset sample rates must stay in sync**, or playback speed/pitch will be wrong.
 
-1. **Per-scene SDL3 streams** — `SceneMuntasir` holds dedicated `SDL_AudioStream*` pointers: `bgmPlayer` (music), `sfxPlayer` (general SFX), `sfxLaserHitStream` (rapid-fire hit sounds), `hoverStream` (UI hover at 35% of sfx volume `kHoverStreamGain`). All open at `GameConst::kAudioSampleRate` (44100 Hz) stereo S16. `Sound::Play()` queues a WAV into the given stream. For rapid-fire SFX: call `SDL_ClearAudioStream(stream)` **before** every `Play()` — this flushes queued audio so each hit plays immediately instead of stacking up.
-2. **`SoundManager`** — a pooled manager with one BGM stream and 12 SFX pipes (`PIPE1`–`PIPE12`), at 48000 Hz. Present in the codebase but not yet wired into `SceneMuntasir`; it is the intended replacement for per-scene streams. Note the sample rate difference (48000 vs 44100) when integrating.
+`SceneMuntasir::OnCreate()` creates one `SoundManager` and borrows specific pipes from it via `GetBGMStream()` / `GetSFXPipe(index)`, storing them in its own `bgmPlayer`/`sfxPlayer`/`sfxLaserHitStream`/`hoverStream` fields. `SoundManager` is used purely as the stream/device *owner* — `SceneMuntasir`, `Player` (via `SetSFXStream()`), and `HUDRenderer` all call `Sound::Play()`, `SDL_SetAudioStreamGain()`, `SDL_ClearAudioStream()`, and `SDL_PauseAudioStreamDevice()`/`Resume()` directly on the borrowed pointers, exactly as if they owned them. Reserved pipes: `0` = general SFX (laser shoot, explosion, missile hit, shield hit, and `Player`'s shield SFX all share this one stream, so simultaneous sounds queue/serialize rather than overlap), `1` = laser-hit (cleared via `SDL_ClearAudioStream` before every play, for rapid-fire responsiveness), `2` = UI hover clicks (independent gain, `kHoverStreamGain` = 35% of SFX volume). Pipes 3–11 are unused/spare.
+
+`SoundManager`'s own higher-level API (`playSoundAt()` auto-pick, `UpdateBGM()`, `adjustSFXVolume()`, etc.) is **not** used by `SceneMuntasir`: auto-picking a free pipe would make today's serialized SFX overlap instead, and calling `UpdateBGM()` every frame would re-trigger the whole track from the start. Adopting that API later is a deliberate behavior change, not just a wiring change.
 
 ### Version system
 
