@@ -2,6 +2,7 @@
 #define SOUNDMANAGER_H
 
 #include "Sound.h"
+#include "GameConstants.h"
 #include <vector>
 #include <string>
 
@@ -9,7 +10,8 @@ class SoundManager {
 private:
 	std::vector<SDL_AudioStream*> SFXStreamList;
 	SDL_AudioStream*				  BGMStream; // for background music
-	SDL_AudioDeviceID				 mainDevice;
+	SDL_AudioDeviceID				 mainDevice; // the 12 SFX pipes share this device for mixing
+	SDL_AudioDeviceID				 bgmDevice;  // BGMStream gets its own device, so pausing music never pauses SFX
 	Sound*									BGM;
 
 	// Audio pipe pool — SFX is routed through whichever pipe is free
@@ -29,11 +31,11 @@ private:
 		MAX_NUMBER_PIPES
 	};
 
-	// Default stream format — stereo 16-bit 48 kHz
+	// Default stream format — stereo 16-bit, matches the project's WAV assets
 	SDL_AudioSpec defaultSpec{ // default WAV format spec
 		SDL_AUDIO_S16, // format
 		2, // channel
-		48000 // frequency
+		GameConst::kAudioSampleRate // frequency
 	};
 
 public:
@@ -55,6 +57,11 @@ public:
 	void adjustBackgroundMusicVolume(const float value);
 	void adjustMasterVolume(const float value) const;
 	void adjustSFXVolume(const float value);
+
+	// Raw stream access — lets callers that manage their own Sound::Play()/gain/pause calls
+	// (e.g. SceneMuntasir) borrow SoundManager-owned streams instead of creating their own.
+	SDL_AudioStream* GetBGMStream() const { return BGMStream; }
+	SDL_AudioStream* GetSFXPipe(int index) const { return SFXStreamList[index]; }
 };
 
 #endif // SOUNDMANAGER_H

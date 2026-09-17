@@ -43,6 +43,7 @@ SceneMuntasir::SceneMuntasir() :
     explosionCooldown{ 0.8f },
     explosionCooldownTimer{ 0.0f },
     shieldHitCooldownTimer{ 0.0f },
+    soundManager{ nullptr },
     bgmPlayer{ nullptr },
     sfxPlayer{ nullptr },
     sfxLaserHitStream{ nullptr },
@@ -156,35 +157,28 @@ bool SceneMuntasir::OnCreate() {
     GameConst::ComputeWorldBounds(currentAspect);
     projectionMatrix = MMath::perspective(48.0f, currentAspect, 0.1f, 100.0f);
 
-    // Audio Setup
-    SDL_AudioSpec defaultSpec{};
-    defaultSpec.freq = GameConst::kAudioSampleRate;
-    defaultSpec.channels = 2;
-    defaultSpec.format = SDL_AUDIO_S16;
+    // Audio Setup — streams are owned by soundManager; SceneMuntasir just borrows pipes
+    soundManager = new SoundManager();
+    soundManager->OnCreate();
+
+    static constexpr int kGeneralSfxPipe = 0; // sfxLaser, sfxExplosion, sfxMissileHit, sfxShieldHit, player shield sfx
+    static constexpr int kLaserHitPipe   = 1; // cleared before each play for instant response
+    static constexpr int kHoverPipe      = 2; // UI hover clicks
 
     // Music stream
-    bgmPlayer = SDL_OpenAudioDeviceStream(
-        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
-        &defaultSpec, nullptr, nullptr);
+    bgmPlayer = soundManager->GetBGMStream();
     if (!bgmPlayer) std::cout << "Failed to create music player\n";
     SDL_SetAudioStreamGain(bgmPlayer, musicVolume);
-    SDL_ResumeAudioStreamDevice(bgmPlayer);
 
     // SFX stream
-    sfxPlayer = SDL_OpenAudioDeviceStream(
-        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
-        &defaultSpec, nullptr, nullptr);
+    sfxPlayer = soundManager->GetSFXPipe(kGeneralSfxPipe);
     if (!sfxPlayer) std::cout << "Failed to create SFX player\n";
     SDL_SetAudioStreamGain(sfxPlayer, sfxVolume);
-    SDL_ResumeAudioStreamDevice(sfxPlayer);
 
     // Dedicated stream — cleared before each play for instant response
-    sfxLaserHitStream = SDL_OpenAudioDeviceStream(
-        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
-        &defaultSpec, nullptr, nullptr);
+    sfxLaserHitStream = soundManager->GetSFXPipe(kLaserHitPipe);
     if (!sfxLaserHitStream) std::cout << "Failed to create laser hit stream\n";
     SDL_SetAudioStreamGain(sfxLaserHitStream, sfxVolume * 2.0f);
-    SDL_ResumeAudioStreamDevice(sfxLaserHitStream);
 
     // Music
     bgmMusic = new Sound("audio/music/deadmou5-gg.wav");
@@ -209,11 +203,9 @@ bool SceneMuntasir::OnCreate() {
 
     player->SetSFXStream(sfxPlayer);
 
-    hoverStream = SDL_OpenAudioDeviceStream(
-        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &defaultSpec, nullptr, nullptr);
+    hoverStream = soundManager->GetSFXPipe(kHoverPipe);
     if (hoverStream) {
         SDL_SetAudioStreamGain(hoverStream, sfxVolume * GameConst::kHoverStreamGain);
-        SDL_ResumeAudioStreamDevice(hoverStream);
     }
     uiClickSound = new Sound("audio/sfx/Select01.wav");
     uiClickSound->OnCreate();
@@ -405,17 +397,20 @@ void SceneMuntasir::OnDestroy() {
         delete uiClickSound;
         uiClickSound = nullptr;
     }
-    if (hoverStream) {
-        SDL_DestroyAudioStream(hoverStream);
-        hoverStream = nullptr;
-    }
+    hoverStream = nullptr; // owned by soundManager, destroyed below
 
-    // Audio
-    SDL_DestroyAudioStream(bgmPlayer);
-    SDL_DestroyAudioStream(sfxPlayer);
-    SDL_DestroyAudioStream(sfxLaserHitStream);
     bgmMusic->OnDestroy();
     delete bgmMusic;
+
+    // Audio — soundManager owns bgmPlayer/sfxPlayer/sfxLaserHitStream/hoverStream
+    if (soundManager) {
+        soundManager->OnDestroy();
+        delete soundManager;
+        soundManager = nullptr;
+    }
+    bgmPlayer         = nullptr;
+    sfxPlayer         = nullptr;
+    sfxLaserHitStream = nullptr;
 
     delete debugOverlay;
     debugOverlay = nullptr;

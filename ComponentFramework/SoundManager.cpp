@@ -5,6 +5,11 @@ SoundManager::SoundManager() : BGM(nullptr), BGMStream(nullptr) {
 		SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
 		&defaultSpec
 	);
+	// Separate device so pausing/resuming BGM never affects the SFX pipes on mainDevice
+	bgmDevice = SDL_OpenAudioDevice(
+		SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+		&defaultSpec
+	);
 }
 
 SoundManager::~SoundManager() { /* Free Memory */ }
@@ -15,9 +20,12 @@ bool SoundManager::OnCreate() {
 		SDL_BindAudioStream(mainDevice, SFXStreamList[i]);
 	}
 
-	// background music
+	// background music — bound to its own device, independent of the SFX pipes
 	BGMStream = SDL_CreateAudioStream(&defaultSpec, &defaultSpec);
-	SDL_BindAudioStream(mainDevice, BGMStream);
+	SDL_BindAudioStream(bgmDevice, BGMStream);
+
+	SDL_ResumeAudioDevice(mainDevice);
+	SDL_ResumeAudioDevice(bgmDevice);
 	return true;
 }
 

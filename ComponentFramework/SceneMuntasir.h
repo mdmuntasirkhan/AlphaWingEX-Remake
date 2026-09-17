@@ -17,6 +17,7 @@
 #include "ShardBeacon.h"
 #include "DebugOverlay.h"
 #include "HUDRenderer.h"
+#include "SoundManager.h"
 #include <vector>
 
 using namespace MATH;
@@ -96,7 +97,8 @@ private:
 	float explosionCooldownTimer;
 
 
-	// Audio
+	// Audio — streams are borrowed from soundManager, not owned here
+	SoundManager* soundManager;
 	SDL_AudioStream* bgmPlayer;
 	SDL_AudioStream* sfxPlayer;
 	SDL_AudioStream* sfxLaserHitStream;

@@ -3,10 +3,10 @@ shards 3
 highscore 9940
 health 90
 lives 3
-score 250
-posx -8.72946
-posy -0.245646
-wavetime 37.1184
+score 950
+posx -4.99866
+posy 1.35069
+wavetime 111.485
 haslostshards 1
 lostshardposx 2.99827
 lostshardposy -2.95516
