@@ -22,6 +22,10 @@ bool Camera::OnCreate() {
 	return true;
 }
 
+void Camera::Render() const {
+
+}
+
 void Camera::OnDestroy() {
 	
 }

@@ -52,8 +52,8 @@ THE SOFTWARE.
 //   #include "tiny_obj_loader.h"
 //
 
-#ifndef TINY_OBJ_LOADER_H_
-#define TINY_OBJ_LOADER_H_
+#ifndef TINY_OBJ_LOADER_H
+#define TINY_OBJ_LOADER_H
 
 #include <map>
 #include <string>
@@ -3091,6 +3091,4 @@ namespace tinyobj {
 #endif
 }  // namespace tinyobj
 
-#endif
-
-
+#endif // TINY_OBJ_LOADER_H

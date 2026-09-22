@@ -55,30 +55,28 @@ void Mesh::LoadModel(const char* filename) {
 
 void Mesh::StoreMeshData(GLenum drawmode_) {
     drawmode = drawmode_;
-/// These just make the code easier for me to read
-#define VERTEX_LENGTH 	(vertices.size() * (sizeof(Vec3)))
-#define NORMAL_LENGTH 	(normals.size() * (sizeof(Vec3)))
-#define TEXCOORD_LENGTH (uvCoords.size() * (sizeof(Vec2)))
+    
+    // Byte sizes for each data block uploaded to the GPU
+    #define VERTEX_LENGTH 	(vertices.size() * (sizeof(Vec3)))
+    #define NORMAL_LENGTH 	(normals.size() * (sizeof(Vec3)))
+    #define TEXCOORD_LENGTH (uvCoords.size() * (sizeof(Vec2)))
 
 	const int verticiesLayoutLocation = 0;
 	const int normalsLayoutLocation = 1;
 	const int uvCoordsLayoutLocation = 2;
 
-	/// create and bind the VOA
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
-	/// Create and initialize vertex buffer object VBO
+	
+    
 	glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
 	glBufferData(GL_ARRAY_BUFFER, VERTEX_LENGTH + NORMAL_LENGTH + TEXCOORD_LENGTH, NULL, GL_STATIC_DRAW);
 
-	/// assigns the addr of "points" to be the beginning of the array buffer "sizeof(points)" in length
-	glBufferSubData(GL_ARRAY_BUFFER, 0, VERTEX_LENGTH, &vertices[0]);
-	/// assigns the addr of "normals" to be "sizeof(points)" offset from the beginning and "sizeof(normals)" in length  
-	glBufferSubData(GL_ARRAY_BUFFER, VERTEX_LENGTH, NORMAL_LENGTH, &normals[0]);
-	/// assigns the addr of "texCoords" to be "sizeof(points) + sizeof(normals)" offset from the beginning and "sizeof(texCoords)" in length  
+    // Upload each block at its offset within the single VBO
+	glBufferSubData(GL_ARRAY_BUFFER, 0, VERTEX_LENGTH, &vertices[0]); 
+	glBufferSubData(GL_ARRAY_BUFFER, VERTEX_LENGTH, NORMAL_LENGTH, &normals[0]);  
 	glBufferSubData(GL_ARRAY_BUFFER, VERTEX_LENGTH + NORMAL_LENGTH, TEXCOORD_LENGTH, &uvCoords[0]);
-
 	glEnableVertexAttribArray(verticiesLayoutLocation);
 	glVertexAttribPointer(verticiesLayoutLocation, 3, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<void*>(0));
 	glEnableVertexAttribArray(normalsLayoutLocation);
@@ -86,18 +84,16 @@ void Mesh::StoreMeshData(GLenum drawmode_) {
 	glEnableVertexAttribArray(uvCoordsLayoutLocation);
 	glVertexAttribPointer(uvCoordsLayoutLocation, 2, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<void*>(VERTEX_LENGTH + NORMAL_LENGTH));
 
-    dateLength = vertices.size();
+    dateLength = vertices.size();   // store vertex count before clearing CPU memory
 
-    /// give back the memory used in these vectors. The data is safely stored in the GPU now
+    // Data is now on the GPU — free the CPU copies
     vertices.clear();
     normals.clear();
     uvCoords.clear();
 
-    /// Don't need these defines sticking around anymore si undefine them. 
-#undef VERTEX_LENGTH
-#undef NORMAL_LENGTH
-#undef TEXCOORD_LENGTH
-
+    #undef VERTEX_LENGTH
+    #undef NORMAL_LENGTH
+    #undef TEXCOORD_LENGTH
 }
 
 void Mesh::Render() const {
@@ -117,5 +113,5 @@ void Mesh::OnDestroy() {
 	glDeleteVertexArrays(1, &vao);
 }
 
-/// Currently unused.
+// unused — reserved for future animation
 void Mesh::Update(const float deltaTime) {}
