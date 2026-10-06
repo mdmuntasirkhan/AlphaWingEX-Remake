@@ -46,11 +46,9 @@ private:
 	Matrix4 viewMatrix;
 	bool drawInWireMode;
 
-
 	// Game state
 	bool gameOver;
 	int score;
-
 
 	// Energy shards — collectible RPG currency dropped by enemies
 	struct Shard {
