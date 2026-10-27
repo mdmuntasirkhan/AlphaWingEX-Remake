@@ -447,9 +447,7 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
             drawInWireMode = !drawInWireMode;
             break;
         case SDL_SCANCODE_SPACE:
-            bullet->Spawn(player->GetPosition());
-            player->ApplyImpulse(Vec3(-1.5f, 0.0f, 0.0f)); // recoil
-            sfxLaser->Play(sfxPlayer);
+            Controls::ShootBullet(bullet, player, sfxLaser, sfxPlayer);
             break;
         default:
             player->HandleEvents(sdlEvent);
@@ -467,9 +465,7 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
         if (sdlEvent.button.button == SDL_BUTTON_LEFT) {
             if (!ImGui::GetIO().WantCaptureMouse) {
-                bullet->Spawn(player->GetPosition());
-                player->ApplyImpulse(Vec3(-1.5f, 0.0f, 0.0f)); // recoil
-                sfxLaser->Play(sfxPlayer);
+                Controls::ShootBullet(bullet, player, sfxLaser, sfxPlayer);
             }
         }
         // Right click - homing missile

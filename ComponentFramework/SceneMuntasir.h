@@ -20,6 +20,8 @@
 #include "SoundManager.h"
 #include <vector>
 
+#include "Controls.h"
+
 using namespace MATH;
  
 union SDL_Event;

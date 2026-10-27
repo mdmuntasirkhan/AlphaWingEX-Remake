@@ -40,6 +40,9 @@
     <Filter Include="Source Files\Scenes">
       <UniqueIdentifier>{e8c82a08-d757-47ee-b6fe-eee59a99570f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\FMOD">
+      <UniqueIdentifier>{bd396daa-532f-47c5-ad71-3effca7056d9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -154,6 +157,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SceneSwitcher.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Controls.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -295,6 +301,12 @@
     </ClInclude>
     <ClInclude Include="SceneSwitcher.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Controls.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FMOD_AudioManager.h">
+      <Filter>Header Files\FMOD</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
