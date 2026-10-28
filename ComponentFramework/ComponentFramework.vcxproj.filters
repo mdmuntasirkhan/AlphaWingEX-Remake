@@ -43,6 +43,9 @@
     <Filter Include="Header Files\FMOD">
       <UniqueIdentifier>{bd396daa-532f-47c5-ad71-3effca7056d9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\FMOD">
+      <UniqueIdentifier>{3ec44d52-6be5-4ee0-beb6-c5616a1a01a4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">
@@ -161,6 +164,9 @@
     </ClCompile>
     <ClCompile Include="Controls.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FMOD_AudioManager.cpp">
+      <Filter>Source Files\FMOD</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

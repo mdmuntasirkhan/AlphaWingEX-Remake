@@ -92,7 +92,7 @@
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)FMOD_api\studio\lib\x86;$(SolutionDir)FMOD_api\fsbank\lib\x86;$(SolutionDir)FMOD_api\core\lib\x86;$(SolutionDir)GameDev\SDL3\lib\x86;$(SolutionDir)GameDev\OpenGL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>SDL3.lib;SDL3_image.lib;glew32.lib;glew32s.lib;opengl32.lib;fmod_vc.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL3.lib;SDL3_image.lib;glew32.lib;glew32s.lib;opengl32.lib;fmodstudio_vc.lib;fmodstudioL_vc.lib;fsbank_vc.lib;fmod_vc.lib;fmodL_vc.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
@@ -146,6 +146,7 @@
     <ClCompile Include="Controls.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="FMOD_AudioManager.cpp" />
     <ClCompile Include="ShardBeacon.cpp" />
     <ClCompile Include="Fonts.cpp" />
     <ClCompile Include="Bullet.cpp" />

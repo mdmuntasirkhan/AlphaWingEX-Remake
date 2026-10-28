@@ -5,6 +5,10 @@
 #include "Vector.h"
 #include <Matrix.h>
 #include "SoundManager.h"
+#include <memory>
+#include <string_view>
+
+#include "FMOD_AudioManager.h"
 
 using namespace MATH;
 
@@ -15,6 +19,8 @@ class Mesh;
 class Shader;
 class Texture;
 class Camera;
+
+const std::string_view BGM_NAME = "Main BGM";
 
 class SceneJA : public Scene {
 private:
@@ -32,6 +38,8 @@ private:
 
 	SoundManager* soundManager;
 	Sound* sound1, *sound2;
+
+	std::unique_ptr<FMOD_AudioManager> FMOD_manager;
 
 public:
 	explicit SceneJA();

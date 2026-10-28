@@ -37,13 +37,21 @@ bool SceneJA::OnCreate() {
 	camera = new Camera();
 	camera->OnCreate();
 
-	soundManager = new SoundManager();
-	soundManager->OnCreate();
+	//soundManager = new SoundManager();
+	//soundManager->OnCreate();
 
-	sound2 = new Sound("audio/273711__sfx4animation__whoosh-sfx-40.wav");
-	sound2->OnCreate();
+	//sound2 = new Sound("audio/273711__sfx4animation__whoosh-sfx-40.wav");
+	//sound2->OnCreate();
 
-	soundManager->adjustSFXVolume(0.3f);
+	/*soundManager->adjustSFXVolume(0.3f);*/
+
+	FMOD_manager = std::make_unique<FMOD_AudioManager>();
+
+	FMOD_manager->OnCreate();
+
+	FMOD_manager->loadAudio(BGM_NAME.data(), "audio/music/deadmou5-gg.wav", true);
+
+	FMOD_manager->PlayBGM(BGM_NAME.data());
 
 	return true;
 }
@@ -79,6 +87,10 @@ void SceneJA::OnDestroy() {
 		sound2->OnDestroy();
 		delete sound2;
 	}
+
+	if (FMOD_manager) {
+		FMOD_manager.reset();
+	}
 }
 
 void SceneJA::HandleEvents(const SDL_Event& sdlEvent) {
@@ -104,6 +116,8 @@ void SceneJA::HandleEvents(const SDL_Event& sdlEvent) {
 void SceneJA::Update(const float deltaTime) {
 	static float totalTime = 0.0f;
 	totalTime += deltaTime;
+
+	FMOD_manager->Update();
 
 }
 
