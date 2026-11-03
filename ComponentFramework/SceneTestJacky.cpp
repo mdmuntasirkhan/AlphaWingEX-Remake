@@ -51,7 +51,22 @@ bool SceneJA::OnCreate() {
 
 	FMOD_manager->loadAudio(BGM_NAME.data(), "audio/music/deadmou5-gg.wav", true);
 
-	FMOD_manager->PlayBGM(BGM_NAME.data());
+	//FMOD_manager->PlayBGM(BGM_NAME.data());
+
+	// Remember to load bank first
+	
+	// Load master bank and master string bank first
+	FMOD_manager->loadBank("Master", "audio/bank/Master.bank");
+	FMOD_manager->loadBank("Master_String", "audio/bank/Master.strings.bank");
+
+	// Load customize bank
+	FMOD_manager->loadBank(BGM_NAME.data(), "audio/bank/test1.bank");
+
+	// Load bank events
+	FMOD_manager->loadEvent(BGM_NAME.data(), "event:/test1");
+
+	FMOD_manager->PlayBGMEvent(BGM_NAME.data());
+	FMOD_manager->setBGMintiensive(3); // Use for volume just for now
 
 	return true;
 }
@@ -89,6 +104,7 @@ void SceneJA::OnDestroy() {
 	}
 
 	if (FMOD_manager) {
+		FMOD_manager->OnDestroy();
 		FMOD_manager.reset();
 	}
 }

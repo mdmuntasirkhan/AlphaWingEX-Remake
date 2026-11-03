@@ -68,8 +68,24 @@ public:
 	void Update();
 	void OnDestroy();
 
+	/*
+	* Sample usage for loadAudio:
+	* loadAudio("SampleBGM", "Audio/sample.wav", true)
+	*/
 	bool loadAudio(const std::string& name, const std::string& path, bool loop);
+
+	/*
+	* Sample usage for loadBank:
+	* loadBank("SampleBank", "Audio/Bank/Sample.bank")
+	*/
 	bool loadBank(const std::string& name, const std::string& path);
+
+	/*
+	* Sample usage for loadBank:
+	* loadBank("SampleEvent", "event:/audio/Sample")
+	* Make sure the bank with event:/audio/Sample is loaded first
+	* otherwise it will fail to load the Event
+	*/
 	bool loadEvent(const std::string& name, const std::string& path);
 	
 	bool PlaySFX(const std::string& name);
@@ -77,6 +93,12 @@ public:
 	bool StopBGM();
 	bool SetBGMVolume(float volume);
 	
+	bool PlayBGMEvent(const std::string& name);
+	bool stopBGMEvent();
+
+	bool PlaySFXEvent(const std::string& name);
+
+	bool setBGMintiensive(const float intensive);
 private:
 	/*
 	*	audioSystem is the basic raw system for FMOD api
@@ -102,5 +124,5 @@ private:
 	// sample channel
 	std::unique_ptr<FMOD::ChannelGroup, FmodChannelGroupDltr> masterChannelGroup;
 	FMOD::Channel* BGMchannel = nullptr; // same reason for BGM channel since it's owner ship is under ChannelGroup
-
+	FMODInstancePtr BGMInstance;
 };
