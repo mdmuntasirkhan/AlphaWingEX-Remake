@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\Version.obj",
+            "outputs": [
+                "Debug\\Version.h.obj.dt.module.json",
+                "Debug\\Version.h.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

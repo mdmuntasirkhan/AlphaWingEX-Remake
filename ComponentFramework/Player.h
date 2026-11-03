@@ -28,6 +28,8 @@ private:
 	float health;
 	float maxHealth;
 	int lives;
+	float heatLevel;
+	bool heatLockdown;
 
 	// Attributes
 	Vec3 velocity;
@@ -92,6 +94,8 @@ public:
 	Vec3 GetPosition() const { return pos; }
 	float GetHealth() const { return health; }
 	int GetLives() const { return lives; }
+	float GetHeatLevel() const { return heatLevel; }
+	bool GetHeatLockdown() const { return heatLockdown; }
 	bool IsGameOver() const { return lives <= 0; }
 
 	// Damage and Reset
@@ -114,6 +118,9 @@ public:
 	// Elliptical collision half-axes: mesh bounds (±3.5 X, ±2.5 Y) × render scale 0.3
 	float GetShieldRadiusX() const { return 1.05f; }
 	float GetShieldRadiusY() const { return 0.75f; }
+
+	// Heat Level Increase
+	void IncreaseHeatLevel(float heatIncrease) { heatLevel += heatIncrease; }
 };
 
 #endif // !PLAYER_H

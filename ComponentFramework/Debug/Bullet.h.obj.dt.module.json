@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\Bullet.obj",
+            "outputs": [
+                "Debug\\Bullet.h.obj.dt.module.json",
+                "Debug\\Bullet.h.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}
