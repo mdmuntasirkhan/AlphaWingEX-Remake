@@ -104,7 +104,7 @@ bool SceneManager::Initialize(std::string name, int width, int height) {
 	// Adaptive sync (FreeSync / G-Sync) → standard vsync → uncapped
 	ApplyVsync(SaveData::current.vsyncMode);
 
-    BuildNewScene(SceneID::JA);
+    BuildNewScene(SceneID::TITLE);
     return true;
 }
 
