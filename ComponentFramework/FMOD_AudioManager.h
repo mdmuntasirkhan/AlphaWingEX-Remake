@@ -56,6 +56,10 @@ using FMODBankPtr = std::unique_ptr<FMOD::Studio::Bank, BankSoundDltr>;
 using FMODInstancePtr = std::unique_ptr<FMOD::Studio::EventInstance, FmodEventInstanceDltr>;
 
 class FMOD_AudioManager {
+private:
+	float BGMVolume;
+	float MasetVolume;
+	float SFXVolume;
 public:
 	// avoid copying it self
 	FMOD_AudioManager(const FMOD_AudioManager&) = delete;
@@ -92,6 +96,8 @@ public:
 	bool PlayBGM(const std::string& name);
 	bool StopBGM();
 	bool SetBGMVolume(float volume);
+	bool SetMasterVolume(float volume);
+	bool SetSFXVolume(float volume);
 	
 	bool PlayBGMEvent(const std::string& name);
 	bool stopBGMEvent();
