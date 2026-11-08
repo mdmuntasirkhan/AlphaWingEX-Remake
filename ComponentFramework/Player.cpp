@@ -13,8 +13,6 @@ Player::Player() :  mesh { nullptr },
 					health { 100 }, 
 					maxHealth { 100 }, 
 					lives { 3 },
-					heatLevel { 0.0f },
-					heatLockdown { false },
 					velocity{ 0.0f, 0.0f, 0.0f },
 					thrustPower { 15.0f },
 					friction { 8.0f },
@@ -243,25 +241,6 @@ void Player::Update(float deltaTime) {
 		prevShieldCharge     = curCharge;
 		prevShieldRecharging = curRecharging;
 	}
-
-	// heatLevel over 100 = lockdown
-	if (heatLevel >= 100.0f)
-	{
-		heatLevel = 100.0f;
-		heatLockdown = true;
-	}
-
-	// heatLevel cooldown
-	if (heatLevel > 0.0f)
-	{
-		heatLevel -= 0.2f;
-
-		if (heatLevel <= 0.0f) {
-			heatLevel = 0.0f;
-			heatLockdown = false;
-		}
-	}
-
 }
 
 
