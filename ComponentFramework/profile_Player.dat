@@ -1,12 +1,12 @@
 profile Player
-shards 1
+shards 0
 highscore 0
 health 100
 lives 3
-score 300
-posx -9.52483
-posy 3.5893
-wavetime 32.5463
+score 0
+posx -4.05434
+posy 0
+wavetime 6.94003
 haslostshards 0
 lostshardposx 0
 lostshardposy 0

@@ -429,7 +429,7 @@ void SceneTestOliver::HandleEvents(const SDL_Event& sdlEvent) {
         case SDL_SCANCODE_SPACE:
             if (!player->GetHeatLockdown()) {
                 bullet->Spawn(player->GetPosition());
-                player->IncreaseHeatLevel(10.0f);
+                player->IncreaseHeatLevel(7.0f);
                 player->ApplyImpulse(Vec3(-1.5f, 0.0f, 0.0f)); // recoil
                 sfxLaser->Play(sfxPlayer);
             }
@@ -452,7 +452,7 @@ void SceneTestOliver::HandleEvents(const SDL_Event& sdlEvent) {
             if (!ImGui::GetIO().WantCaptureMouse) {
                 if (!player->GetHeatLockdown()) {
                     bullet->Spawn(player->GetPosition());
-                    player->IncreaseHeatLevel(1.0f);
+                    player->IncreaseHeatLevel(7.0f);
                     player->ApplyImpulse(Vec3(-1.5f, 0.0f, 0.0f)); // recoil
                     sfxLaser->Play(sfxPlayer);
                 }
@@ -1480,7 +1480,8 @@ void SceneTestOliver::DrawHUD() {
 
     // Heat level bar — cyan
     float heat = player->GetHeatLevel() / 100.0f;
-    ImVec4 heatCol = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);
+    ImVec4 heatCol = player->GetHeatLockdown() ? ImVec4(1.0f, 0.3f, 0.3f, 1.0f)
+        : ImVec4(0.3, 1.0f, 1.0f, 1.0f);
     ImGui::PushStyleColor(ImGuiCol_PlotHistogram, heatCol);
     ImGui::ProgressBar(heat, ImVec2(-1.0f, 20.0f), "");
     ImGui::PopStyleColor();
