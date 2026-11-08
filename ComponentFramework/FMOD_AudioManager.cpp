@@ -51,6 +51,11 @@ void FMOD_AudioManager::OnDestroy() {
 	}
 	BGMchannel = nullptr;
 
+	// Clear any event instance
+	if (BGMInstance) {
+		BGMInstance.reset();
+	}
+
 	// Clear map, order does matter and event should be 
 	eventMap.clear();
 	bankMap.clear();
@@ -164,15 +169,23 @@ bool FMOD_AudioManager::stopBGMEvent() {
 }
 
 bool FMOD_AudioManager::SetBGMVolume(float volume) {
-	if (BGMchannel) {
-		// MIN: 0.0f -------- MAX: 1.0f
-		volume = std::clamp(volume, 0.0f, 1.0f); // clamp the volume from 0.0f to 1.0f
-		BGMchannel->setVolume(volume);
+	// MIN: 0.0f -------- MAX: 1.0f
+	BGMVolume = std::clamp(volume, 0.0f, 1.0f); // clamp the volume from 0.0f to 1.0f
+	if (BGMchannel) { 
+		BGMchannel->setVolume(BGMVolume);
+		return true;
+	}
+	else if (BGMInstance) {
+		BGMInstance->setVolume(BGMVolume);
 		return true;
 	}
 	else {
 		return false;
 	}
+}
+
+bool FMOD_AudioManager::SetMasterVolume(float volume) {
+	return false;
 }
 
 // High Level audio system implementation -------- Relate to the FMOD studio 
@@ -267,7 +280,7 @@ bool FMOD_AudioManager::PlayBGMEvent(const std::string& name) {
 		return false;
 	}
 
-	// stops the music
+	// stops the current music
 	stopBGMEvent();
 
 	FMOD::Studio::EventInstance* tempInstance;
@@ -282,6 +295,7 @@ bool FMOD_AudioManager::PlayBGMEvent(const std::string& name) {
 
 	BGMInstance.reset(tempInstance);
 
+	// play the bgm
 	BGMInstance->start();
 
 	return true;

@@ -66,7 +66,7 @@ bool SceneJA::OnCreate() {
 	FMOD_manager->loadEvent(BGM_NAME.data(), "event:/test1");
 
 	FMOD_manager->PlayBGMEvent(BGM_NAME.data());
-	FMOD_manager->setBGMintiensive(3); // Use for volume just for now
+	FMOD_manager->setBGMintiensive(5); // Use for volume just for now
 
 	return true;
 }
