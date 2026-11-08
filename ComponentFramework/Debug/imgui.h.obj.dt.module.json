@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\imgui.obj",
+            "outputs": [
+                "Debug\\imgui.h.obj.dt.module.json",
+                "Debug\\imgui.h.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

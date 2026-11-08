@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\SceneSwitcher.obj",
+            "outputs": [
+                "Debug\\SceneSwitcher.h.obj.dt.module.json",
+                "Debug\\SceneSwitcher.h.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

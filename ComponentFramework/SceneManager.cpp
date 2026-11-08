@@ -3,8 +3,10 @@
 #include "SaveData.h"
 #include "Timer.h"
 #include "Window.h"
+#include "SceneSTG.h"
 #include "SceneTestJacky.h"
 #include "SceneMuntasir.h"
+#include "SceneTestOliver.h"
 #include "SceneTitle.h"
 #include "SceneSwitcher.h"
 
@@ -14,7 +16,7 @@
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
-#include "Fonts.h"
+#include "AppFonts.h"
 
 
 
@@ -73,13 +75,13 @@ bool SceneManager::Initialize(std::string name, int width, int height) {
 	// Falls back to the built-in ImGui default if the file is missing.
 	{
 		ImGuiIO& io = ImGui::GetIO();
-		Fonts::body = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 14.0f);
-		if (!Fonts::body) {
+		AppFonts::body = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 14.0f);
+		if (!AppFonts::body) {
 			io.Fonts->AddFontDefault();
 		} else {
-			Fonts::medium = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 22.0f);
-			Fonts::large  = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 32.0f);
-			Fonts::title  = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 40.0f);
+			AppFonts::medium = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 22.0f);
+			AppFonts::large  = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 32.0f);
+			AppFonts::title  = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 40.0f);
 		}
 	}
 
@@ -134,7 +136,9 @@ void SceneManager::Run() {
 			switch (gs) {
 			case GameScene::TITLE: BuildNewScene(SceneID::TITLE); break;
 			case GameScene::MUN:   BuildNewScene(SceneID::MUN);   break;
+			case GameScene::STG:   BuildNewScene(SceneID::STG);   break;
 			case GameScene::JA:    BuildNewScene(SceneID::JA);    break;
+			case GameScene::OLI:    BuildNewScene(SceneID::OLI);    break;
 			}
 		}
 
@@ -199,11 +203,10 @@ void SceneManager::HandleEvents() {
 		}
 		else if (sdlEvent.type == SDL_EVENT_KEY_DOWN) {
 			switch (sdlEvent.key.scancode) {
-
-			case SDL_SCANCODE_F1: BuildNewScene(SceneID::TITLE);   break;
-			case SDL_SCANCODE_F2: BuildNewScene(SceneID::MUN);   break;
-			case SDL_SCANCODE_F3: BuildNewScene(SceneID::JA);    break;
-			
+			case SDL_SCANCODE_F1: BuildNewScene(SceneID::STG);   break;
+			case SDL_SCANCODE_F2: BuildNewScene(SceneID::JA);    break;
+			case SDL_SCANCODE_F3: BuildNewScene(SceneID::MUN);   break;
+			case SDL_SCANCODE_F4: BuildNewScene(SceneID::OLI);   break;
 			default: break;
 			}
 		}
@@ -232,6 +235,12 @@ bool SceneManager::BuildNewScene(SceneID id) {
         currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
         break;
 
+    case SceneID::STG:
+        currentScene = new SceneSTG();
+        status = currentScene->OnCreate();
+        currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
+        break;
+
     case SceneID::JA:
         currentScene = new SceneJA();
         status = currentScene->OnCreate();
@@ -244,6 +253,12 @@ bool SceneManager::BuildNewScene(SceneID id) {
         currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
         break;
 
+	case SceneID::OLI:
+		currentScene = new SceneTestOliver();
+		status = currentScene->OnCreate();
+		currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
+		break;
+
     default:
         Debug::Error("Unknown scene ID in BuildNewScene", __FILE__, __LINE__);
         currentScene = nullptr;
@@ -252,3 +267,5 @@ bool SceneManager::BuildNewScene(SceneID id) {
 
 	return true;
 }
+
+
