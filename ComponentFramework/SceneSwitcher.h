@@ -1,4 +1,3 @@
-#pragma once
 #ifndef SCENESWITCHER_H
 #define SCENESWITCHER_H
 
@@ -6,15 +5,15 @@
 // SceneManager drains the request after DrawGui() each frame.
 // No circular includes: this header has zero game-class dependencies.
 
-enum class GameScene { TITLE, MUN, STG, JA };
+enum class GameScene { TITLE, MUN, STG, JA , OLI};
 
 struct SceneSwitcher {
-    // Scene transition request
+    // Scene transition
     static GameScene pending;
     static bool      hasPending;
     static void Request(GameScene s) { pending = s; hasPending = true; }
 
-    // Video settings request — SceneManager applies after DrawGui each frame
+    // Video settings — SceneManager applies after DrawGui each frame
     static bool hasVideoRequest;
     static bool videoFullscreen;
     static int  videoWidth;
@@ -29,4 +28,4 @@ struct SceneSwitcher {
     }
 };
 
-#endif
+#endif // SCENESWITCHER_H

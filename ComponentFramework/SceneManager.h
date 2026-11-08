@@ -35,7 +35,8 @@ private:
         TITLE = 0,
         JA,
         MUN,
-        STG
+        STG,
+        OLI
     };
 
     class Scene*  currentScene;

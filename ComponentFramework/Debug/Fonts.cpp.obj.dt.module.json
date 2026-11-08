@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\Fonts.obj",
+            "outputs": [
+                "Debug\\Fonts.cpp.obj.dt.module.json",
+                "Debug\\Fonts.cpp.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

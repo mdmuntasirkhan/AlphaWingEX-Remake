@@ -23,31 +23,32 @@
     <ProjectGuid>{614C2865-E38B-423B-8A72-E9D57BC43A73}</ProjectGuid>
     <RootNamespace>ComponentFramework</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>AlphaWingEX_Remake</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
@@ -70,13 +71,16 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>C:\GameDev\OpenGL\include;C:\GameDev\MathLibrary\include;C:\GameDev\SDL3\include;C:\GameDev;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)FMOD_api\studio\inc;$(SolutionDir)FMOD_api\fsbank\inc;$(SolutionDir)FMOD_api\core\inc;$(SolutionDir)GameDev;$(SolutionDir)GameDev\SDL3\include;$(SolutionDir)GameDev\MathLibrary\include;$(SolutionDir)GameDev\OpenGL\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IncludePath>C:\GameDev\SDL3\include\;C:\GameDev\OpenGL\include;C:\GameDev\MathLibrary\include;C:\GameDev\SDL3\include\SDL3_image;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <IncludePath>C:\GameDev\OpenGL\include;C:\GameDev\MathLibrary\include;C:\GameDev\SDL3\include;C:\GameDev;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Label="Vcpkg">
+    <VcpkgEnableManifest>true</VcpkgEnableManifest>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -87,8 +91,8 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>C:\GameDev\SDL3\lib\x86;C:\GameDev\OpenGL\lib;C:\GameDev\OpenGL\lib;C:\GameDev\SDL3\lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>SDL3.lib;SDL3_image.lib;glew32.lib;glew32s.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)FMOD_api\studio\lib\x86;$(SolutionDir)FMOD_api\fsbank\lib\x86;$(SolutionDir)FMOD_api\core\lib\x86;$(SolutionDir)GameDev\SDL3\lib\x86;$(SolutionDir)GameDev\OpenGL\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL3.lib;SDL3_image.lib;glew32.lib;glew32s.lib;opengl32.lib;fmodstudio_vc.lib;fmodstudioL_vc.lib;fsbank_vc.lib;fmod_vc.lib;fmodL_vc.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
@@ -139,13 +143,19 @@
     <ClCompile Include="DebugOverlay.cpp" />
     <ClCompile Include="Bot01.cpp" />
     <ClCompile Include="Bot02.cpp" />
+    <ClCompile Include="Controls.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="FMOD_AudioManager.cpp" />
+    <ClCompile Include="SceneTestOliver.cpp" />
     <ClCompile Include="ShardBeacon.cpp" />
-    <ClCompile Include="AppFonts.cpp" />
+    <ClCompile Include="Fonts.cpp" />
     <ClCompile Include="Bullet.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Debug.cpp" />
     <ClCompile Include="Enemy.cpp" />
     <ClCompile Include="Environment.cpp" />
+    <ClCompile Include="HUDRenderer.cpp" />
     <ClCompile Include="Level01Script.cpp" />
     <ClCompile Include="Level02Script.cpp" />
     <ClCompile Include="LevelDirector.cpp" />
@@ -164,7 +174,6 @@
     <ClCompile Include="SceneMuntasir.cpp" />
     <ClCompile Include="SceneSwitcher.cpp" />
     <ClCompile Include="SceneTitle.cpp" />
-    <ClCompile Include="SceneSTG.cpp" />
     <ClCompile Include="SceneTestJacky.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="Sound.cpp" />
@@ -178,8 +187,16 @@
     <ClInclude Include="Body.h" />
     <ClInclude Include="Bot01.h" />
     <ClInclude Include="DebugOverlay.h" />
-    <ClInclude Include="AppFonts.h" />
+    <ClInclude Include="FMOD_AudioManager.h" />
+    <ClInclude Include="Fonts.h" />
     <ClInclude Include="GameConstants.h" />
+    <ClInclude Include="Controls.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+    </ClInclude>
+    <ClInclude Include="SaveData.h" />
+    <ClInclude Include="SceneSwitcher.h" />
+    <ClInclude Include="SceneTitle.h" />
+    <ClInclude Include="SceneTestOliver.h" />
     <ClInclude Include="Version.h" />
     <ClInclude Include="Bot02.h" />
     <ClInclude Include="ShardBeacon.h" />
@@ -189,6 +206,7 @@
     <ClInclude Include="Enemy.h" />
     <ClInclude Include="Environment.h" />
     <ClInclude Include="EventType.h" />
+    <ClInclude Include="HUDRenderer.h" />
     <ClInclude Include="Level01Script.h" />
     <ClInclude Include="Level02Script.h" />
     <ClInclude Include="LevelDirector.h" />
@@ -208,7 +226,6 @@
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="SceneMuntasir.h" />
-    <ClInclude Include="SceneSTG.h" />
     <ClInclude Include="SceneTestJacky.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="Sound.h" />
