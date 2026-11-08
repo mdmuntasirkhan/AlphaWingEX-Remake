@@ -7,7 +7,7 @@
 #include "SceneTestOliver.h"
 #include "GameConstants.h"
 #include "Version.h"
-#include "AppFonts.h"
+#include "Fonts.h"
 #include "Level01Script.h"
 #include "Level02Script.h"
 #include <MMath.h>
@@ -1632,7 +1632,7 @@ void SceneTestOliver::DrawHUD() {
         ImGui::TextDisabled("  L E V E L  ");
 
         // Large MM:SS — dedicated 32 px raster, crisp at any resolution
-        ImGui::PushFont(AppFonts::large);
+        ImGui::PushFont(Fonts::large);
         float colonAlpha = 0.35f + 0.65f * sinf(t * GameConst::kPi);
         ImGui::TextColored(ImVec4(0.15f, 0.88f, 1.0f, 1.0f), "%02d", mm);
         ImGui::SameLine(0, 0);

@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\FMOD_AudioManager.obj",
+            "outputs": [
+                "Debug\\FMOD_AudioManager.cpp.obj.dt.module.json",
+                "Debug\\FMOD_AudioManager.cpp.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

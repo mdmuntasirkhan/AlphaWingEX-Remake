@@ -1,0 +1,29 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "d:\\humber_file\\alphawingex-remake\\componentframework\\fonts.cpp",
+        "ProvidedModule": "",
+        "Includes": [
+            "d:\\humber_file\\alphawingex-remake\\componentframework\\fonts.h",
+            "d:\\humber_file\\alphawingex-remake\\componentframework\\imgui.h",
+            "d:\\humber_file\\alphawingex-remake\\componentframework\\imconfig.h",
+            "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\float.h",
+            "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\corecrt.h",
+            "d:\\vs2026\\vc\\tools\\msvc\\14.51.36231\\include\\vcruntime.h",
+            "d:\\vs2026\\vc\\tools\\msvc\\14.51.36231\\include\\sal.h",
+            "d:\\vs2026\\vc\\tools\\msvc\\14.51.36231\\include\\concurrencysal.h",
+            "d:\\vs2026\\vc\\tools\\msvc\\14.51.36231\\include\\vadefs.h",
+            "d:\\vs2026\\vc\\tools\\msvc\\14.51.36231\\include\\stdarg.h",
+            "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\stddef.h",
+            "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\string.h",
+            "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\corecrt_memory.h",
+            "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\corecrt_memcpy_s.h",
+            "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\errno.h",
+            "d:\\vs2026\\vc\\tools\\msvc\\14.51.36231\\include\\vcruntime_string.h",
+            "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\corecrt_wstring.h",
+            "c:\\program files (x86)\\windows kits\\10\\include\\10.0.26100.0\\ucrt\\assert.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

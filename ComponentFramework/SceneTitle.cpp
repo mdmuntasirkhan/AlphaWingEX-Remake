@@ -396,7 +396,7 @@ void SceneTitle::DrawGui() {
             SaveData::current.Reset();
             SaveData::current.profileName = nameBuf;
             SaveData::current.Save();
-            SceneSwitcher::Request(GameScene::MUN);
+            SceneSwitcher::Request(GameScene::OLI);
         }
         if (ImGui::IsItemHovered()) PlayHover();
         if (!nameOk) ImGui::EndDisabled();

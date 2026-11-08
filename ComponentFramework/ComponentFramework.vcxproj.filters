@@ -120,9 +120,12 @@
     <ClCompile Include="Environment.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+<<<<<<< HEAD
     <ClCompile Include="HUDRenderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+=======
+>>>>>>> origin/OliverBranch
     <ClCompile Include="Asteroid.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -138,7 +141,11 @@
     <ClCompile Include="ShardBeacon.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+<<<<<<< HEAD
     <ClCompile Include="Fonts.cpp">
+=======
+    <ClCompile Include="AppFonts.cpp">
+>>>>>>> origin/OliverBranch
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Level01Script.cpp">
@@ -153,6 +160,7 @@
     <ClCompile Include="SaveData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+<<<<<<< HEAD
     <ClCompile Include="SceneTitle.cpp">
       <Filter>Source Files\Scenes</Filter>
     </ClCompile>
@@ -167,6 +175,16 @@
     </ClCompile>
     <ClCompile Include="FMOD_AudioManager.cpp">
       <Filter>Source Files\FMOD</Filter>
+=======
+    <ClCompile Include="SceneSwitcher.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneTitle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SceneTestOliver.cpp">
+      <Filter>Source Files\Scenes</Filter>
+>>>>>>> origin/OliverBranch
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -254,9 +272,12 @@
     <ClInclude Include="Environment.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+<<<<<<< HEAD
     <ClInclude Include="HUDRenderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+=======
+>>>>>>> origin/OliverBranch
     <ClInclude Include="Asteroid.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -266,7 +287,11 @@
     <ClInclude Include="DebugOverlay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+<<<<<<< HEAD
     <ClInclude Include="Fonts.h">
+=======
+    <ClInclude Include="AppFonts.h">
+>>>>>>> origin/OliverBranch
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="GameConstants.h">
@@ -299,6 +324,7 @@
     <ClInclude Include="LevelScript.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+<<<<<<< HEAD
     <ClInclude Include="SceneTitle.h">
       <Filter>Header Files\Scenes</Filter>
     </ClInclude>
@@ -314,6 +340,11 @@
     <ClInclude Include="FMOD_AudioManager.h">
       <Filter>Header Files\FMOD</Filter>
     </ClInclude>
+=======
+    <ClInclude Include="SceneTestOliver.h">
+      <Filter>Header Files\Scenes</Filter>
+    </ClInclude>
+>>>>>>> origin/OliverBranch
   </ItemGroup>
   <ItemGroup>
     <Text Include="GameEngineLog.txt">

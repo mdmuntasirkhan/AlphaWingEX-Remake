@@ -57,9 +57,10 @@ using FMODInstancePtr = std::unique_ptr<FMOD::Studio::EventInstance, FmodEventIn
 
 class FMOD_AudioManager {
 private:
-	float BGMVolume;
-	float MasetVolume;
-	float SFXVolume;
+	float BGMVolume = 1.0f;
+	float MasterVolume = 1.0f;
+	float SFXVolume = 1.0f;
+
 public:
 	// avoid copying it self
 	FMOD_AudioManager(const FMOD_AudioManager&) = delete;
