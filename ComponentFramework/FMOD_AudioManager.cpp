@@ -185,6 +185,15 @@ bool FMOD_AudioManager::SetBGMVolume(float volume) {
 }
 
 bool FMOD_AudioManager::SetMasterVolume(float volume) {
+	MasterVolume = std::clamp(volume, 0.0f, 1.0f);
+	if (audioSystem) {
+		
+	}
+	return false;
+}
+
+bool FMOD_AudioManager::SetSFXVolume(float volume)
+{
 	return false;
 }
 
