@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\SceneTestJacky.obj",
+            "outputs": [
+                "Debug\\SceneTestJacky.h.obj.dt.module.json",
+                "Debug\\SceneTestJacky.h.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

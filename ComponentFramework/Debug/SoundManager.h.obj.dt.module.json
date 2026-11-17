@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\SoundManager.obj",
+            "outputs": [
+                "Debug\\SoundManager.h.obj.dt.module.json",
+                "Debug\\SoundManager.h.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

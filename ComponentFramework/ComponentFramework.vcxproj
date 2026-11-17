@@ -147,6 +147,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="FMOD_AudioManager.cpp" />
+    <ClCompile Include="SceneMain.cpp" />
     <ClCompile Include="SceneTestOliver.cpp" />
     <ClCompile Include="ShardBeacon.cpp" />
     <ClCompile Include="Fonts.cpp" />
@@ -194,6 +195,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="SaveData.h" />
+    <ClInclude Include="SceneMain.h" />
     <ClInclude Include="SceneSwitcher.h" />
     <ClInclude Include="SceneTitle.h" />
     <ClInclude Include="SceneTestOliver.h" />
