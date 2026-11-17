@@ -113,7 +113,8 @@ bool FMOD_AudioManager::PlaySFX(const std::string& name) {
 		std::cout << "No such audio: " << name << std::endl;
 		return false;
 	}
-
+	
+	
 	// each time the SFX plays it create a new instance
 	audioSystem->playSound(
 		audio->second.get(), // getting the Audio pointer
@@ -138,7 +139,7 @@ bool FMOD_AudioManager::PlayBGM(const std::string& name) {
 
 	audioSystem->playSound(
 		audio->second.get(), // getting the Audio pointer
-		nullptr, // Channel group pointer
+		masterChannelGroup.get(), // Channel group pointer
 		false, // is paused
 		&BGMchannel // Channel pointer
 	);
@@ -186,14 +187,53 @@ bool FMOD_AudioManager::SetBGMVolume(float volume) {
 
 bool FMOD_AudioManager::SetMasterVolume(float volume) {
 	MasterVolume = std::clamp(volume, 0.0f, 1.0f);
-	if (audioSystem) {
-		
+	if (studioAudioSystem) {
+
+		// set up the Master Volume from studio Engine by using it's master Bus
+		FMOD::Studio::Bus* tempBus = nullptr;
+		FMOD_RESULT systemCheck = studioAudioSystem->getBus("Bus:/", &tempBus);
+
+		if (systemCheck != FMOD_OK) {
+			std::cerr << "FMOD Get Bus Err: " << FMOD_ErrorString(systemCheck) << std::endl;
+			return false;
+		}
+
+		systemCheck = tempBus->setVolume(MasterVolume);
+
+		if (systemCheck != FMOD_OK) {
+			std::cerr << "FMOD Set Master Volume Err: " << FMOD_ErrorString(systemCheck) << std::endl;
+			return false;
+		}
+
+		// set up the Master Volume of the Core enginge (In case user uses the core engine to load audio files)
+		FMOD::ChannelGroup* tempMasterChannel = nullptr;
+		systemCheck = audioSystem->getMasterChannelGroup(&tempMasterChannel);
+
+		if (systemCheck != FMOD_OK) {
+			std::cerr << "FMOD Get Master Group Err: " << FMOD_ErrorString(systemCheck) << std::endl;
+			return false;
+		}
+
+		systemCheck = tempMasterChannel->setVolume(MasterVolume);
+
+		if (systemCheck != FMOD_OK) {
+			std::cerr << "FMOD Set Master Volume Channel Err: " << FMOD_ErrorString(systemCheck) << std::endl;
+			return false;
+		}
+
+		return true;
 	}
 	return false;
 }
 
 bool FMOD_AudioManager::SetSFXVolume(float volume)
 {
+	SFXVolume = std::clamp(volume, 0.0f, 1.0f);
+
+	if (SFXVolume >= 0.0f || SFXVolume <= 1.0f) {
+		return true;
+	}
+
 	return false;
 }
 
@@ -265,6 +305,7 @@ bool FMOD_AudioManager::PlaySFXEvent(const std::string& name) {
 		return false;
 	}
 
+	tempInstance->setVolume(SFXVolume);
 	// play the SFX
 	systemCheck = tempInstance->start();
 

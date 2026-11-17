@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\Bot02.obj",
+            "outputs": [
+                "Debug\\Bot02.h.obj.dt.module.json",
+                "Debug\\Bot02.h.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

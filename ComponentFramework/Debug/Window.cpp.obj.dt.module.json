@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\Window.obj",
+            "outputs": [
+                "Debug\\Window.cpp.obj.dt.module.json",
+                "Debug\\Window.cpp.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

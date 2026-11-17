@@ -1,7 +1,7 @@
 {
     "Version": "1.2",
     "Data": {
-        "Source": "c:\\users\\oli\\onedrive\\documents\\github\\alphawingex-remake\\componentframework\\main.cpp",
+        "Source": "c:\\users\\oli\\documents\\github\\alphawingex-remake\\componentframework\\main.cpp",
         "ProvidedModule": "",
         "Includes": [
             "c:\\program files (x86)\\windows kits\\10\\include\\10.0.28000.0\\ucrt\\stdlib.h",
@@ -81,8 +81,8 @@
             "c:\\program files\\microsoft visual studio\\18\\community\\vc\\tools\\msvc\\14.51.36231\\include\\tuple",
             "c:\\program files\\microsoft visual studio\\18\\community\\vc\\tools\\msvc\\14.51.36231\\include\\cctype",
             "c:\\program files (x86)\\windows kits\\10\\include\\10.0.28000.0\\ucrt\\ctype.h",
-            "c:\\users\\oli\\onedrive\\documents\\github\\alphawingex-remake\\componentframework\\scenemanager.h",
-            "c:\\users\\oli\\onedrive\\documents\\github\\alphawingex-remake\\componentframework\\debug.h",
+            "c:\\users\\oli\\documents\\github\\alphawingex-remake\\componentframework\\scenemanager.h",
+            "c:\\users\\oli\\documents\\github\\alphawingex-remake\\componentframework\\debug.h",
             "c:\\program files\\microsoft visual studio\\18\\community\\vc\\tools\\msvc\\14.51.36231\\include\\iostream",
             "c:\\program files\\microsoft visual studio\\18\\community\\vc\\tools\\msvc\\14.51.36231\\include\\istream",
             "c:\\program files\\microsoft visual studio\\18\\community\\vc\\tools\\msvc\\14.51.36231\\include\\__msvc_ostream.hpp",

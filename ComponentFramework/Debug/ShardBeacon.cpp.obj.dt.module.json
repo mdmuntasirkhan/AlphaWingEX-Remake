@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\ShardBeacon.obj",
+            "outputs": [
+                "Debug\\ShardBeacon.cpp.obj.dt.module.json",
+                "Debug\\ShardBeacon.cpp.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}
