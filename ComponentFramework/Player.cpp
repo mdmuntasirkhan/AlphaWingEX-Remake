@@ -172,7 +172,7 @@ void Player::Update(float deltaTime) {
 	// Speed cap and Normalized
 	float currentSpeed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
 	if (currentSpeed > maxSpeed) {
-		velocity = velocity * (maxSpeed / currentSpeed);
+		velocity = velocity * (maxSpeed / currentSpeed) ;
 	}
 
 	// Move the position

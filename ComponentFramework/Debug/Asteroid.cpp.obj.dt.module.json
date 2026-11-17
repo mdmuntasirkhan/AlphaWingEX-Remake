@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\Asteroid.obj",
+            "outputs": [
+                "Debug\\Asteroid.cpp.obj.dt.module.json",
+                "Debug\\Asteroid.cpp.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}
