@@ -437,9 +437,9 @@ void SceneTestOliver::HandleEvents(const SDL_Event& sdlEvent) {
             }
             break;
         case SDL_SCANCODE_I:
-            shardCount = 9999;
+            shardCount = 9999; // 9999 currency cheat
             break;
-        case SDL_SCANCODE_1:
+        case SDL_SCANCODE_1: // upgrade Thrust Power
             if (shardCount >= 5 * upgradeThrustPowerCount)
             {
                 shardCount -= 5 * upgradeThrustPowerCount;
@@ -448,7 +448,7 @@ void SceneTestOliver::HandleEvents(const SDL_Event& sdlEvent) {
             }
             break;
         case SDL_SCANCODE_2:
-            if (shardCount >= 5 * upgradeMaxHealthCount)
+            if (shardCount >= 5 * upgradeMaxHealthCount) // upgrade Max Health
             {
                 shardCount -= 5 * upgradeMaxHealthCount;
                 upgradeMaxHealthCount++;
