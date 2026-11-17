@@ -113,7 +113,8 @@ bool FMOD_AudioManager::PlaySFX(const std::string& name) {
 		std::cout << "No such audio: " << name << std::endl;
 		return false;
 	}
-
+	
+	
 	// each time the SFX plays it create a new instance
 	audioSystem->playSound(
 		audio->second.get(), // getting the Audio pointer
@@ -138,7 +139,7 @@ bool FMOD_AudioManager::PlayBGM(const std::string& name) {
 
 	audioSystem->playSound(
 		audio->second.get(), // getting the Audio pointer
-		nullptr, // Channel group pointer
+		masterChannelGroup.get(), // Channel group pointer
 		false, // is paused
 		&BGMchannel // Channel pointer
 	);
@@ -304,6 +305,7 @@ bool FMOD_AudioManager::PlaySFXEvent(const std::string& name) {
 		return false;
 	}
 
+	tempInstance->setVolume(SFXVolume);
 	// play the SFX
 	systemCheck = tempInstance->start();
 

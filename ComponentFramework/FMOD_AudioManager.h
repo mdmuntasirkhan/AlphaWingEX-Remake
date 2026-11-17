@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <string>
 
+#define CHECK(a)
+
 // Custom deleter
 // use for releasing memory from FMOD system
 // since smart point won't automatically release the memory allocated from FMOD studio, we need to create our own

@@ -194,6 +194,13 @@ bool SceneMain::OnCreate() {
     SDL_SetAudioStreamGain(sfxLaserHitStream, sfxVolume * 2.0f);
     SDL_ResumeAudioStreamDevice(sfxLaserHitStream);
 
+    // FMOD load UP
+    FMOD_manager->loadBank("Master", "audio/bank/Master.bank");
+    FMOD_manager->loadBank("Master_String", "audio/bank/Master.strings.bank");
+    FMOD_manager->loadBank("Master_Bus", "audio/bank/Bus.bank");
+
+    FMOD_manager->loadBank("MainBank", "audio/bank/AlphaWingEX.bank");
+
     // Music
     bgmMusic = new Sound("audio/music/deadmou5-gg.wav");
     bgmMusic->OnCreate();
