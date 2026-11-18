@@ -13,7 +13,7 @@ private:
 	std::string prefix;          // start of the file names
 	int frameCount;              // how many OBJ files there are
 	float fps;                   // how many frames play per second at normal speed
-	float playSpeed;             // 1 is normal, 2 is twice as fast
+	float playSpeed;             // 1 is normal, 2 is twice as fast, negative plays backward
 	float currentFrame;          // float so slow speeds still move a little each update
 	std::vector<Mesh*> frames;
 
