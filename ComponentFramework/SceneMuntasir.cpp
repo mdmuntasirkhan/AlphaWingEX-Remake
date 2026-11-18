@@ -28,6 +28,7 @@ SceneMuntasir::SceneMuntasir(bool bossTestMode_) :
     bot01{ nullptr },
     bot02{ nullptr },
     bossSpider{ nullptr },
+    bossBullets{ nullptr },
     bullet{ nullptr },
     environment{ nullptr },
     shader{ nullptr },
@@ -117,10 +118,17 @@ bool SceneMuntasir::OnCreate() {
         return false;
     }
 
-    // Spider boss, only built in the F5 test scene for now
+    // Spider boss and its bullets, only built in the F5 test scene for now
     if (bossTestMode) {
+        bossBullets = new BossBullets();
+        if (bossBullets->OnCreate("meshes/Temp_AlphaWingEX_Bot02_Bullet.obj",
+            "meshes/Temp_AlphaWing_PlayerShip_Missile.obj") == false) {
+            std::cout << "BossBullets failed to load!\n";
+            return false;
+        }
+
         bossSpider = new BossSpider();
-        if (bossSpider->OnCreate() == false) {
+        if (bossSpider->OnCreate(bossBullets) == false) {
             std::cout << "BossSpider failed to load!\n";
             return false;
         }
@@ -385,6 +393,12 @@ void SceneMuntasir::OnDestroy() {
         bossSpider = nullptr;
     }
 
+    if (bossBullets) {
+        bossBullets->OnDestroy();
+        delete bossBullets;
+        bossBullets = nullptr;
+    }
+
     bullet->OnDestroy();
     delete bullet;
     bullet = nullptr;
@@ -647,6 +661,7 @@ void SceneMuntasir::Update(const float deltaTime) {
         bot01->UpdateShields(deltaTime, bullet->GetMissilePositions());
         bot02->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
         if (bossSpider) bossSpider->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
+        if (bossBullets) bossBullets->Update(deltaTime, player->GetPosition(), player->GetVelocity());
     }
 
     environment->Update(deltaTime);
@@ -1243,6 +1258,66 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
+
+    // Player lasers shoot down the boss bullets that have health (the seekers)
+    if (bossBullets) {
+        static constexpr float kLaserRadius = 0.15f;
+        for (int l = (int)bullet->GetPositions().size() - 1; l >= 0; l--) {
+            Vec3 laser = bullet->GetPositions()[l];
+            for (int b = (int)bossBullets->GetBullets().size() - 1; b >= 0; b--) {
+                BossBullet& bb = bossBullets->GetBullets()[b];
+                if (bb.health <= 0) continue;   // plain bullets can't be shot
+
+                float dx = bb.pos.x - laser.x;
+                float dy = bb.pos.y - laser.y;
+                float reach = bb.radius + kLaserRadius;
+                if (dx * dx + dy * dy < reach * reach) {
+                    bullet->RemoveAt(l);
+                    bb.health--;
+                    if (bb.health <= 0) {
+                        bossBullets->RemoveAt(b);   // bb is gone after this, so nothing touches it again
+                        if (explosionCooldownTimer <= 0.0f) {
+                            sfxExplosion->Play(sfxPlayer);
+                            explosionCooldownTimer = explosionCooldown;
+                        }
+                    }
+                    break;   // this laser is used up, go to the next laser
+                }
+            }
+        }
+    }
+
+    // Boss bullets hit player. The shield destroys them, otherwise they hurt.
+    if (bossBullets) {
+        static constexpr float kPlayerHitRadius = 0.2f;    // smaller than the ship, so close calls feel fair
+        for (int b = (int)bossBullets->GetBullets().size() - 1; b >= 0; b--) {
+            const BossBullet& bb = bossBullets->GetBullets()[b];
+            float dx = bb.pos.x - player->GetPosition().x;
+            float dy = bb.pos.y - player->GetPosition().y;
+
+            if (player->IsShieldActive()) {
+                float sx = dx / player->GetShieldRadiusX();
+                float sy = dy / player->GetShieldRadiusY();
+                if (sx * sx + sy * sy < 1.0f) {
+                    bossBullets->RemoveAt(b);
+                    if (shieldHitCooldownTimer <= 0.0f) {
+                        sfxShieldHit->Play(sfxPlayer);
+                        shieldHitCooldownTimer = kShieldHitCooldown;
+                    }
+                }
+            }
+            else if (dx * dx + dy * dy < (bb.radius + kPlayerHitRadius) * (bb.radius + kPlayerHitRadius)) {
+                float damage = bb.damage;   // read it first, bb is gone after RemoveAt
+                bossBullets->RemoveAt(b);
+                player->TakeDamage(damage);
+                if (explosionCooldownTimer <= 0.0f) {
+                    sfxExplosion->Play(sfxPlayer);
+                    explosionCooldownTimer = explosionCooldown;
+                }
+            }
+        }
+    }
+
     // Phase 3 = Bot02 intro window — pause other spawning during the encounter
     bool asteroidsSpawning = !bossTestMode && (currentPhase < 3 || currentPhase >= 4);
     bot01->SetSpawningEnabled(currentPhase != 3);
@@ -1324,6 +1399,7 @@ void SceneMuntasir::Render() const {
         bot01->Render(shader, projectionMatrix, viewMatrix);
         bot02->Render(shader, projectionMatrix, viewMatrix);
         if (bossSpider) bossSpider->Render(shader, projectionMatrix, viewMatrix);
+        if (bossBullets) bossBullets->Render(shader, projectionMatrix, viewMatrix);
     }
 
     // Energy shards — additive emissive spinning orbs

@@ -121,6 +121,9 @@
     <ClCompile Include="BossSpider.cpp">
       <Filter>Character\Enemy</Filter>
     </ClCompile>
+    <ClCompile Include="BossBullets.cpp">
+      <Filter>Character\Enemy</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DebugOverlay.h" />
@@ -259,6 +262,9 @@
       <Filter>Rendering</Filter>
     </ClInclude>
     <ClInclude Include="BossSpider.h">
+      <Filter>Character\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="BossBullets.h">
       <Filter>Character\Enemy</Filter>
     </ClInclude>
   </ItemGroup>
