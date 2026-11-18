@@ -138,6 +138,7 @@ void SceneManager::Run() {
 			case GameScene::STG:   BuildNewScene(SceneID::STG);   break;
 			case GameScene::JA:    BuildNewScene(SceneID::JA);    break;
 			case GameScene::OLI:    BuildNewScene(SceneID::OLI);    break;
+			case GameScene::BOSS:   BuildNewScene(SceneID::BOSS);   break;
 			}
 		}
 
@@ -206,6 +207,7 @@ void SceneManager::HandleEvents() {
 			case SDL_SCANCODE_F2: BuildNewScene(SceneID::JA);    break;
 			case SDL_SCANCODE_F3: BuildNewScene(SceneID::MUN);   break;
 			case SDL_SCANCODE_F4: BuildNewScene(SceneID::OLI);   break;
+			case SDL_SCANCODE_F5: BuildNewScene(SceneID::BOSS);  break;
 			default: break;
 			}
 		}
@@ -245,6 +247,12 @@ bool SceneManager::BuildNewScene(SceneID id) {
         status = currentScene->OnCreate();
         currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
         break;
+
+	case SceneID::BOSS:
+		currentScene = new SceneMuntasir(true);
+		status = currentScene->OnCreate();
+		currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
+		break;
 
 	case SceneID::OLI:
 		currentScene = new SceneTestOliver();

@@ -21,7 +21,7 @@
 #include "imgui.h"
 
 // Constructor
-SceneMuntasir::SceneMuntasir() :
+SceneMuntasir::SceneMuntasir(bool bossTestMode_) :
     levelDirector{ nullptr },
     player{ nullptr },
     asteroid{ nullptr },
@@ -40,6 +40,7 @@ SceneMuntasir::SceneMuntasir() :
     prevLives{ 3 },
     autoSaveTimer{ 0.0f },
     currentPhase{ 1 },
+    bossTestMode{ bossTestMode_ },
     explosionCooldown{ 0.8f },
     explosionCooldownTimer{ 0.0f },
     shieldHitCooldownTimer{ 0.0f },
@@ -261,11 +262,13 @@ bool SceneMuntasir::OnCreate() {
     levelDirector->SetAsteroidCallback([this](float largeInterval, float smallInterval) {
         asteroid->SetSpawnRates(largeInterval, smallInterval);
     });
-    levelDirector->AddScript(new Level01Script(), 0.0f);
-    // Level02 starts at t=180s. Bring offset down to ~158s for a 22s overlap window
-    // where both zones' chunks scroll on screen simultaneously (seamless transition).
-    levelDirector->AddScript(new Level02Script(), 180.0f);
-
+    // In boss test mode (F5) no level script is added, so the arena stays empty except for the boss
+    if (!bossTestMode) {
+        levelDirector->AddScript(new Level01Script(), 0.0f);
+        // Level02 starts at t=180s. Bring offset down to ~158s for a 22s overlap window
+        // where both zones' chunks scroll on screen simultaneously (seamless transition).
+        levelDirector->AddScript(new Level02Script(), 180.0f);
+    }
     debugOverlay = new DebugOverlay();
 
     // HUD / pause menu / game-over screen
@@ -1224,7 +1227,7 @@ void SceneMuntasir::Update(const float deltaTime) {
     }
 
     // Phase 3 = Bot02 intro window — pause other spawning during the encounter
-    bool asteroidsSpawning = currentPhase < 3 || currentPhase >= 4;
+    bool asteroidsSpawning = !bossTestMode && (currentPhase < 3 || currentPhase >= 4);
     bot01->SetSpawningEnabled(currentPhase != 3);
     asteroid->SetSpawningEnabled(asteroidsSpawning);
 

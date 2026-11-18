@@ -91,6 +91,8 @@ private:
 	// Phase-based enemy progression — driven by PHASE_CHANGE events in the level script
 	int currentPhase;
 
+	// Boss test mode F5 skips the normal level script so only the boss is tested
+	bool bossTestMode;
 
 	// Explosion cooldown
 	float explosionCooldown;
@@ -149,7 +151,8 @@ private:
 
 
 public:
-	explicit SceneMuntasir();
+	// bossTestMode defaults to false, so the normal game is built the same way as before
+	explicit SceneMuntasir(bool bossTestMode_ = false);
 	virtual ~SceneMuntasir();
 
 	virtual bool OnCreate() override;
