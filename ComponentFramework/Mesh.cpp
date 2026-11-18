@@ -26,6 +26,7 @@ void Mesh::LoadModel(const char* filename) {
     vertices.clear();
     normals.clear();
 	uvCoords.clear();
+    colors.clear();
 
     if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename)) {
         throw std::runtime_error(warn + err);
@@ -46,9 +47,18 @@ void Mesh::LoadModel(const char* filename) {
             uvCoord.x = attrib.texcoords[2 * index.texcoord_index + 0];
             uvCoord.y = attrib.texcoords[2 * index.texcoord_index + 1];
 
+            // Vertex color from the OBJ file (v x y z r g b). It stays white when the file has no colors, so the old meshes look the same as before
+            Vec3 color(1.0f, 1.0f, 1.0f);
+            if (!attrib.colors.empty()) {
+                color.x = attrib.colors[3 * index.vertex_index + 0];
+                color.y = attrib.colors[3 * index.vertex_index + 1];
+                color.z = attrib.colors[3 * index.vertex_index + 2];
+            }
+
             vertices.push_back(vertex);
             normals.push_back(normal);
             uvCoords.push_back(uvCoord);
+            colors.push_back(color);
         }
     } 
 }
@@ -60,10 +70,12 @@ void Mesh::StoreMeshData(GLenum drawmode_) {
     #define VERTEX_LENGTH 	(vertices.size() * (sizeof(Vec3)))
     #define NORMAL_LENGTH 	(normals.size() * (sizeof(Vec3)))
     #define TEXCOORD_LENGTH (uvCoords.size() * (sizeof(Vec2)))
+    #define COLOR_LENGTH    (colors.size() * (sizeof(Vec3)))
 
 	const int verticiesLayoutLocation = 0;
 	const int normalsLayoutLocation = 1;
 	const int uvCoordsLayoutLocation = 2;
+    const int colorsLayoutLocation = 3;
 
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
@@ -71,18 +83,21 @@ void Mesh::StoreMeshData(GLenum drawmode_) {
     
 	glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, VERTEX_LENGTH + NORMAL_LENGTH + TEXCOORD_LENGTH, NULL, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, VERTEX_LENGTH + NORMAL_LENGTH + TEXCOORD_LENGTH + COLOR_LENGTH, NULL, GL_STATIC_DRAW);
 
     // Upload each block at its offset within the single VBO
 	glBufferSubData(GL_ARRAY_BUFFER, 0, VERTEX_LENGTH, &vertices[0]); 
 	glBufferSubData(GL_ARRAY_BUFFER, VERTEX_LENGTH, NORMAL_LENGTH, &normals[0]);  
 	glBufferSubData(GL_ARRAY_BUFFER, VERTEX_LENGTH + NORMAL_LENGTH, TEXCOORD_LENGTH, &uvCoords[0]);
+    glBufferSubData(GL_ARRAY_BUFFER, VERTEX_LENGTH + NORMAL_LENGTH + TEXCOORD_LENGTH, COLOR_LENGTH, &colors[0]);
 	glEnableVertexAttribArray(verticiesLayoutLocation);
 	glVertexAttribPointer(verticiesLayoutLocation, 3, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<void*>(0));
 	glEnableVertexAttribArray(normalsLayoutLocation);
 	glVertexAttribPointer(normalsLayoutLocation, 3, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<void*>(VERTEX_LENGTH));
 	glEnableVertexAttribArray(uvCoordsLayoutLocation);
 	glVertexAttribPointer(uvCoordsLayoutLocation, 2, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<void*>(VERTEX_LENGTH + NORMAL_LENGTH));
+    glEnableVertexAttribArray(colorsLayoutLocation);
+    glVertexAttribPointer(colorsLayoutLocation, 3, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<void*>(VERTEX_LENGTH + NORMAL_LENGTH + TEXCOORD_LENGTH));
 
     dateLength = vertices.size();   // store vertex count before clearing CPU memory
 
@@ -90,10 +105,12 @@ void Mesh::StoreMeshData(GLenum drawmode_) {
     vertices.clear();
     normals.clear();
     uvCoords.clear();
+    colors.clear();
 
     #undef VERTEX_LENGTH
     #undef NORMAL_LENGTH
     #undef TEXCOORD_LENGTH
+    #undef COLOR_LENGTH
 }
 
 void Mesh::Render() const {
