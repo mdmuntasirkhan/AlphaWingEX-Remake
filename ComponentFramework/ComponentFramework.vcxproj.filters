@@ -115,6 +115,12 @@
     <ClCompile Include="SceneTestOliver.cpp">
       <Filter>Scene\TestScenes</Filter>
     </ClCompile>
+    <ClCompile Include="AnimatedMesh.cpp">
+      <Filter>Rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="BossSpider.cpp">
+      <Filter>Character\Enemy</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DebugOverlay.h" />
@@ -248,6 +254,12 @@
     </ClInclude>
     <ClInclude Include="SceneSwitcher.h">
       <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="AnimatedMesh.h">
+      <Filter>Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="BossSpider.h">
+      <Filter>Character\Enemy</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

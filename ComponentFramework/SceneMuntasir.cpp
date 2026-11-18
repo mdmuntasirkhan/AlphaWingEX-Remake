@@ -27,6 +27,7 @@ SceneMuntasir::SceneMuntasir(bool bossTestMode_) :
     asteroid{ nullptr },
     bot01{ nullptr },
     bot02{ nullptr },
+    bossSpider{ nullptr },
     bullet{ nullptr },
     environment{ nullptr },
     shader{ nullptr },
@@ -114,6 +115,15 @@ bool SceneMuntasir::OnCreate() {
         "meshes/Temp_AlphaWingEX_Bot02_Bullet.obj") == false) {
         std::cout << "Bot02 failed to load!\n";
         return false;
+    }
+
+    // Spider boss, only built in the F5 test scene for now
+    if (bossTestMode) {
+        bossSpider = new BossSpider();
+        if (bossSpider->OnCreate() == false) {
+            std::cout << "BossSpider failed to load!\n";
+            return false;
+        }
     }
 
     // Bullet - handles regular bullets and missiles
@@ -368,6 +378,12 @@ void SceneMuntasir::OnDestroy() {
     bot02->OnDestroy();
     delete bot02;
     bot02 = nullptr;
+
+    if (bossSpider) {
+        bossSpider->OnDestroy();
+        delete bossSpider;
+        bossSpider = nullptr;
+    }
 
     bullet->OnDestroy();
     delete bullet;
@@ -630,6 +646,7 @@ void SceneMuntasir::Update(const float deltaTime) {
         bot01->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
         bot01->UpdateShields(deltaTime, bullet->GetMissilePositions());
         bot02->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
+        if (bossSpider) bossSpider->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
     }
 
     environment->Update(deltaTime);
@@ -1306,6 +1323,7 @@ void SceneMuntasir::Render() const {
         asteroid->Render(shader, projectionMatrix, viewMatrix);
         bot01->Render(shader, projectionMatrix, viewMatrix);
         bot02->Render(shader, projectionMatrix, viewMatrix);
+        if (bossSpider) bossSpider->Render(shader, projectionMatrix, viewMatrix);
     }
 
     // Energy shards — additive emissive spinning orbs
@@ -1378,6 +1396,7 @@ void SceneMuntasir::DrawGui() {
             ImGui::TextDisabled("F1   SceneSTG (placeholder)");
             ImGui::TextDisabled("F2   SceneJA  (Jacky test scene)");
             ImGui::TextDisabled("F3   SceneMuntasir (skip title)");
+            ImGui::TextDisabled("F5   Spider boss test scene");
             ImGui::TextDisabled("F9   Debug overlay  (Minimal / Detailed)");
             ImGui::TextDisabled("F10  This window");
             ImGui::TextDisabled("Q    Hold 3s — trigger full warp");

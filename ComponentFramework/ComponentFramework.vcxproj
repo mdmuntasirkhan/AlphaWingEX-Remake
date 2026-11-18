@@ -138,8 +138,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AnimatedMesh.cpp" />
     <ClCompile Include="Asteroid.cpp" />
     <ClCompile Include="Body.cpp" />
+    <ClCompile Include="BossSpider.cpp" />
     <ClCompile Include="DebugOverlay.cpp" />
     <ClCompile Include="Bot01.cpp" />
     <ClCompile Include="Bot02.cpp" />
@@ -184,8 +186,10 @@
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AnimatedMesh.h" />
     <ClInclude Include="Asteroid.h" />
     <ClInclude Include="Body.h" />
+    <ClInclude Include="BossSpider.h" />
     <ClInclude Include="Bot01.h" />
     <ClInclude Include="DebugOverlay.h" />
     <ClInclude Include="FMOD_AudioManager.h" />

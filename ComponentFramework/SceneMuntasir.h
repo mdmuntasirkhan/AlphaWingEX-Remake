@@ -9,6 +9,7 @@
 #include "Asteroid.h"
 #include "Bot01.h"
 #include "Bot02.h"
+#include "BossSpider.h"
 #include "Bullet.h"
 #include "Environment.h"
 #include "SaveData.h"
@@ -38,6 +39,7 @@ private:
 	Asteroid* asteroid;
 	Bot01* bot01;
 	Bot02* bot02;
+	BossSpider* bossSpider;
 	Bullet* bullet;
 	Environment* environment;
 
