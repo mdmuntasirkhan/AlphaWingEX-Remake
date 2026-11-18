@@ -84,6 +84,13 @@ void BossBullets::Update(float deltaTime, const Vec3& playerPos, const Vec3& pla
 				// the angle it flies at now, and the angle it needs to fly at
 				float heading = atan2f(b.vel.y, b.vel.x);
 				float want = atan2f(leadY - b.pos.y, leadX - b.pos.x);
+
+				// far away it snakes a little to each side, so the path roams instead of a straight chase
+				// close to the player it stops snaking and goes straight for the hit
+				if (realRange > g.terminalRange) {
+					want += sinf(b.age * g.weaveSpeed + b.weavePhase) * g.weaveAngle;
+				}
+
 				float diff = want - heading;
 
 				// keep the difference between -180 and 180 degrees so it turns the short way round
@@ -137,9 +144,11 @@ void BossBullets::Update(float deltaTime, const Vec3& playerPos, const Vec3& pla
 			}
 		}
 
-		// remove bullets that left the screen
-		if (b.pos.x < GameConst::kCullX || b.pos.x > GameConst::kSpawnX ||
-			b.pos.y < -10.0f || b.pos.y > 10.0f) {
+		// remove bullets that left the screen. Missiles are allowed to go much farther out, since they come back.
+		float pad = b.guided ? 20.0f : 0.0f;
+		if (b.pos.x < GameConst::kCullX - pad || b.pos.x > GameConst::kSpawnX + pad ||
+			b.pos.y < -10.0f - pad || b.pos.y > 10.0f + pad)
+		{
 			bullets.erase(bullets.begin() + i);
 		}
 	}

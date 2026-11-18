@@ -12,17 +12,17 @@ using namespace MATH;
 
 // Settings for a guided missile. It works like the player's missile in Bullet.cpp, just weaker.
 struct MissileGuidance {
-	float launchSpeed = 4.5f;      // fast straight burst right after it is fired
-	float launchTime = 0.45f;      // seconds of straight flight before the steering starts
-	float cruiseSpeed = 2.2f;      // slower hunting speed after the burst
-	float decelTime = 1.2f;        // seconds it takes to slow from launch speed to cruise speed
-	float terminalSpeed = 3.8f;    // speed it sprints at when it is close to the player
-	float terminalRange = 1.8f;    // how close counts as "close"
-	float navGain = 2.5f;          // the N in the navigation formula, higher turns harder (player missile is 4.5)
-	float maxLateral = 7.0f;       // limit on sideways acceleration (player missile is 35)
-	float turnRate = 150.0f;       // degrees per second it can turn toward the player, higher tracks tighter
-	float maxLeadTime = 0.8f;      // it aims at where the player will be, but looks ahead at most this many seconds
-	float lifetime = 7.0f;         // seconds until it blows up on its own
+	float launchSpeed = 5.0f;      // fast straight burst right after it is fired
+	float launchTime = 0.4f;       // seconds of straight flight before the steering starts
+	float cruiseSpeed = 1.6f;      // slow hunting speed after the burst
+	float decelTime = 1.4f;        // seconds it takes to slow from launch speed to cruise speed
+	float terminalSpeed = 2.6f;    // speed it goes at when it is close to the player
+	float terminalRange = 1.8f;    // how close counts as "close", it also stops snaking inside this range
+	float turnRate = 120.0f;       // degrees per second it can turn toward the player, higher tracks tighter
+	float maxLeadTime = 0.6f;      // it aims at where the player will be, but looks ahead at most this many seconds
+	float weaveAngle = 0.5f;       // radians it snakes to each side while it is far away, 0 turns it off
+	float weaveSpeed = 2.2f;       // how fast it snakes
+	float lifetime = 30.0f;        // seconds until it blows up on its own
 };
 
 // One orb or missile fired by the boss
@@ -42,6 +42,7 @@ struct BossBullet {
 	bool  guided = false;
 	MissileGuidance guide;
 	float size = 0.2f;        // how big the missile mesh is drawn (the player's missile is 0.3)
+	float weavePhase = 0.0f;  // offsets the snaking, so missiles fired together are out of step
 
 	// Ghost trail: where the bullet was a moment ago, newest first
 	int   trailCount = 0;     // how many ghosts it draws, 0 means none (the most is kMaxTrail)
