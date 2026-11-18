@@ -7,7 +7,7 @@
 
 using namespace MATH;
 
-// Loads an OBJ file and uploads vertex, normal, and UV data to the GPU.
+// Loads an OBJ file and uploads vertex, normal, UV, and color data to the GPU.
 // Cannot be copied or moved
 class Mesh {
 private:
@@ -15,6 +15,7 @@ private:
     std::vector<Vec3> vertices;
     std::vector<Vec3> normals;
     std::vector<Vec2> uvCoords;
+    std::vector<Vec3> colors;
     size_t            dateLength; // number of vertices stored on GPU
     GLenum            drawmode;
     GLuint            vao, vbo;
