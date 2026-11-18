@@ -124,6 +124,9 @@
     <ClCompile Include="BossBullets.cpp">
       <Filter>Character\Enemy</Filter>
     </ClCompile>
+    <ClCompile Include="BossArena.cpp">
+      <Filter>LevelEvents</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DebugOverlay.h" />
@@ -266,6 +269,9 @@
     </ClInclude>
     <ClInclude Include="BossBullets.h">
       <Filter>Character\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="BossArena.h">
+      <Filter>LevelEvents</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

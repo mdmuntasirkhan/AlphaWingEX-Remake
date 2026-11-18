@@ -29,6 +29,7 @@ SceneMuntasir::SceneMuntasir(bool bossTestMode_) :
     bot02{ nullptr },
     bossSpider{ nullptr },
     bossBullets{ nullptr },
+    bossArena{ nullptr },
     bullet{ nullptr },
     environment{ nullptr },
     shader{ nullptr },
@@ -132,6 +133,10 @@ bool SceneMuntasir::OnCreate() {
             std::cout << "BossSpider failed to load!\n";
             return false;
         }
+
+        // The steel floor under the fight. The boss walks as if the floor really scrolls under its feet.
+        bossArena = new BossArena();
+        bossSpider->SetFloorSpeed(bossArena->GetScrollSpeed());
     }
 
     // Bullet - handles regular bullets and missiles
@@ -399,6 +404,11 @@ void SceneMuntasir::OnDestroy() {
         bossBullets = nullptr;
     }
 
+    if (bossArena) {
+        delete bossArena;
+        bossArena = nullptr;
+    }
+
     bullet->OnDestroy();
     delete bullet;
     bullet = nullptr;
@@ -517,7 +527,13 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
                 };
 
                 bool launched = false;
-                if (!bot02->GetPositions().empty()) {
+                if (bossSpider && bossSpider->IsAlive() && bossSpider->IsOnScreen()) {
+                    // the boss is the last one in the Bot02 target list (see Update), so its index comes after the real Bot02s
+                    bullet->SpawnHoming(player->GetPosition(),
+                        MissileTargetType::BOT02, (int)bot02->GetPositions().size());
+                    launched = true;
+                }
+                else if (!bot02->GetPositions().empty()) {
                     bullet->SpawnHoming(player->GetPosition(),
                         MissileTargetType::BOT02, nearestIdx(bot02->GetPositions()));
                     launched = true;
@@ -652,16 +668,20 @@ void SceneMuntasir::Update(const float deltaTime) {
     player->Update(dtMult * deltaTime);
 
     if (!warping) {
+        // The player's missiles can lock on to the boss. It goes at the end of the Bot02 list, so no other code changes.
+        std::vector<Vec3> bot02Targets = bot02->GetPositions();
+        if (bossSpider && bossSpider->IsAlive()) bot02Targets.push_back(bossSpider->GetPosition());
         bullet->Update(deltaTime,
-            asteroid->GetAsteroidPositions(), Vec3(-asteroid->GetAsteroidSpeed(), 0.0f, 0.0f),
-            bot01->GetBot01Positions(),       Vec3(-bot01->GetBot01Speed(), 0.0f, 0.0f),
-            bot02->GetPositions(),            Vec3(0.0f, 0.0f, 0.0f));
+        asteroid->GetAsteroidPositions(), Vec3(-asteroid->GetAsteroidSpeed(), 0.0f, 0.0f),
+        bot01->GetBot01Positions(),       Vec3(-bot01->GetBot01Speed(), 0.0f, 0.0f),
+        bot02Targets, Vec3(0.0f, 0.0f, 0.0f));
         asteroid->Update(deltaTime);
         bot01->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
         bot01->UpdateShields(deltaTime, bullet->GetMissilePositions());
         bot02->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
         if (bossSpider) bossSpider->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
         if (bossBullets) bossBullets->Update(deltaTime, player->GetPosition(), player->GetVelocity());
+        if (bossArena) bossArena->Update(deltaTime);
     }
 
     environment->Update(deltaTime);
@@ -1258,6 +1278,41 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
+    // Player lasers and missiles hurt the spider boss
+    if (bossSpider && bossSpider->IsAlive()) {
+        static constexpr float kLaserHitRadius = 0.15f;
+        static constexpr float kMissileHitRadius = 0.2f;
+
+        for (int l = (int)bullet->GetPositions().size() - 1; l >= 0; l--) {
+            if (bossSpider->IsHit(bullet->GetPositions()[l], kLaserHitRadius)) {
+                bullet->RemoveAt(l);
+                bool killed = bossSpider->TakeDamage(BossSpider::kLaserDamage);
+                SDL_ClearAudioStream(sfxLaserHitStream);
+                sfxLaserHit->Play(sfxLaserHitStream);
+                if (killed) {
+                    sfxExplosion->Play(sfxPlayer);
+                    break;
+                }
+            }
+        }
+
+        for (int m = (int)bullet->GetMissilePositions().size() - 1; m >= 0 && bossSpider->IsAlive(); m--) {
+            if (bossSpider->IsHit(bullet->GetMissilePositions()[m], kMissileHitRadius)) {
+                bullet->RemoveMissileAt(m);
+                bool killed = bossSpider->TakeDamage(BossSpider::kMissileDamage);
+                SpawnShards(bossSpider->GetPosition(), 3);
+                if (killed) sfxExplosion->Play(sfxPlayer);
+                else sfxMissileHit->Play(sfxPlayer);
+            }
+        }
+    }
+
+    // The boss finished dying: a pile of shards, points and a big bang
+    if (bossSpider && bossSpider->PopDeathRequest()) {
+        SpawnShards(bossSpider->GetPosition(), 40);
+        score += 2000;
+        sfxExplosion->Play(sfxPlayer);
+    }
 
     // Player lasers shoot down the boss bullets that have health (the seekers)
     if (bossBullets) {
@@ -1369,6 +1424,9 @@ void SceneMuntasir::RenderBackground() {
 
     glDisable(GL_SCISSOR_TEST);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+    // Boss arena floor, drawn over the nebula and still behind all the 3D objects
+    if (bossArena && !environment->IsWarpActive()) bossArena->RenderBackground();
 }
 
 // Render
@@ -1425,6 +1483,16 @@ void SceneMuntasir::Render() const {
     shardBeacon->Render(shader, projectionMatrix, viewMatrix);
 
     glUseProgram(0);
+
+    // The arena floor covers the stars, so only the open space above and below it shows them
+    if (bossArena && !anyWarp) {
+        float maskTop, maskBottom;
+        bossArena->GetStarMask(maskTop, maskBottom);
+        environment->SetStarMask(maskTop, maskBottom);
+    }
+    else {
+        environment->SetStarMask(0.0f, 0.0f);
+    }
 
     // Stars — ImGui draws these on top of 3D (fine; they're small background dots)
     environment->Render();
@@ -1492,6 +1560,10 @@ void SceneMuntasir::DrawGui() {
 
     if (environment->IsFullWarp()) return;       // hide all HUD during cinematic warp
     hudRenderer->DrawHUD();
+    if (bossSpider && bossSpider->IsOnScreen()) {
+        hudRenderer->DrawBossBar("SPIDER BOSS", bossSpider->GetHealthFraction(), bossSpider->GetHealthTrailFraction(),
+            BossSpider::kPhase2At, BossSpider::kPhase3At);
+    }
     hudRenderer->DrawPauseMenu();
     hudRenderer->DrawGameOver();
 }

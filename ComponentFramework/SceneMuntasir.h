@@ -11,6 +11,7 @@
 #include "Bot02.h"
 #include "BossSpider.h"
 #include "BossBullets.h"
+#include "BossArena.h"
 #include "Bullet.h"
 #include "Environment.h"
 #include "SaveData.h"
@@ -42,6 +43,7 @@ private:
 	Bot02* bot02;
 	BossSpider* bossSpider;
 	BossBullets* bossBullets;
+	BossArena* bossArena;
 	Bullet* bullet;
 	Environment* environment;
 
