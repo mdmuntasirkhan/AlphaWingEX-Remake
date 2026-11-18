@@ -44,6 +44,11 @@ void AnimatedMesh::Update(const float deltaTime) {
 	while (currentFrame >= static_cast<float>(frameCount)) {
 		currentFrame -= static_cast<float>(frameCount);
 	}
+
+	// a negative play speed runs the animation backward, so wrap around the other way too
+	while (currentFrame < 0.0f) {
+		currentFrame += static_cast<float>(frameCount);
+	}
 }
 
 void AnimatedMesh::Render() const {

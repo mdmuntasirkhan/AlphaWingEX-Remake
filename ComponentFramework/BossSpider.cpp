@@ -3,6 +3,17 @@
 #include <MMath.h>
 #include <cmath>
 
+// The patrol path, x and y in world units. The boss goes through these in order and loops.
+// Top back, top front (forward), bottom front, bottom back (backward), middle.
+static const float kWaypoints[][2] = {
+	{ 8.5f,  3.5f },
+	{ 5.5f,  3.0f },
+	{ 5.5f, -3.0f },
+	{ 8.5f, -3.5f },
+	{ 7.0f,  0.0f },
+};
+static const int kWaypointCount = 5;
+
 // moves a value toward a target without going past it
 static float MoveToward(float value, float target, float maxStep) {
 	if (fabsf(target - value) <= maxStep) return target;
@@ -13,7 +24,8 @@ BossSpider::BossSpider() :
 	creep{ nullptr }, walk{ nullptr }, skitter{ nullptr }, current{ nullptr },
 	state{ State::ENTERING },
 	pos{ GameConst::kSpawnX, 0.0f, GameConst::kWorldZ },
-	facingAngle{ 0.0f }, patrolDir{ 1 }, stateTimer{ 0.0f }, entranceSpeed{ 1.0f } {
+	facingAngle{ 0.0f }, lean{ 0.0f }, waypointIndex{ 0 },
+	stateTimer{ 0.0f }, entranceSpeed{ 1.0f } {
 }
 
 BossSpider::~BossSpider() {}
@@ -41,16 +53,15 @@ void BossSpider::OnDestroy() {
 }
 
 void BossSpider::Update(float deltaTime, float playerX, float playerY) {
-	// the head leans a little toward the way it is walking
-	float lean = 0.0f;
-	if (state == State::PATROLLING) lean = -patrolDir * kLeanAngle;
-	TrackPlayer(deltaTime, playerX, playerY, lean);
+	lean = 0.0f;   // only the moving state sets it
 
 	switch (state) {
-	case State::ENTERING:   UpdateEntering(deltaTime);   break;
-	case State::PATROLLING: UpdatePatrolling(deltaTime); break;
-	case State::PAUSING:    UpdatePausing(deltaTime);    break;
+	case State::ENTERING: UpdateEntering(deltaTime); break;
+	case State::MOVING:   UpdateMoving(deltaTime);   break;
+	case State::PAUSING:  UpdatePausing(deltaTime);  break;
 	}
+
+	TrackPlayer(deltaTime, playerX, playerY);
 	current->Update(deltaTime);
 }
 
@@ -59,7 +70,7 @@ void BossSpider::PlayClip(AnimatedMesh* clip, float playSpeed) {
 	current->SetPlaySpeed(playSpeed);
 }
 
-void BossSpider::TrackPlayer(float deltaTime, float playerX, float playerY, float lean) {
+void BossSpider::TrackPlayer(float deltaTime, float playerX, float playerY) {
 	float dx = playerX - pos.x;
 	float dy = playerY - pos.y;
 
@@ -93,17 +104,38 @@ void BossSpider::UpdateEntering(float deltaTime) {
 	}
 }
 
-void BossSpider::UpdatePatrolling(float deltaTime) {
-	pos.y += patrolDir * kPatrolSpeed * deltaTime;
-	PlayClip(walk, MatchSpeed(kWalkFoot, kPatrolSpeed));
+void BossSpider::UpdateMoving(float deltaTime) {
+	float targetX = kWaypoints[waypointIndex][0];
+	float targetY = kWaypoints[waypointIndex][1];
+	float dx = targetX - pos.x;
+	float dy = targetY - pos.y;
+	float dist = sqrtf(dx * dx + dy * dy);
+	float step = kPatrolSpeed * deltaTime;
 
-	float endY = patrolDir * kPatrolRange;
-	bool arrived = (patrolDir == 1) ? (pos.y >= endY) : (pos.y <= endY);
-	if (arrived) {
-		pos.y = endY;
-		patrolDir = -patrolDir;   // next time it goes the other way
+	// close enough to reach the point this frame, so stop there and go to the next one
+	if (dist <= step) {
+		pos.x = targetX;
+		pos.y = targetY;
+		waypointIndex = (waypointIndex + 1) % kWaypointCount;
 		StartPause();
+		return;
 	}
+
+	float dirX = dx / dist;
+	float dirY = dy / dist;
+	pos.x += dirX * step;
+	pos.y += dirY * step;
+
+	// forward means the way the head points. 1 is walking head first, -1 is walking backward
+	float rad = facingAngle * GameConst::kPi / 180.0f;
+	float forward = dirX * -cosf(rad) + dirY * -sinf(rad);
+
+	// walking backward plays the legs in reverse so the feet match the ground
+	float direction = (forward < -0.3f) ? -1.0f : 1.0f;
+	PlayClip(walk, direction * MatchSpeed(kWalkFoot, kPatrolSpeed));
+
+	// the head leans toward the up or down part of the movement
+	lean = -dirY * kLeanAngle;
 }
 
 void BossSpider::UpdatePausing(float deltaTime) {
@@ -112,7 +144,7 @@ void BossSpider::UpdatePausing(float deltaTime) {
 
 	if (stateTimer >= kEndPause) {
 		stateTimer = 0.0f;
-		state = State::PATROLLING;
+		state = State::MOVING;
 	}
 }
 
@@ -136,7 +168,8 @@ void BossSpider::Reset() {
 	state = State::ENTERING;
 	pos = Vec3(GameConst::kSpawnX, 0.0f, GameConst::kWorldZ);
 	facingAngle = 0.0f;
-	patrolDir = 1;
+	lean = 0.0f;
+	waypointIndex = 0;
 	stateTimer = 0.0f;
 	current = creep;
 }
