@@ -34,6 +34,10 @@ struct BossBullet {
 	float damage = 10.0f;     // damage to the player on a hit
 	int   health = 0;         // above 0 means the player's lasers can shoot it down
 
+	// Speeding up. If accel is above 0 the bullet gains this much speed every second, up to maxSpeed.
+	float accel = 0.0f;
+	float maxSpeed = 0.0f;
+
 	// Look
 	float age = 0.0f;         // seconds since it was fired
 	float growTime = 0.2f;    // seconds it takes to grow from small to full size

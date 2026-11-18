@@ -66,6 +66,10 @@ public:
     void DrawPauseMenu();
     void DrawGameOver();
 
+    // Boss health bar at the bottom right. health and healthTrail go from 0 to 1.
+    // phase2At and phase3At are where the little phase marks go on the bar.
+    void DrawBossBar(const char* name, float health, float healthTrail, float phase2At, float phase3At);
+
 private:
     void PlayHoverSound();
 

@@ -31,6 +31,10 @@ private:
     float screenWidth;
     float screenHeight;
 
+    // Stars between these two screen rows (pixels from the top) are not drawn. The boss arena floor uses it.
+    float starMaskTop;
+    float starMaskBottom;
+
     // Water effect
     float waterJitterTimer;
 
@@ -52,6 +56,7 @@ public:
     void OnResize(float width, float height); // call from SceneMuntasir::OnVideoChanged
     void OnDestroy();
     void Update(float deltaTime);
+    void SetStarMask(float topY, float bottomY) { starMaskTop = topY; starMaskBottom = bottomY; }  // both 0 means no mask
     void Render() const;
 
     // Getters

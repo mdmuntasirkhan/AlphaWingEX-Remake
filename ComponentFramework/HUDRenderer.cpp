@@ -517,3 +517,41 @@ void HUDRenderer::DrawGameOver() {
         PlayHoverSound();
         ImGui::End();
 }
+
+
+// Boss health bar at the bottom right of the screen.
+// It has the boss name, a dark frame, a red bar, a pale part that drains slowly behind the red part,
+// and small marks where the boss changes phase.
+void HUDRenderer::DrawBossBar(const char* name, float health, float healthTrail, float phase2At, float phase3At) {
+    ImVec2 screen = ImGui::GetIO().DisplaySize;
+    const float barWidth = 420.0f;
+    const float barHeight = 22.0f;
+    const float margin = 30.0f;
+
+    ImVec2 topLeft(screen.x - margin - barWidth, screen.y - margin - barHeight);
+    ImVec2 bottomRight(screen.x - margin, screen.y - margin);
+
+    // the background draw list, so the pause menu windows still draw on top of the bar
+    ImDrawList* dl = ImGui::GetBackgroundDrawList();
+
+    // the name above the bar, on the left
+    dl->AddText(ImGui::GetFont(), 24.0f, ImVec2(topLeft.x, topLeft.y - 30.0f), IM_COL32(235, 235, 235, 255), name);
+
+    // dark frame behind everything
+    dl->AddRectFilled(topLeft, bottomRight, IM_COL32(25, 8, 8, 220));
+
+    // the pale part shows the health that was just lost, the red part is the health that is left
+    if (healthTrail > health) {
+        dl->AddRectFilled(topLeft, ImVec2(topLeft.x + barWidth * healthTrail, bottomRight.y), IM_COL32(235, 205, 205, 235));
+    }
+    dl->AddRectFilled(topLeft, ImVec2(topLeft.x + barWidth * health, bottomRight.y), IM_COL32(205, 30, 35, 255));
+
+    // marks where the phases change
+    float x2 = topLeft.x + barWidth * phase2At;
+    float x3 = topLeft.x + barWidth * phase3At;
+    dl->AddLine(ImVec2(x2, topLeft.y), ImVec2(x2, bottomRight.y), IM_COL32(0, 0, 0, 255), 2.0f);
+    dl->AddLine(ImVec2(x3, topLeft.y), ImVec2(x3, bottomRight.y), IM_COL32(0, 0, 0, 255), 2.0f);
+
+    // thin border
+    dl->AddRect(topLeft, bottomRight, IM_COL32(170, 170, 170, 220));
+}

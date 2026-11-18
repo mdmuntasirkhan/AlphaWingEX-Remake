@@ -129,6 +129,17 @@ void BossBullets::Update(float deltaTime, const Vec3& playerPos, const Vec3& pla
 
 		b.pos += b.vel * deltaTime;
 
+		// a bullet with accel starts slow and speeds up until it reaches maxSpeed
+		if (b.accel > 0.0f) {
+			float s = sqrtf(b.vel.x * b.vel.x + b.vel.y * b.vel.y);
+			if (s > 0.001f && s < b.maxSpeed) {
+				float newSpeed = s + b.accel * deltaTime;
+				if (newSpeed > b.maxSpeed) newSpeed = b.maxSpeed;
+				b.vel.x = b.vel.x / s * newSpeed;
+				b.vel.y = b.vel.y / s * newSpeed;
+			}
+		}
+
 		// drop a ghost every kGhostSpacing of distance, so the spacing stays even at any speed
 		if (b.trailCount > 0) {
 			b.trailDist += sqrtf(b.vel.x * b.vel.x + b.vel.y * b.vel.y) * deltaTime;
