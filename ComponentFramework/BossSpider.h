@@ -5,18 +5,54 @@
 #include "AnimatedMesh.h"
 
 // The spider boss.
-// Right now it only stands in one place and plays the Walk animation.
-// Movement, attacks and health get added step by step.
+// This step: it walks in slowly, then crawls up and down along the right side
+// while its head always follows the player. The attacks come in later steps.
 class BossSpider : public Enemy {
 private:
-	AnimatedMesh* creep;     // slow, used when the boss comes in
-	AnimatedMesh* walk;      // normal walk
-	AnimatedMesh* skitter;   // fast, used for the dash
-	AnimatedMesh* current;   // the clip that is playing right now
+	enum class State { ENTERING, PATROLLING, PAUSING };
 
-	Vec3 pos;
+	AnimatedMesh* creep;
+	AnimatedMesh* walk;
+	AnimatedMesh* skitter;
+	AnimatedMesh* current;    // the clip that is playing right now
 
-	static constexpr float kScale = 0.7f;   // render scale of the spider mesh
+	State state;
+	Vec3  pos;
+	float facingAngle;        // degrees around Z: 0 faces left, -90 faces up, 90 faces down
+	int   patrolDir;          // 1 is up, -1 is down
+	float stateTimer;
+	float entranceSpeed;      // world units per second while walking in
+
+	// Tuning
+	static constexpr float kScale = 0.7f;
+	// ground speed of each clip at scale 1 (model units per second), measured from the animation
+	static constexpr float kCreepFoot = 0.472f;
+	static constexpr float kWalkFoot = 1.233f;
+	static constexpr float kSkitterFoot = 2.337f;
+
+	static constexpr float kHoldX = 7.5f;    // where it stops after coming in
+	static constexpr float kEntranceTime = 8.0f;    // seconds it takes to walk in
+	static constexpr float kPatrolRange = 4.0f;    // goes this far up and this far down from the middle
+	static constexpr float kPatrolSpeed = 1.4f;    // world units per second
+	static constexpr float kEndPause = 1.5f;    // seconds it stops at each end
+	static constexpr float kPausePlaySpeed = 0.4f;    // slow leg animation while it stands
+
+	static constexpr float kTrackTurnSpeed = 80.0f;   // how fast the head follows the player, degrees per second
+	static constexpr float kMaxTrackAngle = 70.0f;   // the head never turns more than this from facing left
+	static constexpr float kLeanAngle = 15.0f;   // head leans toward the walking direction, 0 turns it off
+
+	// the animation speed that makes the feet match a movement speed on the ground
+	static float MatchSpeed(float footSpeed, float groundSpeed) {
+		return groundSpeed / (footSpeed * kScale);
+	}
+
+	void PlayClip(AnimatedMesh* clip, float playSpeed);
+	void TrackPlayer(float deltaTime, float playerX, float playerY, float lean);
+	void StartPause();
+
+	void UpdateEntering(float deltaTime);
+	void UpdatePatrolling(float deltaTime);
+	void UpdatePausing(float deltaTime);
 
 public:
 	BossSpider();
