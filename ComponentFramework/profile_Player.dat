@@ -3,10 +3,10 @@ shards 0
 highscore 0
 health 100
 lives 3
-score 0
-posx -4.30312
-posy -2.01408
-wavetime 17.058
+score 50
+posx -6.11252
+posy -1.1163
+wavetime 35.834
 haslostshards 0
 lostshardposx 0
 lostshardposy 0
