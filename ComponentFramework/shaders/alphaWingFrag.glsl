@@ -5,11 +5,13 @@ layout(location = 0) in vec3 fragNormal;
 layout(location = 1) in vec3 fragPos;
 layout(location = 2) in vec3 fragLocalPos;
 layout(location = 0) out vec4 fragColor;
+layout(location = 3) in vec3 fragVertexColor;
 
 uniform vec4  color;
 uniform vec3  lightPos;
 uniform vec3  viewPos;
 uniform float emissive;
+uniform float flash;
 
 void main() {
     
@@ -34,12 +36,17 @@ void main() {
     vec3 lightDir  = normalize(lightPos - fragPos);
     vec3 viewDir   = normalize(viewPos - fragPos);
 
-    vec3 ambient   = 0.3 * color.rgb;
+    // the uniform color is multiplied by the vertex color from the mesh
+    vec3 baseColor = color.rgb * fragVertexColor;
+    vec3 ambient   = 0.3 * baseColor;
     float diff     = max(dot(normal, lightDir), 0.0);
-    vec3 diffuse   = diff * color.rgb;
+    vec3 diffuse   = diff * baseColor;
     vec3 reflectDir = reflect(-lightDir, normal);
     float spec     = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
     vec3 specular  = 0.4 * spec * vec3(1.0);
 
-    fragColor = vec4(ambient + diffuse + specular, color.a);
+    vec3 lit = ambient + diffuse + specular;
+
+    // flash goes from 0 (normal) to 1 (full white), the boss will use it when it gets hit
+    fragColor = vec4(mix(lit, vec3(1.0), flash), color.a);
 }

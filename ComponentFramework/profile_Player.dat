@@ -4,9 +4,9 @@ highscore 0
 health 100
 lives 3
 score 0
-posx -2.9416
-posy -0.143438
-wavetime 16.3099
+posx 0
+posy 0
+wavetime 11.471
 haslostshards 0
 lostshardposx 0
 lostshardposy 0
