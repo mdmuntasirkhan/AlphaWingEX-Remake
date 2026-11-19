@@ -8,6 +8,11 @@
 
 #define CHECK(a)
 
+// Naming / unchange Constans
+constexpr float MAX_VOLUME = 1.0F;
+constexpr float MIN_VOLUME = 0.0F;
+
+
 // Custom deleter
 // use for releasing memory from FMOD system
 // since smart point won't automatically release the memory allocated from FMOD studio, we need to create our own
