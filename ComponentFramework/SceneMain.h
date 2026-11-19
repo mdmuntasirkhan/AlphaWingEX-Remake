@@ -24,6 +24,17 @@ union SDL_Event;
 class Shader;
 class FMOD_AudioManager;
 
+// Naming Veriables
+inline static std::string MainBank = "MainBank";
+inline static std::string MainTheme = "MainTheme";
+
+inline static std::string SFXLaser = "sfxLaser";
+inline static std::string SFXLaserHit = "sfxLaserHit";
+inline static std::string SFXExplosion = "sfxExplosion";
+inline static std::string SFXMissileHit = "sfxMissileHit";
+inline static std::string SFXShieldHit = "sfxShieldHit";
+
+// Main Class
 class SceneMain : public Scene {
 private:
 	// Level scripting — environment mesh chunks, timeline events

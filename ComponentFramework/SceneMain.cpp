@@ -199,12 +199,18 @@ bool SceneMain::OnCreate() {
     FMOD_manager->loadBank("Master_String", "audio/bank/Master.strings.bank");
     FMOD_manager->loadBank("Master_Bus", "audio/bank/Bus.bank");
 
-    FMOD_manager->loadBank("MainBank", "audio/bank/AlphaWingEX.bank");
+    FMOD_manager->loadBank(MainBank, "audio/bank/AlphaWingEX.bank");
 
-    // Music
-    bgmMusic = new Sound("audio/music/deadmou5-gg.wav");
-    bgmMusic->OnCreate();
-    bgmMusic->Play(bgmPlayer);
+    // Music FMOD
+    FMOD_manager->loadEvent(MainTheme, "event:/BGM/BGM-deadmou5");
+    FMOD_manager->PlayBGMEvent(MainTheme);
+
+    // SFX FMOD
+    FMOD_manager->loadEvent(SFXLaser, "event:/SFX/SFX-LaserShoot");
+    FMOD_manager->loadEvent(SFXLaserHit, "event:/SFX/SFX-LaserHit");
+    FMOD_manager->loadEvent(SFXExplosion, "event:/SFX/SFX-LaserExplosion");
+    FMOD_manager->loadEvent(SFXMissileHit, "event:/SFX/SFX-LaserMissileHit");
+    FMOD_manager->loadEvent(SFXShieldHit, "event:/SFX/SFX-ShiledHit");
 
     // SFX
     sfxLaser = new Sound("audio/sfx/LaserShoot.wav");
@@ -402,9 +408,7 @@ void SceneMain::OnDestroy() {
     SDL_DestroyAudioStream(bgmPlayer);
     SDL_DestroyAudioStream(sfxPlayer);
     SDL_DestroyAudioStream(sfxLaserHitStream);
-    bgmMusic->OnDestroy();
-    delete bgmMusic;
-
+    
     delete debugOverlay;
     debugOverlay = nullptr;
 
@@ -449,7 +453,7 @@ void SceneMain::HandleEvents(const SDL_Event& sdlEvent) {
                 bullet->Spawn(player->GetPosition());
                 player->IncreaseHeatLevel(10.0f);
                 player->ApplyImpulse(Vec3(-1.5f, 0.0f, 0.0f)); // recoil
-                sfxLaser->Play(sfxPlayer);
+                FMOD_manager->PlaySFXEvent(SFXLaser);
             }
             break;
         default:
@@ -472,7 +476,7 @@ void SceneMain::HandleEvents(const SDL_Event& sdlEvent) {
                     bullet->Spawn(player->GetPosition());
                     player->IncreaseHeatLevel(1.0f);
                     player->ApplyImpulse(Vec3(-1.5f, 0.0f, 0.0f)); // recoil
-                    sfxLaser->Play(sfxPlayer);
+                    FMOD_manager->PlaySFXEvent(SFXLaser);
                 }
             }
         }
