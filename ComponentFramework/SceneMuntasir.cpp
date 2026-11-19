@@ -30,6 +30,7 @@ SceneMuntasir::SceneMuntasir(bool bossTestMode_) :
     bossSpider{ nullptr },
     bossBullets{ nullptr },
     bossArena{ nullptr },
+    bossEncounter{ nullptr },
     bullet{ nullptr },
     environment{ nullptr },
     shader{ nullptr },
@@ -119,25 +120,27 @@ bool SceneMuntasir::OnCreate() {
         return false;
     }
 
-    // Spider boss and its bullets, only built in the F5 test scene for now
-    if (bossTestMode) {
-        bossBullets = new BossBullets();
-        if (bossBullets->OnCreate("meshes/Temp_AlphaWingEX_Bot02_Bullet.obj",
-            "meshes/Temp_AlphaWing_PlayerShip_Missile.obj") == false) {
-            std::cout << "BossBullets failed to load!\n";
-            return false;
-        }
-
-        bossSpider = new BossSpider();
-        if (bossSpider->OnCreate(bossBullets) == false) {
-            std::cout << "BossSpider failed to load!\n";
-            return false;
-        }
-
-        // The steel floor under the fight. The boss walks as if the floor really scrolls under its feet.
-        bossArena = new BossArena();
-        bossSpider->SetFloorSpeed(bossArena->GetScrollSpeed());
+    // Spider boss, its bullets, the steel floor and the gate. They are built in every game, so there is no loading stutter
+    // when the boss section starts. The boss does nothing until the encounter activates it.
+    bossBullets = new BossBullets();
+    if (bossBullets->OnCreate("meshes/Temp_AlphaWingEX_Bot02_Bullet.obj",
+        "meshes/Temp_AlphaWing_PlayerShip_Missile.obj") == false) {
+        std::cout << "BossBullets failed to load!\n";
+        return false;
     }
+
+    bossSpider = new BossSpider();
+    if (bossSpider->OnCreate(bossBullets) == false) {
+        std::cout << "BossSpider failed to load!\n";
+        return false;
+    }
+
+    // The steel floor under the fight. The boss walks as if the floor really scrolls under its feet.
+    bossArena = new BossArena();
+    bossSpider->SetFloorSpeed(bossArena->GetScrollSpeed());
+
+    // The flow of the whole boss section (it also owns the gate)
+    bossEncounter = new BossEncounter();
 
     // Bullet - handles regular bullets and missiles
     bullet = new Bullet();
@@ -285,7 +288,14 @@ bool SceneMuntasir::OnCreate() {
     levelDirector->SetAsteroidCallback([this](float largeInterval, float smallInterval) {
         asteroid->SetSpawnRates(largeInterval, smallInterval);
     });
-    // In boss test mode (F5) no level script is added, so the arena stays empty except for the boss
+    // The BOSS_ENCOUNTER event in the level script starts the boss section.
+    // If it was already played (dev key F6), the timeline is let go again right away.
+    levelDirector->SetBossCallback([this]() {
+        if (!bossEncounter->Start(4.0f)) levelDirector->ReleaseHold();
+    });
+
+    // In boss test mode (F5) no level script is added, so the section starts by itself after one second
+    if (bossTestMode) bossEncounter->Start(1.0f);
     if (!bossTestMode) {
         levelDirector->AddScript(new Level01Script(), 0.0f);
         // Level02 starts at t=180s. Bring offset down to ~158s for a 22s overlap window
@@ -323,6 +333,7 @@ bool SceneMuntasir::OnCreate() {
     hudCtx.musicVolume       = &musicVolume;
     hudCtx.sfxVolume         = &sfxVolume;
     hudCtx.clearShards       = [this]() { shards.clear(); };
+    hudCtx.resetBoss         = [this]() { ResetBossFight(); };
     hudRenderer->Init(hudCtx);
 
     return true;
@@ -409,6 +420,11 @@ void SceneMuntasir::OnDestroy() {
         bossArena = nullptr;
     }
 
+    if (bossEncounter) {
+        delete bossEncounter;
+        bossEncounter = nullptr;
+    }
+
     bullet->OnDestroy();
     delete bullet;
     bullet = nullptr;
@@ -482,6 +498,15 @@ void SceneMuntasir::HandleEvents(const SDL_Event& sdlEvent) {
             break;
         case SDL_SCANCODE_F10:
             showCameraDebug = !showCameraDebug;
+            break;
+        case SDL_SCANCODE_F6:
+            // dev key: start the boss section now, or skip the gate and go straight to the fight
+            if (bossEncounter->GetStage() == BossEncounter::Stage::WAITING) bossEncounter->Start(0.5f);
+            else bossEncounter->SkipToFight();
+            break;
+        case SDL_SCANCODE_F7:
+            // dev key: kills the boss, to test the ending
+            if (bossSpider->IsAlive()) bossSpider->TakeDamage(100000.0f);
             break;
         case SDL_SCANCODE_Q:
             Q_Held = true;
@@ -588,6 +613,17 @@ void SceneMuntasir::SaveGame() {
     SaveData::current.Save();
 }
 
+// Puts the whole boss section back to the start. Try Again calls this.
+void SceneMuntasir::ResetBossFight() {
+    bossEncounter->Reset();
+    bossSpider->Reset();
+    bossBullets->Clear();
+    bossArena->SetExtent(-1000.0f, 1000.0f);
+
+    // in the F5 test scene the section starts by itself
+    if (bossTestMode) bossEncounter->Start(1.0f);
+}
+
 void SceneMuntasir::SpawnShards(const Vec3& pos, int count) {
     for (int i = 0; i < count; i++) {
         Shard s;
@@ -671,14 +707,60 @@ void SceneMuntasir::Update(const float deltaTime) {
         // The player's missiles can lock on to the boss. It goes at the end of the Bot02 list, so no other code changes.
         std::vector<Vec3> bot02Targets = bot02->GetPositions();
         if (bossSpider && bossSpider->IsAlive()) bot02Targets.push_back(bossSpider->GetPosition());
+
         bullet->Update(deltaTime,
-        asteroid->GetAsteroidPositions(), Vec3(-asteroid->GetAsteroidSpeed(), 0.0f, 0.0f),
-        bot01->GetBot01Positions(),       Vec3(-bot01->GetBot01Speed(), 0.0f, 0.0f),
-        bot02Targets, Vec3(0.0f, 0.0f, 0.0f));
+            asteroid->GetAsteroidPositions(), Vec3(-asteroid->GetAsteroidSpeed(), 0.0f, 0.0f),
+            bot01->GetBot01Positions(),       Vec3(-bot01->GetBot01Speed(), 0.0f, 0.0f),
+            bot02Targets,                     Vec3(0.0f, 0.0f, 0.0f));
         asteroid->Update(deltaTime);
         bot01->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
         bot01->UpdateShields(deltaTime, bullet->GetMissilePositions());
         bot02->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
+
+        // The boss section: the corridor, the warning, the fight, the ending
+        if (bossEncounter->IsActive()) {
+            bossEncounter->Update(deltaTime);
+
+            if (bossEncounter->PopSpawnBoss()) bossSpider->Activate();
+
+            // The hull of the arena corridor pushes the player. Pushed into the left edge of the screen,
+            // he is crushed: he loses a life and the corridor starts coming in again from the beginning.
+            if (bossEncounter->IsGateVisible() && bossEncounter->GetGate().PushPlayer(player)) {
+                player->LoseLife();
+                player->SetPosition(0.0f, 0.0f);
+                bossEncounter->RestartEntry();   // does nothing once the fight has started
+                if (bossEncounter->GetStage() == BossEncounter::Stage::ENTRY) {
+                    bossSpider->Reset();
+                    bossBullets->Clear();
+                }
+                if (explosionCooldownTimer <= 0.0f) {
+                    sfxExplosion->Play(sfxPlayer);
+                    explosionCooldownTimer = explosionCooldown;
+                }
+            }
+
+            // the steel floor slides in and out
+            float arenaLeft, arenaRight;
+            bossEncounter->GetArenaExtent(arenaLeft, arenaRight);
+            bossArena->SetExtent(arenaLeft, arenaRight);
+            bossArena->SetLeftCap(!bossEncounter->IsGateVisible());   // the corridor hull covers the left end
+
+            // The screen is black now: bank every shard on the screen and save. This is the checkpoint.
+            if (bossEncounter->PopCheckpoint()) {
+                bossBullets->Clear();
+                shardCount += (int)shards.size();
+                shards.clear();
+                SaveGame();
+            }
+
+            // the section is over, the level timeline carries on
+            if (bossEncounter->PopFinished()) levelDirector->ReleaseHold();
+        }
+
+        // The floor is faster while the arena slides in. The boss's legs follow it.
+        bossArena->SetScrollSpeed(bossEncounter->GetFloorSpeed());
+        bossSpider->SetFloorSpeed(bossArena->GetScrollSpeed());
+
         if (bossSpider) bossSpider->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
         if (bossBullets) bossBullets->Update(deltaTime, player->GetPosition(), player->GetVelocity());
         if (bossArena) bossArena->Update(deltaTime);
@@ -1057,6 +1139,50 @@ void SceneMuntasir::Update(const float deltaTime) {
                 }
             }
         }
+
+        // Boss bullets bounce off the shield the same way. A bounced bullet turns light blue, stops hurting the
+        // player and flies back at the boss.
+        if (bossBullets) {
+            for (int b = (int)bossBullets->GetBullets().size() - 1; b >= 0; b--) {
+                BossBullet& bb = bossBullets->GetBullets()[b];
+                if (bb.reflected) continue;
+
+                float rx = bb.pos.x - sp.x;
+                float ry = bb.pos.y - sp.y;
+                if ((rx*rx)/srx2 + (ry*ry)/sry2 >= 1.0f) continue;
+
+                // the same moving-wall bounce as the Bot02 bullets above
+                float nx = rx / srx2;
+                float ny = ry / sry2;
+                float nlen = sqrtf(nx*nx + ny*ny);
+                if (nlen > 0.0001f) { nx /= nlen; ny /= nlen; }
+
+                float rvx = bb.vel.x - pVel.x;
+                float rvy = bb.vel.y - pVel.y;
+                float relDotN = rvx * nx + rvy * ny;
+                if (relDotN >= 0.0f) continue;   // moving away from the shield already
+
+                rvx -= 2.0f * relDotN * nx;
+                rvy -= 2.0f * relDotN * ny;
+                float outVx = rvx + pVel.x * kVelInfluence;
+                float outVy = rvy + pVel.y * kVelInfluence;
+                float spd = sqrtf(outVx*outVx + outVy*outVy);
+                if (spd > 0.001f) {
+                    bb.vel.x = outVx / spd * kRicochetSpeed;
+                    bb.vel.y = outVy / spd * kRicochetSpeed;
+                }
+
+                bb.reflected = true;
+                bb.accel = 0.0f;                    // no more speeding up
+                bb.health = 0;                      // lasers pass through it now
+                bb.color = Vec3(0.5f, 0.95f, 1.0f);   // light blue, so it is clear it is the player's now
+
+                if (shieldHitCooldownTimer <= 0.0f) {
+                    sfxShieldHit->Play(sfxPlayer);
+                    shieldHitCooldownTimer = kShieldHitCooldown;
+                }
+            }
+        }
     }
 
     // Reflected Bot02 bullets hit any destructible — consumed on first hit
@@ -1278,6 +1404,7 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
+
     // Player lasers and missiles hurt the spider boss
     if (bossSpider && bossSpider->IsAlive()) {
         static constexpr float kLaserHitRadius = 0.15f;
@@ -1307,11 +1434,44 @@ void SceneMuntasir::Update(const float deltaTime) {
         }
     }
 
+    // Boss bullets that the shield bounced back hurt the boss
+    if (bossBullets && bossSpider && bossSpider->IsAlive()) {
+        for (int b = (int)bossBullets->GetBullets().size() - 1; b >= 0; b--) {
+            BossBullet& bb = bossBullets->GetBullets()[b];
+            if (!bb.reflected) continue;
+            if (!bossSpider->IsHit(bb.pos, bb.radius)) continue;
+
+            Vec3 hitPos = bb.pos;
+            float damage = bb.guided ? BossSpider::kReflectMissileDamage : BossSpider::kReflectDamage;
+            bossBullets->RemoveAt(b);   // bb is gone after this
+
+            bool killed = bossSpider->TakeDamage(damage);
+            SpawnShards(hitPos, 2);
+            sfxMissileHit->Play(sfxPlayer);
+            if (killed) {
+                sfxExplosion->Play(sfxPlayer);
+                break;   // the boss cleared all its bullets when it died
+            }
+        }
+    }
+
+    // The running boss hurts the player when it touches him. The shield stops the damage and bounces him off.
+    if (bossSpider && bossSpider->CheckDashHit(player->GetPosition(), 0.3f)) {
+        float side = (player->GetPosition().y >= bossSpider->GetPosition().y) ? 1.0f : -1.0f;
+        player->ApplyImpulse(Vec3(0.0f, side * 7.0f, 0.0f));
+        player->TakeDamage(BossSpider::kDashDamage);
+        if (explosionCooldownTimer <= 0.0f) {
+            sfxExplosion->Play(sfxPlayer);
+            explosionCooldownTimer = explosionCooldown;
+        }
+    }
+
     // The boss finished dying: a pile of shards, points and a big bang
     if (bossSpider && bossSpider->PopDeathRequest()) {
         SpawnShards(bossSpider->GetPosition(), 40);
         score += 2000;
         sfxExplosion->Play(sfxPlayer);
+        bossEncounter->OnBossDefeated();   // starts the ending
     }
 
     // Player lasers shoot down the boss bullets that have health (the seekers)
@@ -1347,6 +1507,7 @@ void SceneMuntasir::Update(const float deltaTime) {
         static constexpr float kPlayerHitRadius = 0.2f;    // smaller than the ship, so close calls feel fair
         for (int b = (int)bossBullets->GetBullets().size() - 1; b >= 0; b--) {
             const BossBullet& bb = bossBullets->GetBullets()[b];
+            if (bb.reflected) continue;   // bounced back by the shield, it belongs to the player now
             float dx = bb.pos.x - player->GetPosition().x;
             float dy = bb.pos.y - player->GetPosition().y;
 
@@ -1374,8 +1535,10 @@ void SceneMuntasir::Update(const float deltaTime) {
     }
 
     // Phase 3 = Bot02 intro window — pause other spawning during the encounter
-    bool asteroidsSpawning = !bossTestMode && (currentPhase < 3 || currentPhase >= 4);
-    bot01->SetSpawningEnabled(currentPhase != 3);
+    // While the boss section runs there are no new asteroids or bots, only the boss
+    bool bossFlowActive = bossEncounter->IsActive();
+    bool asteroidsSpawning = !bossTestMode && !bossFlowActive && (currentPhase < 3 || currentPhase >= 4);
+    bot01->SetSpawningEnabled(currentPhase != 3 && !bossFlowActive);
     asteroid->SetSpawningEnabled(asteroidsSpawning);
 
     // Save on each life lost
@@ -1425,8 +1588,11 @@ void SceneMuntasir::RenderBackground() {
     glDisable(GL_SCISSOR_TEST);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
-    // Boss arena floor, drawn over the nebula and still behind all the 3D objects
-    if (bossArena && !environment->IsWarpActive()) bossArena->RenderBackground();
+    // The gate and the arena floor are drawn over the nebula and still behind all the 3D objects
+    if (!environment->IsWarpActive()) {
+        if (bossEncounter->IsArenaVisible()) bossArena->RenderBackground();
+        if (bossEncounter->IsGateVisible()) bossEncounter->GetGate().RenderBackground();   // the hull goes on top of the floor
+    }
 }
 
 // Render
@@ -1485,10 +1651,16 @@ void SceneMuntasir::Render() const {
     glUseProgram(0);
 
     // The arena floor covers the stars, so only the open space above and below it shows them
-    if (bossArena && !anyWarp) {
-        float maskTop, maskBottom;
-        bossArena->GetStarMask(maskTop, maskBottom);
-        environment->SetStarMask(maskTop, maskBottom);
+    if (bossArena && bossEncounter->IsArenaVisible() && !anyWarp) {
+        float maskTop, maskBottom, maskLeft, maskRight;
+        bossArena->GetStarMask(maskTop, maskBottom, maskLeft, maskRight);
+        environment->SetStarMask(maskTop, maskBottom, maskLeft, maskRight);
+
+        // the corridor hull covers the whole height of the screen
+        if (bossEncounter->IsGateVisible()) {
+            bossEncounter->GetGate().GetStarMask(maskTop, maskBottom, maskLeft, maskRight);
+            environment->SetStarMask2(maskTop, maskBottom, maskLeft, maskRight);
+        }
     }
     else {
         environment->SetStarMask(0.0f, 0.0f);
@@ -1541,6 +1713,8 @@ void SceneMuntasir::DrawGui() {
             ImGui::TextDisabled("F2   SceneJA  (Jacky test scene)");
             ImGui::TextDisabled("F3   SceneMuntasir (skip title)");
             ImGui::TextDisabled("F5   Spider boss test scene");
+            ImGui::TextDisabled("F6   Start boss section / skip the gate");
+            ImGui::TextDisabled("F7   Kill the spider boss");
             ImGui::TextDisabled("F9   Debug overlay  (Minimal / Detailed)");
             ImGui::TextDisabled("F10  This window");
             ImGui::TextDisabled("Q    Hold 3s — trigger full warp");
@@ -1564,6 +1738,23 @@ void SceneMuntasir::DrawGui() {
         hudRenderer->DrawBossBar("SPIDER BOSS", bossSpider->GetHealthFraction(), bossSpider->GetHealthTrailFraction(),
             BossSpider::kPhase2At, BossSpider::kPhase3At);
     }
+
+    // The dash: a red lane and a WARNING at the top while the boss gets ready
+    float laneY, laneX, laneStrength;
+    if (bossSpider && bossSpider->GetDashLane(laneY, laneX, laneStrength)) {
+        hudRenderer->DrawDashLane(laneY, laneX, BossSpider::kDashLaneHalf, laneStrength);
+        hudRenderer->DrawAttackWarning("SPIDER BOSS DASH INCOMING", bossSpider->GetDashWarningTime());
+    }
+
+    // The big WARNING, after the corridor, right before the boss arrives
+    if (bossEncounter->GetStage() == BossEncounter::Stage::WARNING) {
+        hudRenderer->DrawBossWarning(bossEncounter->GetWarningTime());
+    }
+
     hudRenderer->DrawPauseMenu();
     hudRenderer->DrawGameOver();
+
+    // The fade and the banner go last, so they cover everything
+    hudRenderer->DrawFade(bossEncounter->GetFade());
+    hudRenderer->DrawBanner("SPIDER BOSS DEFEATED", "CHECKPOINT", bossEncounter->GetBannerAlpha());
 }

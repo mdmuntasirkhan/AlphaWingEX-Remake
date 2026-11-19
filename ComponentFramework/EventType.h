@@ -13,6 +13,7 @@ enum class EventType {
     SPAWN_BOT01_SHIELDED, // shielded wave   — scale=count, scrollSpeed=spawn interval (s)
     SPAWN_BOT02,          // spawns top + bottom pair — no extra fields needed
     SET_ASTEROID_RATE,    // scale=large interval (s), scrollSpeed=small interval (s)
+    BOSS_ENCOUNTER,       
 };
 
 #endif // EVENTTYPE_H

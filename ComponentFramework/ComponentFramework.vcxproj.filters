@@ -127,6 +127,12 @@
     <ClCompile Include="BossArena.cpp">
       <Filter>LevelEvents</Filter>
     </ClCompile>
+    <ClCompile Include="BossEncounter.cpp">
+      <Filter>Character\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="BossGate.cpp">
+      <Filter>Character\Enemy</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DebugOverlay.h" />
@@ -272,6 +278,12 @@
     </ClInclude>
     <ClInclude Include="BossArena.h">
       <Filter>LevelEvents</Filter>
+    </ClInclude>
+    <ClInclude Include="BossEncounter.h">
+      <Filter>Character\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="BossGate.h">
+      <Filter>Character\Enemy</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

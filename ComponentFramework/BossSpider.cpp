@@ -16,12 +16,13 @@ static const int kWaypointCount = 5;
 
 // The attack order of each phase. At every stop the boss takes the next one in its phase's row
 // and goes back to the start of the row when it reaches the end.
-// To change the fight, just change these rows. The dash and the spiral will be added here later.
-static const int kAttacksPerPhase = 4;
+// To change the fight, just change these rows. Every row needs exactly kAttacksPerPhase entries.
+// Phase 1 starts with the dash, the most dangerous attack, so the first thing the player meets is its warning.
+static const int kAttacksPerPhase = 6;
 static const BossAttack kAttackTable[3][kAttacksPerPhase] = {
-	{ BossAttack::FAN,  BossAttack::RING,   BossAttack::FAN,    BossAttack::RING },     // phase 1
-	{ BossAttack::FAN,  BossAttack::RING,   BossAttack::SEEKER, BossAttack::RING },     // phase 2
-	{ BossAttack::RING, BossAttack::SEEKER, BossAttack::FAN,    BossAttack::SEEKER },   // phase 3
+	{ BossAttack::DASH,   BossAttack::FAN,    BossAttack::SEEKER, BossAttack::FAN,    BossAttack::RING,   BossAttack::FAN    },   // phase 1, it opens with the dash
+	{ BossAttack::FAN,    BossAttack::RING,   BossAttack::SPIRAL, BossAttack::SEEKER, BossAttack::DASH,   BossAttack::RING   },   // phase 2
+	{ BossAttack::SPIRAL, BossAttack::SEEKER, BossAttack::RING,   BossAttack::FAN,    BossAttack::DASH,   BossAttack::SEEKER },   // phase 3
 };
 
 static const float kIdlePlaySpeed = 0.4f;   // slow leg shuffle while it stands still on a floor that does not move
@@ -35,6 +36,7 @@ static float MoveToward(float value, float target, float maxStep) {
 BossSpider::BossSpider() :
 	creep{ nullptr }, walk{ nullptr }, skitter{ nullptr }, current{ nullptr },
 	bullets{ nullptr },
+	active{ false },
 	state{ State::ENTERING },
 	pos{ GameConst::kSpawnX, 0.0f, GameConst::kWorldZ },
 	facingAngle{ 0.0f }, lean{ 0.0f }, waypointIndex{ 0 },
@@ -43,7 +45,8 @@ BossSpider::BossSpider() :
 	phase{ 1 }, dyingTimer{ 0.0f }, deathRequested{ false },
 	attackIndex{ 0 }, attack{ BossAttack::FAN }, volleysTotal{ 0 }, volleysLeft{ 0 },
 	volleyTimer{ 0.0f }, volleyInterval{ kFanInterval }, warningTime{ kFanWarning },
-	pauseTime{ 0.0f }, glow{ 0.0f }, ringGap{ 0.0f } {
+	pauseTime{ 0.0f }, glow{ 0.0f }, ringGap{ 0.0f }, spiralAngle{ 0.0f }, spiralDir{ 1.0f },
+	dashY{ 0.0f }, dashSpeed{ 0.0f }, dashHitDone{ false }, lastPlayerX{ 0.0f }, lastPlayerY{ 0.0f } {
 }
 
 BossSpider::~BossSpider() {}
@@ -74,23 +77,34 @@ void BossSpider::OnDestroy() {
 }
 
 void BossSpider::Update(float deltaTime, float playerX, float playerY) {
-	if (state == State::DEAD) return;
+	if (!active || state == State::DEAD) return;
 
 	lean = 0.0f;   // only the moving state sets it
 	glow = 0.0f;   // only the warning before a shot sets it
+	lastPlayerX = playerX;
+	lastPlayerY = playerY;
 
 	UpdateHealthState(deltaTime);
 
 	switch (state) {
-	case State::ENTERING: UpdateEntering(deltaTime);                    break;
-	case State::MOVING:   UpdateMoving(deltaTime);                      break;
-	case State::PAUSING:  UpdatePausing(deltaTime, playerX, playerY);   break;
-	case State::DYING:    UpdateDying(deltaTime);                       break;
+	case State::ENTERING:    UpdateEntering(deltaTime);                    break;
+	case State::MOVING:      UpdateMoving(deltaTime);                      break;
+	case State::PAUSING:     UpdatePausing(deltaTime, playerX, playerY);   break;
+	case State::DASH_WARN:   UpdateDashWarn(deltaTime, playerY);           break;
+	case State::DASH_GO:     UpdateDashGo(deltaTime);                      break;
+	case State::DASH_RETURN: UpdateDashReturn(deltaTime);                  break;
+	case State::DYING:       UpdateDying(deltaTime);                       break;
 	default: break;
 	}
 
-	// a dying boss stops following the player
-	if (state != State::DYING) TrackPlayer(deltaTime, playerX, playerY);
+	// a dying boss stops following the player, and during a dash the head stays pointed to the left
+	bool dashing = (state == State::DASH_WARN || state == State::DASH_GO || state == State::DASH_RETURN);
+	if (dashing) {
+		facingAngle = MoveToward(facingAngle, 0.0f, kTrackTurnSpeed * 2.0f * deltaTime);
+	}
+	else if (state != State::DYING) {
+		TrackPlayer(deltaTime, playerX, playerY);
+	}
 	current->Update(deltaTime);
 }
 
@@ -212,6 +226,16 @@ void BossSpider::StartPause() {
 		warningTime = kSeekerWarning;
 		volleyInterval = kSeekerInterval;
 		break;
+	case BossAttack::SPIRAL:
+		volleysTotal = kSpiralVolleys;
+		warningTime = kSpiralWarning;
+		volleyInterval = (phase >= 3) ? kSpiralIntervalFast : kSpiralInterval;   // phase 3 turns faster
+		spiralDir = -spiralDir;                                                   // every spiral turns the other way
+		break;
+	case BossAttack::DASH:
+		// the dash has its own states instead of volleys
+		BeginDash();
+		return;
 	}
 
 	// every stop begins with the warning, then the volleys, then a short rest
@@ -286,6 +310,118 @@ void BossSpider::FireSeeker(float playerX, float playerY, int index) {
 	missile.weavePhase = index * 2.1f;   // each missile snakes out of step with the others
 }
 
+// One volley of the spiral: a few bullets spread evenly around the circle, then the whole thing turns a little.
+// Many volleys one after another make arms that curl out from the boss.
+void BossSpider::FireSpiral(float playerX, float playerY) {
+	if (bullets == nullptr) return;
+
+	// the first volley of a stop starts with one arm pointing at the player
+	if (volleysLeft == volleysTotal) {
+		spiralAngle = atan2f(playerY - pos.y, playerX - pos.x);
+	}
+
+	float step = 2.0f * GameConst::kPi / kSpiralArms;
+	for (int arm = 0; arm < kSpiralArms; arm++) {
+		float a = spiralAngle + arm * step;
+		Vec3 vel(cosf(a) * kSpiralSpeed, sinf(a) * kSpiralSpeed, 0.0f);
+
+		BossBullet& orb = bullets->Spawn(pos, vel, Vec3(0.55f, 1.0f, 0.3f), kSpiralRadius);   // lime green
+		orb.damage = kSpiralDamage;
+	}
+
+	spiralAngle += spiralDir * kSpiralTurn;
+}
+
+// The dash starts here. The boss slides to the height of the player while a lane shows where it will run.
+void BossSpider::BeginDash() {
+	state = State::DASH_WARN;
+	stateTimer = 0.0f;
+	dashSpeed = 0.0f;
+	dashHitDone = false;
+	dashY = lastPlayerY;
+	if (dashY > kDashMaxY) dashY = kDashMaxY;
+	if (dashY < -kDashMaxY) dashY = -kDashMaxY;
+}
+
+// The lane follows the player at first, then it locks so the player has time to get out of it.
+void BossSpider::UpdateDashWarn(float deltaTime, float playerY) {
+	stateTimer += deltaTime;
+
+	if (stateTimer < kDashWarning - kDashLockTime) {
+		dashY = playerY;
+		if (dashY > kDashMaxY) dashY = kDashMaxY;
+		if (dashY < -kDashMaxY) dashY = -kDashMaxY;
+	}
+
+	float oldY = pos.y;
+	pos.y = MoveToward(pos.y, dashY, kDashSlideSpeed * deltaTime);
+	float moveY = (deltaTime > 0.0f) ? (pos.y - oldY) / deltaTime : 0.0f;
+	PlayOnFloor(skitter, kSkitterFoot, 0.0f, moveY);
+
+	// the body glows more and more until it goes
+	glow = kWarningGlow * (stateTimer / kDashWarning);
+
+	if (stateTimer >= kDashWarning) {
+		pos.y = dashY;          // it is on the lane for the run
+		state = State::DASH_GO;
+		stateTimer = 0.0f;
+		dashSpeed = 0.0f;
+	}
+}
+
+// The run: it speeds up and goes straight to the left, off the screen.
+void BossSpider::UpdateDashGo(float deltaTime) {
+	dashSpeed += kDashAccel * deltaTime;
+	if (dashSpeed > kDashMaxSpeed) dashSpeed = kDashMaxSpeed;
+	pos.x -= dashSpeed * deltaTime;
+
+	PlayClip(skitter, kDashLegSpeed);
+	glow = 0.25f;
+
+	// fully off the left edge, so it comes back in from the right edge
+	if (pos.x < GameConst::kCullX - 1.0f) {
+		state = State::DASH_RETURN;
+		pos.x = GameConst::kSpawnX + 1.0f;
+		pos.y = kWaypoints[waypointIndex][1];
+	}
+}
+
+// It runs back in from the right edge to the next point of the patrol, and then carries on as normal.
+void BossSpider::UpdateDashReturn(float deltaTime) {
+	float targetX = kWaypoints[waypointIndex][0];
+
+	pos.x -= kDashReturnSpeed * deltaTime;
+	PlayOnFloor(skitter, kSkitterFoot, -kDashReturnSpeed, 0.0f);
+
+	if (pos.x <= targetX) {
+		pos.x = targetX;
+		pos.y = kWaypoints[waypointIndex][1];
+		state = State::MOVING;   // it is already at the point, so MOVING starts the next attack right away
+	}
+}
+
+bool BossSpider::GetDashLane(float& y, float& fromX, float& strength) const {
+	if (state != State::DASH_WARN) return false;
+
+	y = pos.y;
+	fromX = pos.x;
+
+	// a calm pulse while the lane follows the player, a fast bright flash once it is locked
+	bool locked = (stateTimer >= kDashWarning - kDashLockTime);
+	if (locked) strength = 0.55f + 0.2f * sinf(stateTimer * 40.0f);
+	else        strength = 0.18f + 0.07f * sinf(stateTimer * 14.0f);
+	return true;
+}
+
+// True once per dash, when the running boss touches the point
+bool BossSpider::CheckDashHit(const Vec3& point, float radius) {
+	if (state != State::DASH_GO || dashHitDone) return false;
+	if (!IsHit(point, radius)) return false;
+
+	dashHitDone = true;
+	return true;
+}
+
 void BossSpider::UpdateEntering(float deltaTime) {
 	if (stateTimer == 0.0f) {
 		// start just off the right edge of the screen
@@ -295,7 +431,10 @@ void BossSpider::UpdateEntering(float deltaTime) {
 	stateTimer += deltaTime;
 
 	pos.x -= entranceSpeed * deltaTime;
-	PlayOnFloor(creep, kCreepFoot, -entranceSpeed, 0.0f);
+
+	// while the arena slides in the floor rushes by fast, so the legs use the walk clip until it slows down
+	if (fabsf(-entranceSpeed + floorSpeed) > 1.0f) PlayOnFloor(walk, kWalkFoot, -entranceSpeed, 0.0f);
+	else                                          PlayOnFloor(creep, kCreepFoot, -entranceSpeed, 0.0f);
 
 	if (pos.x <= kHoldX) {
 		pos.x = kHoldX;
@@ -336,7 +475,8 @@ void BossSpider::UpdatePausing(float deltaTime, float playerX, float playerY) {
 	stateTimer += deltaTime;
 
 	// standing at a stop, the floor still slides by under it, so the legs keep stepping backward
-	PlayOnFloor(creep, kCreepFoot, 0.0f, 0.0f);
+	if (floorSpeed > 1.0f) PlayOnFloor(walk, kWalkFoot, 0.0f, 0.0f);   // the floor is still slowing down after the arena came in
+	else                   PlayOnFloor(creep, kCreepFoot, 0.0f, 0.0f);
 
 	if (volleysLeft > 0) {
 		volleyTimer -= deltaTime;
@@ -351,6 +491,8 @@ void BossSpider::UpdatePausing(float deltaTime, float playerX, float playerY) {
 			case BossAttack::FAN:    FireFan(playerX, playerY);                              break;
 			case BossAttack::RING:   FireRing(playerX, playerY);                             break;
 			case BossAttack::SEEKER: FireSeeker(playerX, playerY, volleysTotal - volleysLeft); break;
+			case BossAttack::SPIRAL: FireSpiral(playerX, playerY);                          break;
+			default: break;
 			}
 			volleysLeft--;
 			volleyTimer = volleyInterval;
@@ -378,7 +520,7 @@ void BossSpider::UpdateDying(float deltaTime) {
 
 void BossSpider::Render(Shader* shader,
 	const Matrix4& projectionMatrix, const Matrix4& viewMatrix) const {
-	if (state == State::DEAD) return;
+	if (!active || state == State::DEAD) return;
 
 	glUniformMatrix4fv(shader->GetUniformID("projectionMatrix"), 1, GL_FALSE, projectionMatrix);
 	glUniformMatrix4fv(shader->GetUniformID("viewMatrix"), 1, GL_FALSE, viewMatrix);
@@ -403,6 +545,7 @@ void BossSpider::Render(Shader* shader,
 }
 
 void BossSpider::Reset() {
+	active = false;
 	state = State::ENTERING;
 	pos = Vec3(GameConst::kSpawnX, 0.0f, GameConst::kWorldZ);
 	facingAngle = 0.0f;
@@ -420,6 +563,11 @@ void BossSpider::Reset() {
 	volleysLeft = 0;
 	volleyTimer = 0.0f;
 	glow = 0.0f;
+	ringGap = 0.0f;
+	spiralAngle = 0.0f;
+	spiralDir = 1.0f;
+	dashSpeed = 0.0f;
+	dashHitDone = false;
 	current = creep;
 	if (bullets) bullets->Clear();
 }

@@ -113,6 +113,8 @@ public:
 	void SetMaxHealth(float maxh)		{ maxHealth = maxh; }
 	void SetLives(int l)				{ lives  = l; }
 	void SetPosition(float x, float y)	{ pos    = Vec3(x, y, -10.0f); velocity = Vec3(0,0,0); }
+	void MoveTo(float x, float y) { pos = Vec3(x, y, -10.0f); }
+	void LoseLife() { if (lives > 0) { lives--; health = maxHealth; } }
 
 	// Shield
 	void SetSFXStream(SDL_AudioStream* stream) { sfxStream = stream; }

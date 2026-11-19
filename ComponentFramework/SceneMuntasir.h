@@ -12,6 +12,7 @@
 #include "BossSpider.h"
 #include "BossBullets.h"
 #include "BossArena.h"
+#include "BossEncounter.h"
 #include "Bullet.h"
 #include "Environment.h"
 #include "SaveData.h"
@@ -44,6 +45,7 @@ private:
 	BossSpider* bossSpider;
 	BossBullets* bossBullets;
 	BossArena* bossArena;
+	BossEncounter* bossEncounter;   // the flow of the boss section: gate, warning, fight, end
 	Bullet* bullet;
 	Environment* environment;
 
@@ -82,6 +84,7 @@ private:
 
 
 	void SpawnShards(const Vec3& pos, int count);
+	void ResetBossFight();   // puts the boss section back to the start (Try Again)
 	void SaveGame();
 
 

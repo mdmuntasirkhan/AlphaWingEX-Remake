@@ -34,6 +34,10 @@ struct BossBullet {
 	float damage = 10.0f;     // damage to the player on a hit
 	int   health = 0;         // above 0 means the player's lasers can shoot it down
 
+	// Set when the player's shield bounces it back. A bounced bullet belongs to the player now:
+	// it no longer hurts the player (or steers), and it hurts the boss instead.
+	bool  reflected = false;
+
 	// Speeding up. If accel is above 0 the bullet gains this much speed every second, up to maxSpeed.
 	float accel = 0.0f;
 	float maxSpeed = 0.0f;
@@ -85,4 +89,4 @@ public:
 	std::vector<BossBullet>& GetBullets() { return bullets; }
 };
 
-#endif // BOSSBULLETS_H
+#endif // BOSSBULLETS_H

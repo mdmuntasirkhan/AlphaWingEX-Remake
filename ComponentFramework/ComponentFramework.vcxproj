@@ -143,6 +143,8 @@
     <ClCompile Include="Body.cpp" />
     <ClCompile Include="BossArena.cpp" />
     <ClCompile Include="BossBullets.cpp" />
+    <ClCompile Include="BossEncounter.cpp" />
+    <ClCompile Include="BossGate.cpp" />
     <ClCompile Include="BossSpider.cpp" />
     <ClCompile Include="DebugOverlay.cpp" />
     <ClCompile Include="Bot01.cpp" />
@@ -193,6 +195,8 @@
     <ClInclude Include="Body.h" />
     <ClInclude Include="BossArena.h" />
     <ClInclude Include="BossBullets.h" />
+    <ClInclude Include="BossEncounter.h" />
+    <ClInclude Include="BossGate.h" />
     <ClInclude Include="BossSpider.h" />
     <ClInclude Include="Bot01.h" />
     <ClInclude Include="DebugOverlay.h" />

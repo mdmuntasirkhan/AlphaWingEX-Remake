@@ -66,7 +66,8 @@ std::vector<LevelEvent> Level01Script::GetEvents() const {
         //  color       = Vec3(R, G, B) tint   scale = visual size   scrollSpeed = units/s leftward
         // ============================================================
         // { 5.0f, EventType::SPAWN_ENV_CHUNK, Vec3(15.0f, 0.0f, -10.0f), "meshes/level01_rock.obj", Vec3(0.5f, 0.5f, 0.6f), 1.0f, 1.5f },
-
+        //BossSpider
+        { 170.0f, EventType::BOSS_ENCOUNTER, {}, nullptr, {}, 0.0f, 0.0f, 0 },
         // Exit hyperspace jump — normal speed accelerates to peak, transitioning to Level 02
         { 180.0f, EventType::WARP_EXIT,         {}, nullptr, {}, 0.0f, 0.0f, 0 },
 
