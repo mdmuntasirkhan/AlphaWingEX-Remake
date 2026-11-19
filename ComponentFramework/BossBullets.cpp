@@ -57,7 +57,8 @@ void BossBullets::Update(float deltaTime, const Vec3& playerPos, const Vec3& pla
 		BossBullet& b = bullets[i];
 		b.age += deltaTime;
 
-		if (b.guided) {
+		// a missile that was bounced back by the shield stops steering and just flies straight
+		if (b.guided && !b.reflected) {
 			const MissileGuidance& g = b.guide;
 
 			// a missile that lives too long blows up on its own
@@ -127,8 +128,6 @@ void BossBullets::Update(float deltaTime, const Vec3& playerPos, const Vec3& pla
 			}
 		}
 
-		b.pos += b.vel * deltaTime;
-
 		// a bullet with accel starts slow and speeds up until it reaches maxSpeed
 		if (b.accel > 0.0f) {
 			float s = sqrtf(b.vel.x * b.vel.x + b.vel.y * b.vel.y);
@@ -139,6 +138,8 @@ void BossBullets::Update(float deltaTime, const Vec3& playerPos, const Vec3& pla
 				b.vel.y = b.vel.y / s * newSpeed;
 			}
 		}
+
+		b.pos += b.vel * deltaTime;
 
 		// drop a ghost every kGhostSpacing of distance, so the spacing stays even at any speed
 		if (b.trailCount > 0) {
@@ -156,7 +157,7 @@ void BossBullets::Update(float deltaTime, const Vec3& playerPos, const Vec3& pla
 		}
 
 		// remove bullets that left the screen. Missiles are allowed to go much farther out, since they come back.
-		float pad = b.guided ? 20.0f : 0.0f;
+		float pad = (b.guided && !b.reflected) ? 20.0f : 0.0f;
 		if (b.pos.x < GameConst::kCullX - pad || b.pos.x > GameConst::kSpawnX + pad ||
 			b.pos.y < -10.0f - pad || b.pos.y > 10.0f + pad)
 		{
@@ -230,4 +231,4 @@ void BossBullets::Render(Shader* shader,
 	}
 	glDepthMask(GL_TRUE);
 	glDisable(GL_BLEND);
-}
+}

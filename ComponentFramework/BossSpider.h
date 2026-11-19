@@ -7,7 +7,7 @@
 #include "GameConstants.h"
 
 // The attacks the boss can pick from. The tables in BossSpider.cpp say which comes when.
-enum class BossAttack { FAN, RING, SEEKER };
+enum class BossAttack { FAN, RING, SEEKER, SPIRAL, DASH };
 
 // The spider boss.
 // It walks in slowly, then moves between a few set points while its head follows the player.
@@ -15,7 +15,7 @@ enum class BossAttack { FAN, RING, SEEKER };
 // changes when the boss loses health (100% to 60%, 60% to 30%, then under 30%).
 class BossSpider : public Enemy {
 private:
-	enum class State { ENTERING, MOVING, PAUSING, DYING, DEAD };
+	enum class State { ENTERING, MOVING, PAUSING, DASH_WARN, DASH_GO, DASH_RETURN, DYING, DEAD };
 
 	AnimatedMesh* creep;
 	AnimatedMesh* walk;
@@ -23,6 +23,7 @@ private:
 	AnimatedMesh* current;    // the clip that is playing right now
 	BossBullets* bullets;    // borrowed from the scene, not owned here
 
+	bool  active;             // false until the encounter starts it, so it does not walk in by itself
 	State state;
 	Vec3  pos;
 	float facingAngle;        // degrees around Z: 0 faces left, -90 faces up, 90 faces down
@@ -52,6 +53,15 @@ private:
 	float pauseTime;          // how long this stop lasts in total
 	float glow;               // 0 to 1, the warning glow before it shoots
 	float ringGap;            // angle the gap of the next ring is turned to, in radians
+	float spiralAngle;        // angle of the first arm of the next spiral volley, in radians
+	float spiralDir;          // 1 or -1, which way the spiral turns. It flips every time a spiral starts.
+
+	// Dash state
+	float dashY;              // height of the dash lane
+	float dashSpeed;          // current speed of the dash, world units per second
+	bool  dashHitDone;        // true once the dash has hurt the player, so one dash hurts only once
+	float lastPlayerX;        // where the player was in the last update, the dash picks its lane from this
+	float lastPlayerY;
 
 	// Tuning
 	static constexpr float kScale = 0.7f;
@@ -115,6 +125,27 @@ private:
 	static constexpr float kSeekerDamage = 15.0f;   // damage to the player
 	static constexpr int   kSeekerTrail = 6;       // ghosts behind each missile
 
+	// Spiral (the lime green bullets). Arms of bullets that turn like a fan blade.
+	static constexpr int   kSpiralVolleys = 20;      // volleys per stop
+	static constexpr int   kSpiralArms = 3;          // bullets in each volley, spread evenly around the circle
+	static constexpr float kSpiralWarning = 0.7f;
+	static constexpr float kSpiralInterval = 0.12f;  // seconds between volleys in phases 1 and 2
+	static constexpr float kSpiralIntervalFast = 0.09f;   // phase 3 turns faster
+	static constexpr float kSpiralTurn = 0.28f;      // radians the arms turn from one volley to the next
+	static constexpr float kSpiralSpeed = 3.6f;
+	static constexpr float kSpiralRadius = 0.15f;
+	static constexpr float kSpiralDamage = 10.0f;
+
+	// Dash (the boss runs across the whole screen). A red lane shows where it will go.
+	static constexpr float kDashWarning = 1.4f;      // seconds of warning
+	static constexpr float kDashLockTime = 0.5f;     // the last part of the warning, the lane stops following the player
+	static constexpr float kDashSlideSpeed = 7.0f;   // how fast the boss slides up or down to the lane
+	static constexpr float kDashMaxY = 4.5f;         // the lane never goes higher or lower than this
+	static constexpr float kDashAccel = 50.0f;
+	static constexpr float kDashMaxSpeed = 19.0f;
+	static constexpr float kDashLegSpeed = 3.0f;     // animation speed of the legs while dashing, the real match would be a blur
+	static constexpr float kDashReturnSpeed = 7.0f;  // speed it runs back in from the right edge
+
 	// the animation speed that makes the feet match a movement speed on the ground
 	static float MatchSpeed(float footSpeed, float groundSpeed) {
 		return groundSpeed / (footSpeed * kScale);
@@ -129,6 +160,12 @@ private:
 	void FireFan(float playerX, float playerY);
 	void FireRing(float playerX, float playerY);
 	void FireSeeker(float playerX, float playerY, int index);
+	void FireSpiral(float playerX, float playerY);
+
+	void BeginDash();
+	void UpdateDashWarn(float deltaTime, float playerY);
+	void UpdateDashGo(float deltaTime);
+	void UpdateDashReturn(float deltaTime);
 
 	void UpdateEntering(float deltaTime);
 	void UpdateMoving(float deltaTime);
@@ -139,6 +176,10 @@ public:
 	// damage the player's weapons do to the boss
 	static constexpr float kLaserDamage = 1.0f;
 	static constexpr float kMissileDamage = 5.0f;
+	static constexpr float kReflectDamage = 4.0f;          // a bullet the shield bounced back
+	static constexpr float kReflectMissileDamage = 10.0f;  // a guided missile the shield bounced back
+	static constexpr float kDashDamage = 35.0f;            // what the running boss does to the player
+	static constexpr float kDashLaneHalf = 1.25f;          // half the height of the dash lane, it matches the hit area
 
 	// the health fractions where the phases change, the health bar draws marks there
 	static constexpr float kPhase2At = 0.6f;   // phase 2 starts when health is under 60%
@@ -156,17 +197,27 @@ public:
 
 	void SetFloorSpeed(float speed) { floorSpeed = speed; }
 
+	// The boss does nothing and is not drawn until the encounter calls this
+	void Activate() { active = true; }
+	bool IsActive() const { return active; }
+
 	// Health. TakeDamage returns true when that hit killed the boss.
 	bool TakeDamage(float amount);
-	bool IsAlive() const { return state != State::DYING && state != State::DEAD; }
+	bool IsAlive() const { return active && state != State::DYING && state != State::DEAD; }
 	bool IsHit(const Vec3& point, float extraRadius) const;   // is a point inside the hit area
 	bool PopDeathRequest() { bool v = deathRequested; deathRequested = false; return v; }
+
+	// The dash. GetDashLane is true during the warning, so the HUD can draw the lane.
+	// CheckDashHit is true once per dash, when the boss runs into the given point.
+	bool GetDashLane(float& y, float& fromX, float& strength) const;
+	float GetDashWarningTime() const { return stateTimer; }   // seconds since the dash warning started
+	bool CheckDashHit(const Vec3& point, float radius);
 
 	// For the health bar
 	Vec3  GetPosition() const { return pos; }
 	float GetHealthFraction() const { return health / kMaxHealth; }
 	float GetHealthTrailFraction() const { return healthTrail / kMaxHealth; }
-	bool  IsOnScreen() const { return state != State::DEAD && pos.x < GameConst::kSpawnX - 2.5f; }
+	bool  IsOnScreen() const { return active && state != State::DEAD && pos.x < GameConst::kSpawnX - 2.5f; }
 	int   GetPhase() const { return phase; }
 };
 
