@@ -115,6 +115,24 @@
     <ClCompile Include="SceneTestOliver.cpp">
       <Filter>Scene\TestScenes</Filter>
     </ClCompile>
+    <ClCompile Include="AnimatedMesh.cpp">
+      <Filter>Rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="BossSpider.cpp">
+      <Filter>Character\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="BossBullets.cpp">
+      <Filter>Character\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="BossArena.cpp">
+      <Filter>LevelEvents</Filter>
+    </ClCompile>
+    <ClCompile Include="BossEncounter.cpp">
+      <Filter>Character\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="BossGate.cpp">
+      <Filter>Character\Enemy</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DebugOverlay.h" />
@@ -248,6 +266,24 @@
     </ClInclude>
     <ClInclude Include="SceneSwitcher.h">
       <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="AnimatedMesh.h">
+      <Filter>Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="BossSpider.h">
+      <Filter>Character\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="BossBullets.h">
+      <Filter>Character\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="BossArena.h">
+      <Filter>LevelEvents</Filter>
+    </ClInclude>
+    <ClInclude Include="BossEncounter.h">
+      <Filter>Character\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="BossGate.h">
+      <Filter>Character\Enemy</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

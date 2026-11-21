@@ -32,6 +32,8 @@ private:
     bool                         warpEnterRequested;
     bool                         warpExitRequested;
     bool                         warpFullRequested;
+    bool                         holding;             // true while a boss encounter runs: the timeline waits
+
 
     std::vector<LevelEvent>      timeline;
     std::vector<ActiveChunk>     activeChunks;
@@ -42,6 +44,7 @@ private:
     std::function<void(int, float, bool)>    bot01Callback;       // SPAWN_BOT01 (count, interval, shielded)
     std::function<void()>                    bot02Callback;       // SPAWN_BOT02
     std::function<void(float, float)>        asteroidCallback;    // SET_ASTEROID_RATE (large, small)
+    std::function<void()>                    bossCallback;        // BOSS_ENCOUNTER
 
     void FireEvent(const LevelEvent& e);
 
@@ -58,6 +61,11 @@ public:
     void SetBot01Callback(std::function<void(int, float, bool)> cb);        // (count, interval, shielded)
     void SetBot02Callback(std::function<void()> cb);
     void SetAsteroidCallback(std::function<void(float, float)> cb);         // (large interval, small interval)
+    void SetBossCallback(std::function<void()> cb);
+
+    // A BOSS_ENCOUNTER event stops the timeline. The scene calls this when the boss section is over.
+    void ReleaseHold() { holding = false; }
+    bool IsHolding() const { return holding; }
 
     // Resets timeline to t=0 for Try Again — loaded meshes are kept
     void Reset();

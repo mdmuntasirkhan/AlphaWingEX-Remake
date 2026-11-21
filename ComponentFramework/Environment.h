@@ -31,6 +31,16 @@ private:
     float screenWidth;
     float screenHeight;
 
+    // Stars between these two screen rows (pixels from the top) are not drawn. The boss arena floor uses it.
+    float starMaskTop;
+    float starMaskBottom;
+    float starMaskLeft;       // the mask only covers stars between these two x values (pixels)
+    float starMaskRight;
+    float starMask2Top;       // a second mask rectangle (the corridor hull), same meaning as the first
+    float starMask2Bottom;
+    float starMask2Left;
+    float starMask2Right;
+
     // Water effect
     float waterJitterTimer;
 
@@ -52,6 +62,15 @@ public:
     void OnResize(float width, float height); // call from SceneMuntasir::OnVideoChanged
     void OnDestroy();
     void Update(float deltaTime);
+    // Stars inside this band are not drawn. Both 0 means no mask. leftX and rightX limit it sideways (pixels).
+    void SetStarMask(float topY, float bottomY, float leftX = -1.0e9f, float rightX = 1.0e9f) {
+        starMaskTop = topY; starMaskBottom = bottomY; starMaskLeft = leftX; starMaskRight = rightX;
+        starMask2Top = 0.0f; starMask2Bottom = 0.0f;   // the second mask is off until SetStarMask2 is called
+    }
+    // A second rectangle, for the hull of the arena corridor. Call it after SetStarMask each frame (SetStarMask turns it off).
+    void SetStarMask2(float topY, float bottomY, float leftX, float rightX) {
+        starMask2Top = topY; starMask2Bottom = bottomY; starMask2Left = leftX; starMask2Right = rightX;
+    }
     void Render() const;
 
     // Getters
@@ -76,4 +95,4 @@ public:
     bool IsFullWarp()   const { return warpActive && warpMode == WarpMode::FULL; }
 };
 
-#endif // ENVIRONMENT_H
+#endif // ENVIRONMENT_H

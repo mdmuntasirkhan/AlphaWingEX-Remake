@@ -55,6 +55,9 @@ public:
         // SceneMuntasir::shards is a private std::vector<Shard>; this callback lets
         // DrawGameOver's "Try Again" button clear it without exposing the Shard type.
         std::function<void()> clearShards;
+
+        // Called by "Try Again" so the scene can put the boss section back to the start.
+        std::function<void()> resetBoss;
     };
 
     HUDRenderer();
@@ -65,6 +68,25 @@ public:
     void DrawHUD();
     void DrawPauseMenu();
     void DrawGameOver();
+
+    // Boss health bar at the bottom right. health and healthTrail go from 0 to 1.
+    // phase2At and phase3At are where the little phase marks go on the bar.
+    void DrawBossBar(const char* name, float health, float healthTrail, float phase2At, float phase3At);
+
+    // The WARNING before the boss. seconds is the time since it started, it makes the text flash.
+    void DrawBossWarning(float seconds);
+
+    // The red lane that shows where the boss will dash. y and fromX are world units, strength goes from 0 to 1.
+    void DrawDashLane(float y, float fromX, float halfHeight, float strength);
+
+    // A smaller WARNING at the top of the screen for one attack, for example the dash. seconds makes it flash.
+    void DrawAttackWarning(const char* text, float seconds);
+
+    // A black screen on top of everything. alpha goes from 0 (clear) to 1 (black).
+    void DrawFade(float alpha);
+
+    // Big text in the middle of the screen, for example when the boss is defeated.
+    void DrawBanner(const char* title, const char* subtitle, float alpha);
 
 private:
     void PlayHoverSound();

@@ -29,7 +29,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -138,8 +138,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AnimatedMesh.cpp" />
     <ClCompile Include="Asteroid.cpp" />
     <ClCompile Include="Body.cpp" />
+    <ClCompile Include="BossArena.cpp" />
+    <ClCompile Include="BossBullets.cpp" />
+    <ClCompile Include="BossEncounter.cpp" />
+    <ClCompile Include="BossGate.cpp" />
+    <ClCompile Include="BossSpider.cpp" />
     <ClCompile Include="DebugOverlay.cpp" />
     <ClCompile Include="Bot01.cpp" />
     <ClCompile Include="Bot02.cpp" />
@@ -184,8 +190,14 @@
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AnimatedMesh.h" />
     <ClInclude Include="Asteroid.h" />
     <ClInclude Include="Body.h" />
+    <ClInclude Include="BossArena.h" />
+    <ClInclude Include="BossBullets.h" />
+    <ClInclude Include="BossEncounter.h" />
+    <ClInclude Include="BossGate.h" />
+    <ClInclude Include="BossSpider.h" />
     <ClInclude Include="Bot01.h" />
     <ClInclude Include="DebugOverlay.h" />
     <ClInclude Include="FMOD_AudioManager.h" />

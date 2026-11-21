@@ -494,6 +494,7 @@ void HUDRenderer::DrawGameOver() {
             ctx.bot01->Reset();
             ctx.bot02->Reset();
             ctx.levelDirector->Reset();
+            if (ctx.resetBoss) ctx.resetBoss();
             *ctx.prevLives = ctx.player->GetLives();
             SaveData::current.lives    = 3;
             SaveData::current.health   = 100.0f;
@@ -516,4 +517,142 @@ void HUDRenderer::DrawGameOver() {
         }
         PlayHoverSound();
         ImGui::End();
+}
+
+// Boss health bar at the bottom right of the screen.
+// It has the boss name, a dark frame, a red bar, a pale part that drains slowly behind the red part,
+// and small marks where the boss changes phase.
+void HUDRenderer::DrawBossBar(const char* name, float health, float healthTrail, float phase2At, float phase3At) {
+    ImVec2 screen = ImGui::GetIO().DisplaySize;
+    const float barWidth  = 420.0f;
+    const float barHeight = 22.0f;
+    const float margin    = 30.0f;
+
+    ImVec2 topLeft(screen.x - margin - barWidth, screen.y - margin - barHeight);
+    ImVec2 bottomRight(screen.x - margin, screen.y - margin);
+
+    // the background draw list, so the pause menu windows still draw on top of the bar
+    ImDrawList* dl = ImGui::GetBackgroundDrawList();
+
+    // the name above the bar, on the left
+    dl->AddText(ImGui::GetFont(), 24.0f, ImVec2(topLeft.x, topLeft.y - 30.0f), IM_COL32(235, 235, 235, 255), name);
+
+    // dark frame behind everything
+    dl->AddRectFilled(topLeft, bottomRight, IM_COL32(25, 8, 8, 220));
+
+    // the pale part shows the health that was just lost, the red part is the health that is left
+    if (healthTrail > health) {
+        dl->AddRectFilled(topLeft, ImVec2(topLeft.x + barWidth * healthTrail, bottomRight.y), IM_COL32(235, 205, 205, 235));
+    }
+    dl->AddRectFilled(topLeft, ImVec2(topLeft.x + barWidth * health, bottomRight.y), IM_COL32(205, 30, 35, 255));
+
+    // marks where the phases change
+    float x2 = topLeft.x + barWidth * phase2At;
+    float x3 = topLeft.x + barWidth * phase3At;
+    dl->AddLine(ImVec2(x2, topLeft.y), ImVec2(x2, bottomRight.y), IM_COL32(0, 0, 0, 255), 2.0f);
+    dl->AddLine(ImVec2(x3, topLeft.y), ImVec2(x3, bottomRight.y), IM_COL32(0, 0, 0, 255), 2.0f);
+
+    // thin border
+    dl->AddRect(topLeft, bottomRight, IM_COL32(170, 170, 170, 220));
+}
+
+// The WARNING before the boss: red bars at the top and bottom and big flashing text in the middle.
+void HUDRenderer::DrawBossWarning(float seconds) {
+    ImVec2 screen = ImGui::GetIO().DisplaySize;
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+
+    // flashes about twice a second
+    float flash = 0.5f + 0.5f * sinf(seconds * 12.0f);
+    int barAlpha = (int)(90.0f + 90.0f * flash);
+    int textAlpha = (int)(150.0f + 105.0f * flash);
+
+    // bars at the top and bottom
+    float barHeight = screen.y * 0.12f;
+    dl->AddRectFilled(ImVec2(0.0f, 0.0f), ImVec2(screen.x, barHeight), IM_COL32(190, 20, 25, barAlpha));
+    dl->AddRectFilled(ImVec2(0.0f, screen.y - barHeight), ImVec2(screen.x, screen.y), IM_COL32(190, 20, 25, barAlpha));
+
+    // the text, centered
+    const char* title = "WARNING";
+    const char* sub = "SPIDER BOSS APPROACHING";
+    float titleSize = screen.y * 0.14f;
+    float subSize = screen.y * 0.04f;
+
+    ImVec2 titleBox = ImGui::GetFont()->CalcTextSizeA(titleSize, 10000.0f, 0.0f, title);
+    ImVec2 subBox = ImGui::GetFont()->CalcTextSizeA(subSize, 10000.0f, 0.0f, sub);
+    dl->AddText(ImGui::GetFont(), titleSize,
+        ImVec2((screen.x - titleBox.x) * 0.5f, screen.y * 0.5f - titleBox.y), IM_COL32(235, 40, 40, textAlpha), title);
+    dl->AddText(ImGui::GetFont(), subSize,
+        ImVec2((screen.x - subBox.x) * 0.5f, screen.y * 0.5f + subSize * 0.3f), IM_COL32(240, 240, 240, textAlpha), sub);
+}
+
+// The dash lane is a red band from the boss to the left edge of the screen.
+// The world is turned into pixels the same way the arena does it: the screen shows 6.99 units above and below the middle.
+void HUDRenderer::DrawDashLane(float y, float fromX, float halfHeight, float strength) {
+    ImVec2 screen = ImGui::GetIO().DisplaySize;
+    float pixelsPerUnit = screen.y / (2.0f * 6.99f);
+
+    float top = screen.y * 0.5f - (y + halfHeight) * pixelsPerUnit;
+    float bottom = screen.y * 0.5f - (y - halfHeight) * pixelsPerUnit;
+    float right = screen.x * 0.5f + fromX * pixelsPerUnit;
+
+    int alpha = (int)(255.0f * strength);
+    if (alpha > 255) alpha = 255;
+    if (alpha < 0) alpha = 0;
+
+    ImDrawList* dl = ImGui::GetBackgroundDrawList();
+    dl->AddRectFilled(ImVec2(0.0f, top), ImVec2(right, bottom), IM_COL32(255, 40, 30, alpha));
+
+    // bright lines on the edges of the lane
+    dl->AddLine(ImVec2(0.0f, top), ImVec2(right, top), IM_COL32(255, 120, 90, alpha + 40 > 255 ? 255 : alpha + 40), 2.0f);
+    dl->AddLine(ImVec2(0.0f, bottom), ImVec2(right, bottom), IM_COL32(255, 120, 90, alpha + 40 > 255 ? 255 : alpha + 40), 2.0f);
+}
+
+// The foreground draw list is drawn after every window, so this covers the whole game, the HUD too.
+void HUDRenderer::DrawFade(float alpha) {
+    if (alpha <= 0.0f) return;
+    if (alpha > 1.0f) alpha = 1.0f;
+
+    ImVec2 screen = ImGui::GetIO().DisplaySize;
+    ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(0.0f, 0.0f), screen, IM_COL32(0, 0, 0, (int)(255.0f * alpha)));
+}
+
+void HUDRenderer::DrawBanner(const char* title, const char* subtitle, float alpha) {
+    if (alpha <= 0.0f) return;
+    if (alpha > 1.0f) alpha = 1.0f;
+
+    ImVec2 screen = ImGui::GetIO().DisplaySize;
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+
+    float titleSize = screen.y * 0.08f;
+    float subSize = screen.y * 0.035f;
+    ImVec2 titleBox = ImGui::GetFont()->CalcTextSizeA(titleSize, 10000.0f, 0.0f, title);
+    ImVec2 subBox = ImGui::GetFont()->CalcTextSizeA(subSize, 10000.0f, 0.0f, subtitle);
+
+    dl->AddText(ImGui::GetFont(), titleSize,
+        ImVec2((screen.x - titleBox.x) * 0.5f, screen.y * 0.45f - titleBox.y), IM_COL32(235, 235, 235, (int)(255.0f * alpha)), title);
+    dl->AddText(ImGui::GetFont(), subSize,
+        ImVec2((screen.x - subBox.x) * 0.5f, screen.y * 0.45f + subSize * 0.5f), IM_COL32(150, 220, 235, (int)(255.0f * alpha)), subtitle);
+}
+
+// A WARNING at the top of the screen, for one dangerous attack.
+void HUDRenderer::DrawAttackWarning(const char* text, float seconds) {
+    ImVec2 screen = ImGui::GetIO().DisplaySize;
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+
+    float flash = 0.5f + 0.5f * sinf(seconds * 16.0f);
+    int alpha = (int)(170.0f + 85.0f * flash);
+
+    const char* title = "WARNING";
+    float titleSize = screen.y * 0.07f;
+    float textSize = screen.y * 0.032f;
+    ImVec2 titleBox = ImGui::GetFont()->CalcTextSizeA(titleSize, 10000.0f, 0.0f, title);
+    ImVec2 textBox = ImGui::GetFont()->CalcTextSizeA(textSize, 10000.0f, 0.0f, text);
+
+    float top = screen.y * 0.12f;
+
+    // a dark band behind the text so it reads on any background
+    dl->AddRectFilled(ImVec2(0.0f, top - 10.0f), ImVec2(screen.x, top + titleBox.y + textBox.y + 20.0f), IM_COL32(60, 0, 0, (int)(110.0f * (0.5f + 0.5f * flash))));
+
+    dl->AddText(ImGui::GetFont(), titleSize, ImVec2((screen.x - titleBox.x) * 0.5f, top), IM_COL32(235, 40, 40, alpha), title);
+    dl->AddText(ImGui::GetFont(), textSize, ImVec2((screen.x - textBox.x) * 0.5f, top + titleBox.y), IM_COL32(240, 240, 240, alpha), text);
 }

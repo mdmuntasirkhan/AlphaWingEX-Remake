@@ -7,6 +7,14 @@ Environment::Environment() :
     starCount   { 150 },
     screenWidth { 1920.0f },
     screenHeight{ 1080.0f },
+    starMaskTop{ 0.0f },
+    starMaskBottom{ 0.0f },
+    starMaskLeft{ -1.0e9f },
+    starMaskRight{ 1.0e9f },
+    starMask2Top{ 0.0f },
+    starMask2Bottom{ 0.0f },
+    starMask2Left{ 0.0f },
+    starMask2Right{ 0.0f },
     waterJitterTimer{ 0.0f },
     warpMode         { WarpMode::FULL },
     warpActive       { false },
@@ -147,6 +155,12 @@ void Environment::Render() const {
     bool streaking = warpSpeed > 3.0f;  // covers active warp and post-exit deceleration
 
     for (int i = 0; i < (int)stars.size(); i++) {
+        // the arena floor covers the stars, so skip the ones behind it
+        if (starMaskBottom > starMaskTop && stars[i].y > starMaskTop && stars[i].y < starMaskBottom &&
+            stars[i].x > starMaskLeft && stars[i].x < starMaskRight) continue;
+        if (starMask2Bottom > starMask2Top && stars[i].y > starMask2Top && stars[i].y < starMask2Bottom &&
+            stars[i].x > starMask2Left && stars[i].x < starMask2Right) continue;
+
         int brightness = 150 + (int)(stars[i].speed);
         if (brightness > 255) brightness = 255;
 
@@ -211,4 +225,4 @@ float Environment::GetJitterY() const {
         return ((rand() % 3) - 1) * 0.02f;
     }
     return 0.0f;
-}
+}

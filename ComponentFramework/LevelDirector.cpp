@@ -10,7 +10,8 @@ LevelDirector::LevelDirector() :
     nextEvent          { 0     },
     warpEnterRequested { false },
     warpExitRequested  { false },
-    warpFullRequested  { false }
+    warpFullRequested  { false },
+    holding            { false }
 {
 }
 
@@ -46,10 +47,11 @@ void LevelDirector::AddScript(LevelScript* script, float timeOffset) {
 }
 
 void LevelDirector::Update(float deltaTime) {
-    levelTime += deltaTime;
+    // while the boss section runs the timeline waits, but the chunks on screen keep scrolling
+    if (!holding) levelTime += deltaTime;
 
     // Fire any events whose time has arrived
-    while (nextEvent < (int)timeline.size() && timeline[nextEvent].time <= levelTime) {
+    while (!holding && nextEvent < (int)timeline.size() && timeline[nextEvent].time <= levelTime) {
         FireEvent(timeline[nextEvent]);
         nextEvent++;
     }
@@ -109,9 +111,14 @@ void LevelDirector::SetAsteroidCallback(std::function<void(float, float)> cb) {
     asteroidCallback = cb;
 }
 
+void LevelDirector::SetBossCallback(std::function<void()> cb) {
+    bossCallback = cb;
+}
+
 void LevelDirector::Reset() {
     levelTime = 0.0f;
     nextEvent = 0;
+    holding   = false;
     activeChunks.clear();
 }
 
@@ -147,6 +154,10 @@ void LevelDirector::FireEvent(const LevelEvent& e) {
     }
     else if (e.type == EventType::SET_ASTEROID_RATE && asteroidCallback) {
         asteroidCallback(e.scale, e.scrollSpeed);
+    }
+    else if (e.type == EventType::BOSS_ENCOUNTER) {
+        holding = true;   // the timeline waits until the scene calls ReleaseHold()
+        if (bossCallback) bossCallback();
     }
     else if (e.type == EventType::WARP_ENTER) { warpEnterRequested = true; }
     else if (e.type == EventType::WARP_EXIT)  { warpExitRequested  = true; }
