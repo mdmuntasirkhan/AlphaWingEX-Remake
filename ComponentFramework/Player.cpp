@@ -201,7 +201,7 @@ void Player::Update(float deltaTime) {
 
 	if (shieldActive) {
 		shieldTimer += deltaTime;
-		IncreaseHeatLevel(0.2f);
+		IncreaseHeatLevel(0.25f);
 		if (shieldTimer >= shieldDuration) {
 			shieldTimer        = shieldDuration;
 			shieldActive       = false;
@@ -376,7 +376,10 @@ void Player::Render(Shader* shader,
 }
 
 void Player::TakeDamage(float amount) {
-	if (shieldActive) return;
+	if (shieldActive)
+	{
+		return;
+	}
 	if (lives <= 0) return;
 
 	health -= amount;
