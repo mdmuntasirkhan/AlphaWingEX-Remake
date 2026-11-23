@@ -37,13 +37,36 @@ bool SceneJA::OnCreate() {
 	camera = new Camera();
 	camera->OnCreate();
 
-	soundManager = new SoundManager();
-	soundManager->OnCreate();
+	//soundManager = new SoundManager();
+	//soundManager->OnCreate();
 
-	sound2 = new Sound("audio/273711__sfx4animation__whoosh-sfx-40.wav");
-	sound2->OnCreate();
+	//sound2 = new Sound("audio/273711__sfx4animation__whoosh-sfx-40.wav");
+	//sound2->OnCreate();
 
-	soundManager->adjustSFXVolume(0.3f);
+	/*soundManager->adjustSFXVolume(0.3f);*/
+
+	FMOD_manager = std::make_unique<FMOD_AudioManager>();
+
+	FMOD_manager->OnCreate();
+
+	FMOD_manager->loadAudio(BGM_NAME.data(), "audio/music/deadmou5-gg.wav", true);
+
+	//FMOD_manager->PlayBGM(BGM_NAME.data());
+
+	// Remember to load bank first
+	
+	// Load master bank and master string bank first
+	FMOD_manager->loadBank("Master", "audio/bank/Master.bank");
+	FMOD_manager->loadBank("Master_String", "audio/bank/Master.strings.bank");
+
+	// Load customize bank
+	FMOD_manager->loadBank(BGM_NAME.data(), "audio/bank/test1.bank");
+
+	// Load bank events
+	FMOD_manager->loadEvent(BGM_NAME.data(), "event:/test1");
+
+	FMOD_manager->PlayBGMEvent(BGM_NAME.data());
+	FMOD_manager->setBGMintiensive(3); // Use for volume just for now
 
 	return true;
 }
@@ -79,6 +102,11 @@ void SceneJA::OnDestroy() {
 		sound2->OnDestroy();
 		delete sound2;
 	}
+
+	if (FMOD_manager) {
+		FMOD_manager->OnDestroy();
+		FMOD_manager.reset();
+	}
 }
 
 void SceneJA::HandleEvents(const SDL_Event& sdlEvent) {
@@ -104,6 +132,8 @@ void SceneJA::HandleEvents(const SDL_Event& sdlEvent) {
 void SceneJA::Update(const float deltaTime) {
 	static float totalTime = 0.0f;
 	totalTime += deltaTime;
+
+	FMOD_manager->Update();
 
 }
 

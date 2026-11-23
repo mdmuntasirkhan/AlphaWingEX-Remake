@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\SceneMain.obj",
+            "outputs": [
+                "Debug\\SceneMain.h.obj.dt.module.json",
+                "Debug\\SceneMain.h.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

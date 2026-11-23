@@ -7,7 +7,7 @@
 #include "SceneTestOliver.h"
 #include "GameConstants.h"
 #include "Version.h"
-#include "AppFonts.h"
+#include "Fonts.h"
 #include "Level01Script.h"
 #include "Level02Script.h"
 #include <MMath.h>
@@ -437,9 +437,9 @@ void SceneTestOliver::HandleEvents(const SDL_Event& sdlEvent) {
             }
             break;
         case SDL_SCANCODE_I:
-            shardCount = 9999;
+            shardCount = 9999; // 9999 currency cheat
             break;
-        case SDL_SCANCODE_1:
+        case SDL_SCANCODE_1: // upgrade Thrust Power
             if (shardCount >= 5 * upgradeThrustPowerCount)
             {
                 shardCount -= 5 * upgradeThrustPowerCount;
@@ -448,7 +448,7 @@ void SceneTestOliver::HandleEvents(const SDL_Event& sdlEvent) {
             }
             break;
         case SDL_SCANCODE_2:
-            if (shardCount >= 5 * upgradeMaxHealthCount)
+            if (shardCount >= 5 * upgradeMaxHealthCount) // upgrade Max Health
             {
                 shardCount -= 5 * upgradeMaxHealthCount;
                 upgradeMaxHealthCount++;
@@ -499,19 +499,19 @@ void SceneTestOliver::HandleEvents(const SDL_Event& sdlEvent) {
                 if (!bot02->GetPositions().empty()) {
                     bullet->SpawnHoming(player->GetPosition(),
                         MissileTargetType::BOT02, nearestIdx(bot02->GetPositions()));
-                    player->IncreaseHeatLevel(20.0f);
+                    player->IncreaseHeatLevel(10.0f);
                     launched = true;
                 }
                 else if (!bot01->GetBot01Positions().empty()) {
                     bullet->SpawnHoming(player->GetPosition(),
                         MissileTargetType::BOT01, nearestIdx(bot01->GetBot01Positions()));
-                    player->IncreaseHeatLevel(20.0f);
+                    player->IncreaseHeatLevel(10.0f);
                     launched = true;
                 }
                 else if (!asteroid->GetAsteroidPositions().empty()) {
                     bullet->SpawnHoming(player->GetPosition(),
                         MissileTargetType::ASTEROID, nearestIdx(asteroid->GetAsteroidPositions()));
-                    player->IncreaseHeatLevel(20.0f);
+                    player->IncreaseHeatLevel(10.0f);
                     launched = true;
                 }
                 if (launched)
@@ -1657,7 +1657,7 @@ void SceneTestOliver::DrawHUD() {
         ImGui::TextDisabled("  L E V E L  ");
 
         // Large MM:SS — dedicated 32 px raster, crisp at any resolution
-        ImGui::PushFont(AppFonts::large);
+        ImGui::PushFont(Fonts::large);
         float colonAlpha = 0.35f + 0.65f * sinf(t * GameConst::kPi);
         ImGui::TextColored(ImVec4(0.15f, 0.88f, 1.0f, 1.0f), "%02d", mm);
         ImGui::SameLine(0, 0);

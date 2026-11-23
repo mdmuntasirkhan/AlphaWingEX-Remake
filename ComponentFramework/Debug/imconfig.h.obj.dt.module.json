@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\imconfig.obj",
+            "outputs": [
+                "Debug\\imconfig.h.obj.dt.module.json",
+                "Debug\\imconfig.h.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

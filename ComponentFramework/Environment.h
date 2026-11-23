@@ -1,4 +1,3 @@
-#pragma once
 #ifndef ENVIRONMENT_H
 #define ENVIRONMENT_H
 
@@ -12,8 +11,7 @@ using namespace MATH;
 
 enum class EnvironmentType {
     SPACE,  // normal space gameplay — default
-    WATER,  // underwater zone: faster star scroll, random Y jitter on stars
-            // NOTE: GetJitterX/Y() exist for future player physics coupling — not yet wired in
+    WATER,  // underwater zone: faster star scroll, random Y jitter on stars - not implimented yet
 };
 
 struct Star {
@@ -30,16 +28,13 @@ private:
     // Starfield
     std::vector<Star> stars;
     int starCount;
-
-
-    // Screen dimensions
     float screenWidth;
     float screenHeight;
 
     // Water effect
     float waterJitterTimer;
 
-    // Hyperspace warp effect
+    // Hyperspace warp
     enum class WarpMode { FULL, ENTER, EXIT };
     WarpMode warpMode;
     bool     warpActive;
@@ -47,7 +42,7 @@ private:
     float    warpDuration;
     float    warpSpeed;         // current star speed multiplier (1.0 = normal)
     float    postWarpSpeed;     // speed at the moment EXIT warp ended
-    float    postWarpCooldown;  // seconds remaining in post-exit deceleration
+    float    postWarpCooldown;  // seconds remaining in post exit deceleration
 
 public:
     Environment();
@@ -63,21 +58,22 @@ public:
     EnvironmentType GetType() const { return currentType; }
     void SetType(EnvironmentType type) { currentType = type; }
 
-    // Player modifier - returns speed multiplier
+    // Player modifier
     float GetSpeedMultiplier() const;
 
     // Water jitter - returns small random offset
     float GetJitterX() const;
     float GetJitterY() const;
 
-    // WARP_ENTER — scene opens already at peak warp; smoothly decelerates to normal.
+    // WARP_ENTER
     void TriggerWarpEnter(float duration = 10.0f);
-    // WARP_EXIT  — starts at normal speed; smoothly accelerates to peak warp.
+    // WARP_EXIT
     void TriggerWarpExit(float duration = 10.0f);
-    // WARP_FULL  — full 3-phase: ramp-up → hold → ramp-down (F11 test).
+    // WARP_FULL
     void TriggerWarp(float duration = 10.0f);
+
     bool IsWarpActive() const { return warpActive; }
     bool IsFullWarp()   const { return warpActive && warpMode == WarpMode::FULL; }
 };
 
-#endif
+#endif // ENVIRONMENT_H

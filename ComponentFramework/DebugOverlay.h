@@ -1,9 +1,8 @@
-#pragma once
 #ifndef DEBUGOVERLAY_H
 #define DEBUGOVERLAY_H
 
 // Real-time debug overlay with scrolling waveform graphs.
-// F9 cycles: hidden → minimal → detailed → hidden.
+// F9 cycles: hidden > minimal > detailed > hidden.
 // The [MIN]/[FULL] button inside the window switches mode without hiding.
 class DebugOverlay {
 public:

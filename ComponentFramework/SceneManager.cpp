@@ -3,7 +3,6 @@
 #include "SaveData.h"
 #include "Timer.h"
 #include "Window.h"
-#include "SceneSTG.h"
 #include "SceneTestJacky.h"
 #include "SceneMuntasir.h"
 #include "SceneTestOliver.h"
@@ -16,7 +15,7 @@
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
-#include "AppFonts.h"
+#include "Fonts.h"
 
 
 
@@ -75,13 +74,13 @@ bool SceneManager::Initialize(std::string name, int width, int height) {
 	// Falls back to the built-in ImGui default if the file is missing.
 	{
 		ImGuiIO& io = ImGui::GetIO();
-		AppFonts::body = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 14.0f);
-		if (!AppFonts::body) {
+		Fonts::body = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 14.0f);
+		if (!Fonts::body) {
 			io.Fonts->AddFontDefault();
 		} else {
-			AppFonts::medium = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 22.0f);
-			AppFonts::large  = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 32.0f);
-			AppFonts::title  = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 40.0f);
+			Fonts::medium = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 22.0f);
+			Fonts::large  = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 32.0f);
+			Fonts::title  = io.Fonts->AddFontFromFileTTF("fonts/Exo2-Regular.ttf", 40.0f);
 		}
 	}
 
@@ -231,12 +230,6 @@ bool SceneManager::BuildNewScene(SceneID id) {
     switch (id) {
     case SceneID::TITLE:
         currentScene = new SceneTitle();
-        status = currentScene->OnCreate();
-        currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
-        break;
-
-    case SceneID::STG:
-        currentScene = new SceneSTG();
         status = currentScene->OnCreate();
         currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
         break;

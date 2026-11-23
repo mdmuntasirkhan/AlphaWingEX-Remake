@@ -14,14 +14,19 @@ private:
 	SDL_Window* window;
 	SDL_GLContext context;
 
-public:
+	void CenterInWorkArea();   // positions window inside usable desktop bounds
+	void setAttributes(int major_, int minor_);
+	void getInstalledOpenGLInfo(int* major, int* minor);
+
 	Window(const Window&) = delete;
 	Window(Window&&) = delete;
 	Window& operator=(const Window&) = delete;
 	Window& operator=(Window&&) = delete;
 
+public:
 	Window();
 	~Window();
+
 	bool OnCreate(std::string name_, int width_, int height_);
 	void OnDestroy();
 	
@@ -31,10 +36,6 @@ public:
 
 	void SetFullscreen(bool full);
 	void SetSize(int w, int h);
-
-private:
-	void CenterInWorkArea();   // positions window inside usable desktop bounds
-	void setAttributes(int major_, int minor_);
-	void getInstalledOpenGLInfo(int *major, int *minor);
 };
-#endif /// !WINDOW_H
+
+#endif // WINDOW_H

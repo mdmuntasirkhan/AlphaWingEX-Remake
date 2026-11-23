@@ -73,3 +73,7 @@ ipch/
 *.VC.VC.opendb
 *.sdf
 *.opensdf
+.idea/.idea.ComponentFramework/.idea/.name
+.idea/.idea.ComponentFramework/.idea/encodings.xml
+.idea/.idea.ComponentFramework/.idea/indexLayout.xml
+.idea/.idea.ComponentFramework/.idea/vcs.xml

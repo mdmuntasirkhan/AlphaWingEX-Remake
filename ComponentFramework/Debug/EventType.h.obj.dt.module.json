@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\EventType.obj",
+            "outputs": [
+                "Debug\\EventType.h.obj.dt.module.json",
+                "Debug\\EventType.h.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

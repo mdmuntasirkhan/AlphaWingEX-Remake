@@ -1,4 +1,3 @@
-#pragma once
 #ifndef SHARDBEACON_H
 #define SHARDBEACON_H
 
@@ -10,10 +9,24 @@
 using namespace MATH;
 
 // Satellite beacon placed at the player's death position when shards are dropped.
-// Composed of three Blender-exported mesh parts that render together as one object.
+// Composed of three Blender exported mesh parts that render together as one object.
 // Slowly rotates on the Y-axis and pulses a gold glow so it reads clearly against
 // the level background. TryCollect() handles pickup detection each frame.
 class ShardBeacon {
+private:
+    Mesh* dishMesh;
+    Mesh* computerMesh;
+    Mesh* solarMesh;
+
+    Vec3  pos;
+    int   count;
+    bool  active;
+    float pulseTimer;
+    float spinAngle;
+
+    static constexpr float kSpinSpeed = 28.0f;
+    static constexpr float kBeaconScale = 0.25f;
+
 public:
     ShardBeacon();
     ~ShardBeacon();
@@ -44,20 +57,6 @@ public:
     Vec3 GetPosition() const { return pos; }
 
     static constexpr float kPickupRadius = 1.2f;
-
-private:
-    Mesh* dishMesh;
-    Mesh* computerMesh;
-    Mesh* solarMesh;
-
-    Vec3  pos;
-    int   count;
-    bool  active;
-    float pulseTimer;
-    float spinAngle;
-
-    static constexpr float kSpinSpeed  = 28.0f;  // degrees/s — slow satellite tumble
-    static constexpr float kBeaconScale = 0.25f;
 };
 
 #endif // SHARDBEACON_H

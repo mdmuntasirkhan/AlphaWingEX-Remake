@@ -1,4 +1,3 @@
-#pragma once
 #ifndef ENEMY_H
 #define ENEMY_H
 
@@ -10,6 +9,7 @@
 
 using namespace MATH;
 
+// Particle piece spawned when an enemy takes damage or is destroyed
 struct Debris {
 	Vec3  pos{};
 	Vec3  vel{};
@@ -21,6 +21,8 @@ struct Debris {
 	float pieceScale  = 0.0f;
 };
 
+// Abstract base class for all enemy types.
+// Subclasses: Asteroid, Bot01, Bot02.
 class Enemy {
 protected:
 	std::vector<Debris> debris;

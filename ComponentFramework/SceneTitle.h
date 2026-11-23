@@ -1,4 +1,3 @@
-#pragma once
 #ifndef SCENETITLE_H
 #define SCENETITLE_H
 
@@ -27,7 +26,7 @@ private:
     std::vector<std::pair<std::string, int>> leaderboard;
 
     // Audio
-    SDL_AudioStream* bgmStream;     // menu music, looped in Update()
+    SDL_AudioStream* bgmStream;     // menu music, looped
     Sound*           bgmSound;
     SDL_AudioStream* sfxStream;
     SDL_AudioStream* hoverStream;
@@ -35,7 +34,7 @@ private:
     unsigned int     lastHoveredId;
     Uint64           lastHoverTick;
 
-    // Pending video settings (uncommitted until APPLY is pressed)
+    // Video settings uncommitted until APPLY is pressed
     int  pendingResIndex;
     bool pendingFullscreen;
     int  pendingVsync;
@@ -58,4 +57,4 @@ public:
     virtual void DrawGui() override;
 };
 
-#endif
+#endif // SCENETITLE_H

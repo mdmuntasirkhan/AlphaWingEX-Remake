@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\Timer.obj",
+            "outputs": [
+                "Debug\\Timer.h.obj.dt.module.json",
+                "Debug\\Timer.h.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\imstb_textedit.obj",
+            "outputs": [
+                "Debug\\imstb_textedit.h.obj.dt.module.json",
+                "Debug\\imstb_textedit.h.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}
