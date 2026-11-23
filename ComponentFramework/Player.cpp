@@ -284,8 +284,27 @@ void Player::Render(Shader* shader,
 	glUniformMatrix4fv(shader->GetUniformID("viewMatrix"), 1, GL_FALSE, viewMatrix);
 	glUniformMatrix4fv(shader->GetUniformID("modelMatrix"),	1, GL_FALSE, modelMatrix);
 
+	float shipBodyR = 0.72f;
+	float shipBodyG = 0.76f;
+	float shipBodyB = 0.82f;
+
+	float overheatedR = 1.0f;
+	float overheatedG = 0.1f;
+	float overheatedB = 0.1f;
+	
+	// Flash the ship red if it is overheated, otherwise display its color as normal
+	// Uses the sine waves for the pulsing red flash
+	if (GetHeatLockdown())
+	{
+		float t = (std::sin(heatLevel * 0.25f) + 1.0f) * 0.5f;
+
+		shipBodyR = shipBodyR + (overheatedR - shipBodyR) * t;
+		shipBodyG = shipBodyG + (overheatedG - shipBodyG) * t;
+		shipBodyB = shipBodyB + (overheatedB - shipBodyB) * t;
+	}
+
 	// Ship body — cool metallic silver (Phong shading)
-	glUniform4f(shader->GetUniformID("color"), 0.72f, 0.76f, 0.82f, 1.0f);
+	glUniform4f(shader->GetUniformID("color"), shipBodyR, shipBodyG, shipBodyB, 1.0f);
 	mesh->Render();
 
 	// Cockpit — electric blue (Phong)
