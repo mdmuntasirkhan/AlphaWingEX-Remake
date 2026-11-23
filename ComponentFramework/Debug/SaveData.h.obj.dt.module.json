@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\SaveData.obj",
+            "outputs": [
+                "Debug\\SaveData.h.obj.dt.module.json",
+                "Debug\\SaveData.h.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

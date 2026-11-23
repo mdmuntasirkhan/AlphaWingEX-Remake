@@ -27,6 +27,7 @@ private:
 
 	float health;
 	float maxHealth;
+	float regenHealth;
 	int lives;
 	float heatLevel;
 	bool heatLockdown;
@@ -92,7 +93,10 @@ public:
 
 	// Getters
 	Vec3 GetPosition() const { return pos; }
+
 	float GetHealth() const { return health; }
+	float GetThrustPower() const { return thrustPower; }
+	float GetMaxHealth() const { return maxHealth; }
 	int GetLives() const { return lives; }
 	float GetHeatLevel() const { return heatLevel; }
 	bool GetHeatLockdown() const { return heatLockdown; }
@@ -105,9 +109,11 @@ public:
 	void Reset();
 
 	// State restore (used by save/load system)
-	void SetHealth(float h)           { health = (h > maxHealth ? maxHealth : h); }
-	void SetLives(int l)              { lives  = l; }
-	void SetPosition(float x, float y){ pos    = Vec3(x, y, -10.0f); velocity = Vec3(0,0,0); }
+	void SetHealth(float h)				{ health = (h > maxHealth ? maxHealth : h); }
+	void SetThrustPower(float tp)				{ thrustPower = tp; }
+	void SetMaxHealth(float maxh)		{ maxHealth = maxh; }
+	void SetLives(int l)				{ lives  = l; }
+	void SetPosition(float x, float y)	{ pos    = Vec3(x, y, -10.0f); velocity = Vec3(0,0,0); }
 
 	// Shield
 	void SetSFXStream(SDL_AudioStream* stream) { sfxStream = stream; }

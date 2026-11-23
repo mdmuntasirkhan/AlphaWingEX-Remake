@@ -31,6 +31,8 @@ SceneTestOliver::SceneTestOliver() :
     score{ 0 },
     shardCount{ 0 },
     shardMesh{ nullptr },
+    upgradeThrustPowerCount{ 0 },
+    upgradeMaxHealthCount{ 0 },
     shardBeacon{ nullptr },
     beaconTriggerTime{ 0.0f },
     prevLives{ 3 },
@@ -429,9 +431,29 @@ void SceneTestOliver::HandleEvents(const SDL_Event& sdlEvent) {
         case SDL_SCANCODE_SPACE:
             if (!player->GetHeatLockdown()) {
                 bullet->Spawn(player->GetPosition());
-                player->IncreaseHeatLevel(10.0f);
+                player->IncreaseHeatLevel(7.0f);
                 player->ApplyImpulse(Vec3(-1.5f, 0.0f, 0.0f)); // recoil
                 sfxLaser->Play(sfxPlayer);
+            }
+            break;
+        case SDL_SCANCODE_I:
+            shardCount = 9999;
+            break;
+        case SDL_SCANCODE_1:
+            if (shardCount >= 5 * upgradeThrustPowerCount)
+            {
+                shardCount -= 5 * upgradeThrustPowerCount;
+                upgradeThrustPowerCount++;
+                player->SetThrustPower(player->GetThrustPower() * 1.05);
+            }
+            break;
+        case SDL_SCANCODE_2:
+            if (shardCount >= 5 * upgradeMaxHealthCount)
+            {
+                shardCount -= 5 * upgradeMaxHealthCount;
+                upgradeMaxHealthCount++;
+                player->SetMaxHealth(player->GetMaxHealth() + 50);
+                player->SetHealth(player->GetHealth() + 50);
             }
             break;
         default:
@@ -452,7 +474,7 @@ void SceneTestOliver::HandleEvents(const SDL_Event& sdlEvent) {
             if (!ImGui::GetIO().WantCaptureMouse) {
                 if (!player->GetHeatLockdown()) {
                     bullet->Spawn(player->GetPosition());
-                    player->IncreaseHeatLevel(1.0f);
+                    player->IncreaseHeatLevel(7.0f);
                     player->ApplyImpulse(Vec3(-1.5f, 0.0f, 0.0f)); // recoil
                     sfxLaser->Play(sfxPlayer);
                 }
@@ -477,19 +499,19 @@ void SceneTestOliver::HandleEvents(const SDL_Event& sdlEvent) {
                 if (!bot02->GetPositions().empty()) {
                     bullet->SpawnHoming(player->GetPosition(),
                         MissileTargetType::BOT02, nearestIdx(bot02->GetPositions()));
-                    player->IncreaseHeatLevel(10.0f);
+                    player->IncreaseHeatLevel(20.0f);
                     launched = true;
                 }
                 else if (!bot01->GetBot01Positions().empty()) {
                     bullet->SpawnHoming(player->GetPosition(),
                         MissileTargetType::BOT01, nearestIdx(bot01->GetBot01Positions()));
-                    player->IncreaseHeatLevel(10.0f);
+                    player->IncreaseHeatLevel(20.0f);
                     launched = true;
                 }
                 else if (!asteroid->GetAsteroidPositions().empty()) {
                     bullet->SpawnHoming(player->GetPosition(),
                         MissileTargetType::ASTEROID, nearestIdx(asteroid->GetAsteroidPositions()));
-                    player->IncreaseHeatLevel(10.0f);
+                    player->IncreaseHeatLevel(20.0f);
                     launched = true;
                 }
                 if (launched)
@@ -1420,7 +1442,7 @@ void SceneTestOliver::DrawHUD() {
 
     // ── Game HUD (always visible) ─────────────────────────────────────────
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(318, 292), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(318, 350), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.75f);
     ImGui::Begin("##hud", nullptr,
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
@@ -1470,7 +1492,8 @@ void SceneTestOliver::DrawHUD() {
     }
 
     // Health bar — green / yellow / red
-    float hp = player->GetHealth() / 100.0f;
+    ImGui::Text("HP:");
+    float hp = player->GetHealth() / player->GetMaxHealth();
     ImVec4 hpCol = hp > 0.6f ? ImVec4(0.0f, 1.0f, 0.0f, 1.0f)
         : hp > 0.3f ? ImVec4(1.0f, 1.0f, 0.0f, 1.0f)
         : ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
@@ -1479,8 +1502,10 @@ void SceneTestOliver::DrawHUD() {
     ImGui::PopStyleColor();
 
     // Heat level bar — cyan
+    ImGui::Text("HEAT LEVEL:");
     float heat = player->GetHeatLevel() / 100.0f;
-    ImVec4 heatCol = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);
+    ImVec4 heatCol = player->GetHeatLockdown() ? ImVec4(1.0f, 0.3f, 0.3f, 1.0f)
+        : ImVec4(0.3, 1.0f, 1.0f, 1.0f);
     ImGui::PushStyleColor(ImGuiCol_PlotHistogram, heatCol);
     ImGui::ProgressBar(heat, ImVec2(-1.0f, 20.0f), "");
     ImGui::PopStyleColor();

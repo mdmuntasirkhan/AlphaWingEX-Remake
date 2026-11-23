@@ -12,6 +12,7 @@ Player::Player() :  mesh { nullptr },
 					speed { 5.0f }, 
 					health { 100 }, 
 					maxHealth { 100 }, 
+					regenHealth {0.0f},
 					lives { 3 },
 					heatLevel { 0.0f },
 					heatLockdown { false },
@@ -144,7 +145,10 @@ void Player::HandleEvents(const SDL_Event& sdlEvent) {
 	if (sdlEvent.type == SDL_EVENT_KEY_DOWN) {
 		switch (sdlEvent.key.scancode) {
 		case SDL_SCANCODE_E:
-			ActivateShield();
+			if (!GetHeatLockdown())
+			{
+				ActivateShield();
+			}
 			break;
 		default:
 			break;
@@ -172,7 +176,7 @@ void Player::Update(float deltaTime) {
 	// Speed cap and Normalized
 	float currentSpeed = sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
 	if (currentSpeed > maxSpeed) {
-		velocity = velocity * (maxSpeed / currentSpeed);
+		velocity = velocity * (maxSpeed / currentSpeed) ;
 	}
 
 	// Move the position
@@ -197,10 +201,16 @@ void Player::Update(float deltaTime) {
 
 	if (shieldActive) {
 		shieldTimer += deltaTime;
+		IncreaseHeatLevel(0.2f);
 		if (shieldTimer >= shieldDuration) {
 			shieldTimer        = shieldDuration;
 			shieldActive       = false;
 			shieldRechargeRate = kRecharge90Rate; // expired = worst penalty
+		}
+
+		else if (GetHeatLockdown())
+		{
+			shieldActive = false;
 		}
 	} else if (shieldTimer > 0.0f) {
 		shieldTimer -= deltaTime * shieldRechargeRate;
