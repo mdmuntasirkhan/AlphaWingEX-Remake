@@ -25,6 +25,7 @@ private:
 	Vec3 pos;
 	float speed;
 
+	Mesh* damageFlashMesh;
 	float health;
 	float maxHealth;
 	float regenHealth;
@@ -83,6 +84,9 @@ private:
 
 	bool isGotHit;
 	float flashTimeRemain;
+
+	float damageFlashTimer;
+	const float kFlashDuration = 0.25f;
 public:
 	Player();
 	~Player();
