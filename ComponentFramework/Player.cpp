@@ -9,6 +9,7 @@ Player::Player() :  mesh { nullptr },
 					cockpitMesh { nullptr },
 					attachmentMesh { nullptr },
 					thrustMesh { nullptr },
+					damageFlashMesh { nullptr },
 					speed { 5.0f }, 
 					health { 100 }, 
 					maxHealth { 100 }, 
@@ -36,6 +37,7 @@ Player::Player() :  mesh { nullptr },
 					rollDamping          { 16.0f },
 					maxRollAngle         { 5.0f },
 					thrustTimer          { 0.0f },
+					damageFlashTimer	 { 0.0f },
 					sfxStream            { nullptr },
 					sfxShieldPhase01     { nullptr },
 					sfxShieldPhase02     { nullptr },
@@ -88,6 +90,14 @@ bool Player::OnCreate(const char* meshFile) {
 		return false;
 	}
 
+	
+	damageFlashMesh = new Mesh("meshes/quad.obj");
+	if (damageFlashMesh->OnCreate() == false) {
+		std::cout << "Thrust mesh not found!\n";
+		return false;
+	}
+
+
 	pos = Vec3(0.0f, 0.0f, -10.0f);
 	modelMatrix = MMath::translate(pos) *
 				  MMath::scale(0.5f, 0.5f, 0.5f);
@@ -133,6 +143,12 @@ void Player::OnDestroy() {
 		thrustMesh->OnDestroy();
 		delete thrustMesh;
 		thrustMesh = nullptr;
+	}
+
+	if (damageFlashMesh) {
+		damageFlashMesh->OnDestroy();
+		delete damageFlashMesh;
+		damageFlashMesh = nullptr;
 	}
 
 	if (sfxShieldPhase01)   { sfxShieldPhase01->OnDestroy();   delete sfxShieldPhase01;   sfxShieldPhase01   = nullptr; }
@@ -187,6 +203,14 @@ void Player::Update(float deltaTime) {
 	if (pos.x >  GameConst::kWorldBoundX) { pos.x =  GameConst::kWorldBoundX; velocity.x = 0.0f; }
 	if (pos.y < -GameConst::kWorldBoundY) { pos.y = -GameConst::kWorldBoundY; velocity.y = 0.0f; }
 	if (pos.y >  GameConst::kWorldBoundY) { pos.y =  GameConst::kWorldBoundY; velocity.y = 0.0f; }
+
+	// flash the screen red briefly when damaged
+	if (damageFlashTimer > 0.0f) {
+		damageFlashTimer -= deltaTime;
+		if (damageFlashTimer < 0.0f) {
+			damageFlashTimer = 0.0f;
+		}
+	}
 
 
 	thrustTimer += deltaTime;
@@ -384,6 +408,33 @@ void Player::Render(Shader* shader,
 		glDisable(GL_BLEND);
 		glDepthMask(GL_TRUE);
 	}
+
+	if (damageFlashTimer > 0.0f && damageFlashMesh != nullptr) {
+		float maxAlpha = 0.4f;
+		float currentAlpha = (damageFlashTimer / kFlashDuration) * maxAlpha;
+
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glDepthMask(GL_FALSE);
+		glDisable(GL_DEPTH_TEST);
+
+		// using the identity matrix to have the quad fill the screen
+		Matrix4 identity;
+		glUniformMatrix4fv(shader->GetUniformID("projectionMatrix"), 1, GL_FALSE, identity);
+		glUniformMatrix4fv(shader->GetUniformID("viewMatrix"), 1, GL_FALSE, identity);
+		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, identity);
+
+		glUniform1f(shader->GetUniformID("emissive"), 2.0f); // enters the 1.5f condition in the frag shader
+		glUniform4f(shader->GetUniformID("color"), 1.0f, 0.0f, 0.0f, currentAlpha);
+
+		damageFlashMesh->Render();
+
+		// restore previous state so anything rendered after Player doesnt get messed up
+		glUniform1f(shader->GetUniformID("emissive"), 0.0f);
+		glEnable(GL_DEPTH_TEST);
+		glDepthMask(GL_TRUE);
+		glDisable(GL_BLEND);
+	}
 }
 
 void Player::TakeDamage(float amount) {
@@ -392,6 +443,8 @@ void Player::TakeDamage(float amount) {
 		return;
 	}
 	if (lives <= 0) return;
+
+	damageFlashTimer = kFlashDuration;
 
 	health -= amount;
 	if (health <= 0.0f) {

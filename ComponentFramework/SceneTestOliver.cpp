@@ -1255,7 +1255,7 @@ void SceneTestOliver::Update(const float deltaTime) {
                 Vec3 vel = bot02->GetBulletVelocities()[b];
                 float vlen = sqrtf(vel.x * vel.x + vel.y * vel.y);
                 if (vlen > 0.001f)
-                    player->ApplyImpulse(Vec3(vel.x / vlen * -5.0f, vel.y / vlen * -5.0f, 0.0f));
+                    player->ApplyImpulse(Vec3(vel.x / vlen * 5.0f, vel.y / vlen * 5.0f, 0.0f));
                 bot02->RemoveBullet(b);
                 player->TakeDamage(25.0f);
                 if (explosionCooldownTimer <= 0.0f) {
@@ -1376,6 +1376,8 @@ void SceneTestOliver::Render() const {
 
     // Stars — ImGui draws these on top of 3D (fine; they're small background dots)
     environment->Render();
+
+
 }
 
 // Plays a quiet click when the cursor first moves onto a new ImGui widget.
