@@ -644,6 +644,42 @@ void HUDRenderer::DrawBanner(const char* title, const char* subtitle, float alph
         ImVec2((screen.x - subBox.x) * 0.5f, screen.y * 0.45f + subSize * 0.5f), IM_COL32(150, 220, 235, (int)(255.0f * alpha)), subtitle);
 }
 
+void HUDRenderer::DrawSurroundingBars()
+{
+    Vec4 clip = ctx.projectionMatrix * ctx.viewMatrix * Vec4(ctx.player->GetPosition(), 1.0f);
+
+    ImGuiViewport* ImGuiMainViewPort = ImGui::GetMainViewport();
+    ImVec2 shipPosBaseOnImGuiVP(
+        ImGuiMainViewPort->Pos.x + (0.5f + 0.5f * clip.x / clip.w) * ImGuiMainViewPort->Size.x,
+        ImGuiMainViewPort->Pos.y + (0.5f - 0.5f * clip.y / clip.w) * ImGuiMainViewPort->Size.y);
+
+    ImDrawList* dl = ImGui::GetBackgroundDrawList(); // use background drawlist for drawing
+    ImVec2 radius(120.0f, 60.0f);
+
+    // draw the Hp bar
+    float hp = ctx.player->GetHealth() / ctx.player->GetMaxHealth();
+    float shield = ctx.player->GetShieldChargeFraction();
+
+    // creats a mini function
+    auto drawBar = [&](float start, float end, float fraction, ImVec4 color) {
+        float fillEnd = start + (end - start) * fraction;
+        dl->PathEllipticalArcTo(shipPosBaseOnImGuiVP, radius, 0.0f, start, fillEnd, 50);
+        ImU32 barColor = ImGui::ColorConvertFloat4ToU32(color);
+        dl->PathStroke(barColor, 0, 8.0f);
+    };
+
+    ImVec4 hpCol = ctx.player->GetHealth() > 0.6f ? ImVec4(0.0f, 1.0f, 0.0f, 1.0f)
+        : ctx.player->GetHealth() > 0.3f ? ImVec4(1.0f, 1.0f, 0.0f, 1.0f)
+        : ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+
+    drawBar(-2.5f, -0.5f, hp, hpCol);
+
+    ImVec4 heatCol = ctx.player->GetHeatLockdown() ? ImVec4(1.0f, 0.3f, 0.3f, 1.0f)
+        : ImVec4(0.3, 1.0f, 1.0f, 1.0f);
+
+    drawBar(2.5f, 0.5f, shield, heatCol);
+}
+
 // A WARNING at the top of the screen, for one dangerous attack.
 void HUDRenderer::DrawAttackWarning(const char* text, float seconds) {
     ImVec2 screen = ImGui::GetIO().DisplaySize;

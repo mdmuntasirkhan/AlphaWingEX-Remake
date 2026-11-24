@@ -44,7 +44,7 @@ static constexpr float HitPitchDuration = 0.65f;
 static constexpr float HitPitchRecovyTime = 0.35f;
 
 static constexpr float Phase1 = 0.0f;
-static constexpr float Phase2 = 2.50f;
+static constexpr float Phase2 = 3.0f;
 
 // Main Class
 class SceneMain : public Scene {
