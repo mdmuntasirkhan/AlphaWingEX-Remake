@@ -272,6 +272,11 @@ void Player::Update(float deltaTime) {
 		}
 	}
 
+	flashTimeRemain -= deltaTime;
+	if (flashTimeRemain < 0.0f) {
+		isGotHit = false;
+		flashTimeRemain = 0.0f;
+	}
 }
 
 
@@ -298,6 +303,12 @@ void Player::Render(Shader* shader,
 	{
 		float t = (std::sin(heatLevel * 0.25f) + 1.0f) * 0.5f;
 
+		shipBodyR = shipBodyR + (overheatedR - shipBodyR) * t;
+		shipBodyG = shipBodyG + (overheatedG - shipBodyG) * t;
+		shipBodyB = shipBodyB + (overheatedB - shipBodyB) * t;
+	}
+	else if (IsHited() && !GetHeatLockdown()) {
+		float t = flashTimeRemain / flashDuration;
 		shipBodyR = shipBodyR + (overheatedR - shipBodyR) * t;
 		shipBodyG = shipBodyG + (overheatedG - shipBodyG) * t;
 		shipBodyB = shipBodyB + (overheatedB - shipBodyB) * t;
@@ -387,6 +398,9 @@ void Player::TakeDamage(float amount) {
 		lives--;
 		health = maxHealth;
 	}
+
+	isGotHit = true;
+	flashTimeRemain = flashDuration;
 }
 
 void Player::ActivateShield() {

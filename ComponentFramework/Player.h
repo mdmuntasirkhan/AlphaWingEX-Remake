@@ -71,6 +71,8 @@ private:
 	static constexpr float kShieldPhaseCooldown     = 1.0f;
 	static constexpr float kShieldRechargedCooldown = 2.0f;
 
+	static constexpr float flashDuration = 0.1f;
+
 	float rollAngle;
 	float rollVelocity;
 	float rollStiffness;
@@ -79,6 +81,8 @@ private:
 
 	float thrustTimer;
 
+	bool isGotHit;
+	float flashTimeRemain;
 public:
 	Player();
 	~Player();
@@ -101,6 +105,7 @@ public:
 	int GetLives() const { return lives; }
 	float GetHeatLevel() const { return heatLevel; }
 	bool GetHeatLockdown() const { return heatLockdown; }
+	bool IsHited() const { return isGotHit; }
 	float GetShieldTimer() const { return shieldTimer; }
 	bool IsGameOver() const { return lives <= 0; }
 

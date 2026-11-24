@@ -1471,6 +1471,7 @@ void SceneTestOliver::DrawHUD() {
         "PILOT: %s", SaveData::current.profileName.c_str());
     ImGui::Text("SCORE: %-8d   HI: %d", score, SaveData::current.highScore);
     ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.1f, 1.0f), "SHARDS: %d", shardCount);
+
     // Missile slots — solid colored bars (green=ready, dark=spent) + vertical reload bar
     ImGui::Text("MISSILES");
     const ImVec2 slotSize(14.0f, 22.0f);

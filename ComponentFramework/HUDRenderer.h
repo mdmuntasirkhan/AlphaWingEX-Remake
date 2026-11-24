@@ -54,6 +54,7 @@ public:
         float* Q_HoldTimer       = nullptr;
         float* musicVolume       = nullptr;
         float* sfxVolume         = nullptr;
+        float* heatLevel         = nullptr;
 
         // SceneMuntasir::shards is a private std::vector<Shard>; this callback lets
         // DrawGameOver's "Try Again" button clear it without exposing the Shard type.

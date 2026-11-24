@@ -86,6 +86,11 @@ private:
 	int   shardCount;
 	Mesh* shardMesh;
 
+	// How many times each stat has been upgraded
+	int upgradeThrustPowerCount;
+	int upgradeMaxHealthCount;
+	int upgradeHealthRegenCount;
+
 	// Lost shard beacon — satellite placed at death position, recoverable next run
 	ShardBeacon* shardBeacon;
 	float beaconTriggerTime;  // level time at which beacon activates (0 = inactive or immediate)
