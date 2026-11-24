@@ -37,7 +37,8 @@ private:
         MUN,
         STG,
         OLI,
-        BOSS
+        BOSS,
+        MAIN
     };
 
     class Scene*  currentScene;

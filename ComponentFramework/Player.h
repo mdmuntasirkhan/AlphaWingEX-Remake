@@ -131,6 +131,9 @@ public:
 
 	// Heat Level Increase
 	void IncreaseHeatLevel(float heatIncrease) { heatLevel += heatIncrease; }
+
+	void MoveTo(float x, float y) { pos = Vec3(x, y, -10.0f); }
+	void LoseLife() { if (lives > 0) { lives--; health = maxHealth; } }
 };
 
 #endif // !PLAYER_H

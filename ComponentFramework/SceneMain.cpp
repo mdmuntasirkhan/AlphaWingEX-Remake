@@ -230,8 +230,10 @@ bool SceneMain::OnCreate() {
     FMOD_manager->loadBank(MainBank, "audio/bank/AlphaWingEX.bank");
 
     // Music FMOD
-    FMOD_manager->loadEvent(MainTheme, "event:/BGM/BGM-deadmou5");
+    FMOD_manager->loadEvent(MainTheme, "event:/BGM/BGM-Dynamic");
     FMOD_manager->PlayBGMEvent(MainTheme);
+    FMOD_manager->setMasterPitch(NormalPitchLevel);
+    FMOD_manager->SetBGMVolume(0.0f);
 
     // SFX FMOD
     FMOD_manager->loadEvent(SFXLaser, "event:/SFX/SFX-LaserShoot");
@@ -267,6 +269,8 @@ bool SceneMain::OnCreate() {
     uiClickSound = new Sound("audio/sfx/Select01.wav");
     uiClickSound->OnCreate();
 
+    FMOD_manager->loadEvent(UIclickSound, "event:/SFX/SFX-Hover");
+
     SDL_Log("Music queued bytes: %d", SDL_GetAudioStreamQueued(bgmPlayer));
     SDL_Log("SFX queued bytes: %d", SDL_GetAudioStreamQueued(sfxPlayer));
 
@@ -300,8 +304,8 @@ bool SceneMain::OnCreate() {
     prevLives = player->GetLives();
 
     // Apply saved audio preferences
-    SDL_SetAudioStreamGain(bgmPlayer, SaveData::current.musicVolume);
-    SDL_SetAudioStreamGain(sfxPlayer, SaveData::current.sfxVolume);
+    FMOD_manager->SetBGMVolume(SaveData::current.musicVolume);
+    FMOD_manager->SetSFXVolume(SaveData::current.sfxVolume);
     musicVolume = SaveData::current.musicVolume;
     sfxVolume = SaveData::current.sfxVolume;
 
@@ -366,6 +370,7 @@ bool SceneMain::OnCreate() {
     hudCtx.sfxVolume = &sfxVolume;
     hudCtx.clearShards = [this]() { shards.clear(); };
     hudCtx.resetBoss = [this]() { ResetBossFight(); };
+    hudCtx.fmod_manager = FMOD_manager.get();
     hudRenderer->Init(hudCtx);
 
 
@@ -598,10 +603,15 @@ void SceneMain::HandleEvents(const SDL_Event& sdlEvent) {
                     };
 
                 bool launched = false;
-                if (!bot02->GetPositions().empty()) {
+                if (bossSpider && bossSpider->IsAlive() && bossSpider->IsOnScreen()) {
+                    // the boss is the last one in the Bot02 target list (see Update), so its index comes after the real Bot02s
+                    bullet->SpawnHoming(player->GetPosition(),
+                        MissileTargetType::BOT02, (int)bot02->GetPositions().size());
+                    launched = true;
+                }
+                else if (!bot02->GetPositions().empty()) {
                     bullet->SpawnHoming(player->GetPosition(),
                         MissileTargetType::BOT02, nearestIdx(bot02->GetPositions()));
-                    player->IncreaseHeatLevel(10.0f);
                     launched = true;
                 }
                 else if (!bot01->GetBot01Positions().empty()) {
@@ -658,6 +668,17 @@ void SceneMain::SaveGame() {
     SaveData::current.Save();
 }
 
+// Puts the whole boss section back to the start. Try Again calls this.
+void SceneMain::ResetBossFight() {
+    bossEncounter->Reset();
+    bossSpider->Reset();
+    bossBullets->Clear();
+    bossArena->SetExtent(-1000.0f, 1000.0f);
+
+    // in the F5 test scene the section starts by itself
+    if (bossTestMode) bossEncounter->Start(1.0f);
+}
+
 void SceneMain::SpawnShards(const Vec3& pos, int count) {
     for (int i = 0; i < count; i++) {
         Shard s;
@@ -676,6 +697,29 @@ void SceneMain::Update(const float deltaTime) {
     debugOverlay->Update(deltaTime);
 
     if (gamePaused) return;
+
+    if (hitPitchTimeRemain > 0){
+        hitPitchTimeRemain -= deltaTime;
+
+        if (hitPitchTimeRemain <= HitPitchRecovyTime) {
+            float t = 1.0f - hitPitchTimeRemain / HitPitchRecovyTime;
+            float blend = t * t * (3.0f - 2.0f * t);
+            float recoveryPitch = HitPitchLevel + (NormalPitchLevel - HitPitchLevel) * blend;
+
+            FMOD_manager->setMasterPitch(recoveryPitch);
+        }
+    }
+
+    // if players health drops below half change the bgm to phase 2
+    // (quite expensive, should be in somewhere else)
+    if (player->GetHealth() <= player->GetMaxHealth() / 2) {
+        FMOD_manager->setBGMintiensive(Phase2);
+    }
+    else {
+        FMOD_manager->setBGMintiensive(Phase1);
+    }
+
+    FMOD_manager->Update();
 
     // Cooldown timers
     if (explosionCooldownTimer > 0.0f)
@@ -741,15 +785,67 @@ void SceneMain::Update(const float deltaTime) {
     player->Update(dtMult * deltaTime);
 
     if (!warping) {
+        // The player's missiles can lock on to the boss. It goes at the end of the Bot02 list, so no other code changes.
+        std::vector<Vec3> bot02Targets = bot02->GetPositions();
+        if (bossSpider && bossSpider->IsAlive()) bot02Targets.push_back(bossSpider->GetPosition());
+
         bullet->Update(deltaTime,
             asteroid->GetAsteroidPositions(), Vec3(-asteroid->GetAsteroidSpeed(), 0.0f, 0.0f),
             bot01->GetBot01Positions(), Vec3(-bot01->GetBot01Speed(), 0.0f, 0.0f),
-            bot02->GetPositions(), Vec3(0.0f, 0.0f, 0.0f));
+            bot02Targets, Vec3(0.0f, 0.0f, 0.0f));
         asteroid->Update(deltaTime);
         bot01->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
         bot01->UpdateShields(deltaTime, bullet->GetMissilePositions());
         bot02->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
     }
+
+    // The boss section: the corridor, the warning, the fight, the ending
+    if (bossEncounter->IsActive()) {
+        bossEncounter->Update(deltaTime);
+
+        if (bossEncounter->PopSpawnBoss()) bossSpider->Activate();
+
+        // The hull of the arena corridor pushes the player. Pushed into the left edge of the screen,
+        // he is crushed: he loses a life and the corridor starts coming in again from the beginning.
+        if (bossEncounter->IsGateVisible() && bossEncounter->GetGate().PushPlayer(player)) {
+            player->LoseLife();
+            player->SetPosition(0.0f, 0.0f);
+            bossEncounter->RestartEntry();   // does nothing once the fight has started
+            if (bossEncounter->GetStage() == BossEncounter::Stage::ENTRY) {
+                bossSpider->Reset();
+                bossBullets->Clear();
+            }
+            if (explosionCooldownTimer <= 0.0f) {
+                FMOD_manager->PlaySFXEvent(SFXExplosion);
+                explosionCooldownTimer = explosionCooldown;
+            }
+        }
+
+        // the steel floor slides in and out
+        float arenaLeft, arenaRight;
+        bossEncounter->GetArenaExtent(arenaLeft, arenaRight);
+        bossArena->SetExtent(arenaLeft, arenaRight);
+        bossArena->SetLeftCap(!bossEncounter->IsGateVisible());   // the corridor hull covers the left end
+
+        // The screen is black now: bank every shard on the screen and save. This is the checkpoint.
+        if (bossEncounter->PopCheckpoint()) {
+            bossBullets->Clear();
+            shardCount += (int)shards.size();
+            shards.clear();
+            SaveGame();
+        }
+
+        // the section is over, the level timeline carries on
+        if (bossEncounter->PopFinished()) levelDirector->ReleaseHold();
+    }
+
+    // The floor is faster while the arena slides in. The boss's legs follow it.
+    bossArena->SetScrollSpeed(bossEncounter->GetFloorSpeed());
+    bossSpider->SetFloorSpeed(bossArena->GetScrollSpeed());
+
+    if (bossSpider) bossSpider->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
+    if (bossBullets) bossBullets->Update(deltaTime, player->GetPosition(), player->GetVelocity());
+    if (bossArena) bossArena->Update(deltaTime);
 
     environment->Update(deltaTime);
 
@@ -848,13 +944,12 @@ void SceneMain::Update(const float deltaTime) {
                 bullet->RemoveAt(b);
                 bot01->PushX(e, 1.0f);
                 bot01->PushY(e, 0.0f);
-                SDL_ClearAudioStream(sfxLaserHitStream);
-                sfxLaserHit->Play(sfxLaserHitStream);
+                FMOD_manager->PlaySFXEvent(SFXLaserHit);
                 if (bot01->DamageBot01(e)) {
                     SpawnShards(deathPos, 5);
                     score += 100;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
@@ -872,13 +967,12 @@ void SceneMain::Update(const float deltaTime) {
                 Vec3 deathPos = asteroid->GetAsteroidPositions()[a];
                 bullet->RemoveAt(b);
                 asteroid->PushAsteroid(a, 1.5f, 0.0f);
-                SDL_ClearAudioStream(sfxLaserHitStream);
-                sfxLaserHit->Play(sfxLaserHitStream);
+                FMOD_manager->PlaySFXEvent(SFXLaserHit);
                 if (asteroid->DamageAsteroid(a)) {
                     SpawnShards(deathPos, 3);
                     score += 50;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
@@ -896,13 +990,12 @@ void SceneMain::Update(const float deltaTime) {
                 Vec3 deathPos = asteroid->GetSmallAsteroidPositions()[a];
                 bullet->RemoveAt(b);
                 asteroid->PushSmallAsteroid(a, 2.5f, 0.0f);
-                SDL_ClearAudioStream(sfxLaserHitStream);
-                sfxLaserHit->Play(sfxLaserHitStream);
+                FMOD_manager->PlaySFXEvent(SFXLaserHit);
                 if (asteroid->DamageSmallAsteroid(a)) {
                     SpawnShards(deathPos, 2);
                     score += 25;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
@@ -937,13 +1030,13 @@ void SceneMain::Update(const float deltaTime) {
                     SpawnShards(deathPos, 7);
                     score += 100;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
                 else {
                     SpawnShards(deathPos, 2);
-                    sfxMissileHit->Play(sfxPlayer);
+                    FMOD_manager->PlaySFXEvent(SFXMissileHit);
                 }
                 break;
             }
@@ -967,13 +1060,13 @@ void SceneMain::Update(const float deltaTime) {
                     SpawnShards(deathPos, 5);
                     score += 50;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
                 else {
                     SpawnShards(deathPos, 2);
-                    sfxMissileHit->Play(sfxPlayer);
+                    FMOD_manager->PlaySFXEvent(SFXMissileHit);
                 }
                 break;
             }
@@ -997,13 +1090,13 @@ void SceneMain::Update(const float deltaTime) {
                     SpawnShards(deathPos, 3);
                     score += 25;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
                 else {
                     SpawnShards(deathPos, 1);
-                    sfxMissileHit->Play(sfxPlayer);
+                    FMOD_manager->PlaySFXEvent(SFXMissileHit);
                 }
                 break;
             }
@@ -1029,7 +1122,7 @@ void SceneMain::Update(const float deltaTime) {
                     SpawnShards(pos, 3);
                     score += 10;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
@@ -1045,7 +1138,7 @@ void SceneMain::Update(const float deltaTime) {
                     SpawnShards(pos, 2);
                     score += 5;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
@@ -1061,7 +1154,7 @@ void SceneMain::Update(const float deltaTime) {
                     SpawnShards(pos, 5);
                     score += 50;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
@@ -1121,9 +1214,52 @@ void SceneMain::Update(const float deltaTime) {
                     bot02->MarkBulletReflected(b);
 
                     if (shieldHitCooldownTimer <= 0.0f) {
-                        sfxShieldHit->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXShieldHit);
                         shieldHitCooldownTimer = kShieldHitCooldown;
                     }
+                }
+            }
+        }
+        // Boss bullets bounce off the shield the same way. A bounced bullet turns light blue, stops hurting the
+// player and flies back at the boss.
+        if (bossBullets) {
+            for (int b = (int)bossBullets->GetBullets().size() - 1; b >= 0; b--) {
+                BossBullet& bb = bossBullets->GetBullets()[b];
+                if (bb.reflected) continue;
+
+                float rx = bb.pos.x - sp.x;
+                float ry = bb.pos.y - sp.y;
+                if ((rx * rx) / srx2 + (ry * ry) / sry2 >= 1.0f) continue;
+
+                // the same moving-wall bounce as the Bot02 bullets above
+                float nx = rx / srx2;
+                float ny = ry / sry2;
+                float nlen = sqrtf(nx * nx + ny * ny);
+                if (nlen > 0.0001f) { nx /= nlen; ny /= nlen; }
+
+                float rvx = bb.vel.x - pVel.x;
+                float rvy = bb.vel.y - pVel.y;
+                float relDotN = rvx * nx + rvy * ny;
+                if (relDotN >= 0.0f) continue;   // moving away from the shield already
+
+                rvx -= 2.0f * relDotN * nx;
+                rvy -= 2.0f * relDotN * ny;
+                float outVx = rvx + pVel.x * kVelInfluence;
+                float outVy = rvy + pVel.y * kVelInfluence;
+                float spd = sqrtf(outVx * outVx + outVy * outVy);
+                if (spd > 0.001f) {
+                    bb.vel.x = outVx / spd * kRicochetSpeed;
+                    bb.vel.y = outVy / spd * kRicochetSpeed;
+                }
+
+                bb.reflected = true;
+                bb.accel = 0.0f;                    // no more speeding up
+                bb.health = 0;                      // lasers pass through it now
+                bb.color = Vec3(0.5f, 0.95f, 1.0f);   // light blue, so it is clear it is the player's now
+
+                if (shieldHitCooldownTimer <= 0.0f) {
+                    FMOD_manager->PlaySFX(SFXShieldHit);
+                    shieldHitCooldownTimer = kShieldHitCooldown;
                 }
             }
         }
@@ -1144,7 +1280,7 @@ void SceneMain::Update(const float deltaTime) {
                 if (bot02->DamageBot02(e, 2)) {
                     SpawnShards(deathPos, 8);
                     score += 300;
-                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
+                    if (explosionCooldownTimer <= 0.0f) { FMOD_manager->PlaySFXEvent(SFXExplosion); explosionCooldownTimer = explosionCooldown; }
                 }
                 hit = true;
             }
@@ -1160,7 +1296,7 @@ void SceneMain::Update(const float deltaTime) {
                 if (bot01->DamageBot01(e, 2)) {
                     SpawnShards(deathPos, 5);
                     score += 100;
-                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
+                    if (explosionCooldownTimer <= 0.0f) { FMOD_manager->PlaySFXEvent(SFXExplosion); explosionCooldownTimer = explosionCooldown; }
                 }
                 hit = true;
             }
@@ -1176,7 +1312,7 @@ void SceneMain::Update(const float deltaTime) {
                 if (asteroid->DamageAsteroid(a, 3)) {
                     SpawnShards(deathPos, 3);
                     score += 50;
-                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
+                    if (explosionCooldownTimer <= 0.0f) { FMOD_manager->PlaySFXEvent(SFXExplosion); explosionCooldownTimer = explosionCooldown; }
                 }
                 hit = true;
             }
@@ -1192,7 +1328,7 @@ void SceneMain::Update(const float deltaTime) {
                 if (asteroid->DamageSmallAsteroid(a, 3)) {
                     SpawnShards(deathPos, 2);
                     score += 25;
-                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
+                    if (explosionCooldownTimer <= 0.0f) { FMOD_manager->PlaySFXEvent(SFXExplosion); explosionCooldownTimer = explosionCooldown; }
                 }
                 hit = true;
             }
@@ -1209,9 +1345,9 @@ void SceneMain::Update(const float deltaTime) {
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx / len * 4.0f, dy / len * 4.0f, 0.0f));
             asteroid->RemoveAsteroid(a);
             SpawnShards(deathPos, 3);
-            player->TakeDamage(25.0f);
+            DamagePlayer(25.0f);
             if (explosionCooldownTimer <= 0.0f) {
-                sfxExplosion->Play(sfxPlayer);
+                FMOD_manager->PlaySFXEvent(SFXExplosion);
                 explosionCooldownTimer = explosionCooldown;
             }
         }
@@ -1227,9 +1363,9 @@ void SceneMain::Update(const float deltaTime) {
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx / len * 2.5f, dy / len * 2.5f, 0.0f));
             asteroid->RemoveSmallAsteroid(a);
             SpawnShards(deathPos, 2);
-            player->TakeDamage(10.0f);
+            DamagePlayer(10.0f);
             if (explosionCooldownTimer <= 0.0f) {
-                sfxExplosion->Play(sfxPlayer);
+                FMOD_manager->PlaySFXEvent(SFXExplosion);
                 explosionCooldownTimer = explosionCooldown;
             }
         }
@@ -1245,9 +1381,9 @@ void SceneMain::Update(const float deltaTime) {
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx / len * 5.0f, dy / len * 5.0f, 0.0f));
             bot01->RemoveBot01(e);
             SpawnShards(deathPos, 5);
-            player->TakeDamage(40.0f);
+            DamagePlayer(40.0f);
             if (explosionCooldownTimer <= 0.0f) {
-                sfxExplosion->Play(sfxPlayer);
+                FMOD_manager->PlaySFXEvent(SFXExplosion);
                 explosionCooldownTimer = explosionCooldown;
             }
         }
@@ -1266,7 +1402,7 @@ void SceneMain::Update(const float deltaTime) {
                     SpawnShards(deathPos, 8);
                     score += 300;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
@@ -1292,13 +1428,13 @@ void SceneMain::Update(const float deltaTime) {
                     SpawnShards(deathPos, 10);
                     score += 300;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
                 else {
                     SpawnShards(deathPos, 3);
-                    sfxMissileHit->Play(sfxPlayer);
+                    FMOD_manager->PlaySFXEvent(SFXMissileHit);
                 }
                 break;
             }
@@ -1315,9 +1451,9 @@ void SceneMain::Update(const float deltaTime) {
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx / len * 6.0f, dy / len * 6.0f, 0.0f));
             bot02->RemoveBot02(e);
             SpawnShards(deathPos, 8);
-            player->TakeDamage(50.0f);
+            DamagePlayer(50.0f);
             if (explosionCooldownTimer <= 0.0f) {
-                sfxExplosion->Play(sfxPlayer);
+                FMOD_manager->PlaySFXEvent(SFXExplosion);
                 explosionCooldownTimer = explosionCooldown;
             }
         }
@@ -1331,7 +1467,7 @@ void SceneMain::Update(const float deltaTime) {
             if (player->IsShieldActive()) {
                 bot02->RemoveBullet(b);
                 if (shieldHitCooldownTimer <= 0.0f) {
-                    sfxShieldHit->Play(sfxPlayer);
+                    FMOD_manager->PlaySFX(SFXShieldHit);
                     shieldHitCooldownTimer = kShieldHitCooldown;
                 }
             }
@@ -1341,19 +1477,148 @@ void SceneMain::Update(const float deltaTime) {
                 if (vlen > 0.001f)
                     player->ApplyImpulse(Vec3(vel.x / vlen * -5.0f, vel.y / vlen * -5.0f, 0.0f));
                 bot02->RemoveBullet(b);
-                player->TakeDamage(25.0f);
+                DamagePlayer(25.0f);
                 if (explosionCooldownTimer <= 0.0f) {
-                    sfxExplosion->Play(sfxPlayer);
+                    FMOD_manager->PlaySFXEvent(SFXExplosion);
                     explosionCooldownTimer = explosionCooldown;
                 }
             }
         }
     }
 
-    // All spawning is driven by the level script.
-    // The only phase gates remaining are the Bot02 intro window (phase 3) pause flags.
-    bool asteroidsSpawning = currentPhase < 3 || currentPhase >= 4;
-    bot01->SetSpawningEnabled(currentPhase != 3);
+    // Player lasers and missiles hurt the spider boss
+    if (bossSpider && bossSpider->IsAlive()) {
+        static constexpr float kLaserHitRadius = 0.15f;
+        static constexpr float kMissileHitRadius = 0.2f;
+
+        for (int l = (int)bullet->GetPositions().size() - 1; l >= 0; l--) {
+            if (bossSpider->IsHit(bullet->GetPositions()[l], kLaserHitRadius)) {
+                bullet->RemoveAt(l);
+                bool killed = bossSpider->TakeDamage(BossSpider::kLaserDamage);
+                FMOD_manager->PlaySFXEvent(SFXLaserHit);
+                if (killed) {
+                    FMOD_manager->PlaySFXEvent(SFXExplosion);
+                    break;
+                }
+            }
+        }
+
+        for (int m = (int)bullet->GetMissilePositions().size() - 1; m >= 0 && bossSpider->IsAlive(); m--) {
+            if (bossSpider->IsHit(bullet->GetMissilePositions()[m], kMissileHitRadius)) {
+                bullet->RemoveMissileAt(m);
+                bool killed = bossSpider->TakeDamage(BossSpider::kMissileDamage);
+                SpawnShards(bossSpider->GetPosition(), 3);
+                if (killed) FMOD_manager->PlaySFXEvent(SFXExplosion);
+                else FMOD_manager->PlaySFXEvent(SFXMissileHit);
+            }
+        }
+    }
+
+    // Boss bullets that the shield bounced back hurt the boss
+    if (bossBullets && bossSpider && bossSpider->IsAlive()) {
+        for (int b = (int)bossBullets->GetBullets().size() - 1; b >= 0; b--) {
+            BossBullet& bb = bossBullets->GetBullets()[b];
+            if (!bb.reflected) continue;
+            if (!bossSpider->IsHit(bb.pos, bb.radius)) continue;
+
+            Vec3 hitPos = bb.pos;
+            float damage = bb.guided ? BossSpider::kReflectMissileDamage : BossSpider::kReflectDamage;
+            bossBullets->RemoveAt(b);   // bb is gone after this
+
+            bool killed = bossSpider->TakeDamage(damage);
+            SpawnShards(hitPos, 2);
+            FMOD_manager->PlaySFXEvent(SFXMissileHit);
+            if (killed) {
+                FMOD_manager->PlaySFXEvent(SFXExplosion);
+                break;   // the boss cleared all its bullets when it died
+            }
+        }
+    }
+
+    // The running boss hurts the player when it touches him. The shield stops the damage and bounces him off.
+    if (bossSpider && bossSpider->CheckDashHit(player->GetPosition(), 0.3f)) {
+        float side = (player->GetPosition().y >= bossSpider->GetPosition().y) ? 1.0f : -1.0f;
+        player->ApplyImpulse(Vec3(0.0f, side * 7.0f, 0.0f));
+        DamagePlayer(BossSpider::kDashDamage);
+        if (explosionCooldownTimer <= 0.0f) {
+            FMOD_manager->PlaySFXEvent(SFXExplosion);
+            explosionCooldownTimer = explosionCooldown;
+        }
+    }
+
+    // The boss finished dying: a pile of shards, points and a big bang
+    if (bossSpider && bossSpider->PopDeathRequest()) {
+        SpawnShards(bossSpider->GetPosition(), 40);
+        score += 2000;
+        FMOD_manager->PlaySFXEvent(SFXExplosion);
+        bossEncounter->OnBossDefeated();   // starts the ending
+    }
+
+    // Player lasers shoot down the boss bullets that have health (the seekers)
+    if (bossBullets) {
+        static constexpr float kLaserRadius = 0.15f;
+        for (int l = (int)bullet->GetPositions().size() - 1; l >= 0; l--) {
+            Vec3 laser = bullet->GetPositions()[l];
+            for (int b = (int)bossBullets->GetBullets().size() - 1; b >= 0; b--) {
+                BossBullet& bb = bossBullets->GetBullets()[b];
+                if (bb.health <= 0) continue;   // plain bullets can't be shot
+
+                float dx = bb.pos.x - laser.x;
+                float dy = bb.pos.y - laser.y;
+                float reach = bb.radius + kLaserRadius;
+                if (dx * dx + dy * dy < reach * reach) {
+                    bullet->RemoveAt(l);
+                    bb.health--;
+                    if (bb.health <= 0) {
+                        bossBullets->RemoveAt(b);   // bb is gone after this, so nothing touches it again
+                        if (explosionCooldownTimer <= 0.0f) {
+                            FMOD_manager->PlaySFXEvent(SFXExplosion);
+                            explosionCooldownTimer = explosionCooldown;
+                        }
+                    }
+                    break;   // this laser is used up, go to the next laser
+                }
+            }
+        }
+    }
+
+    // Boss bullets hit player. The shield destroys them, otherwise they hurt.
+    if (bossBullets) {
+        static constexpr float kPlayerHitRadius = 0.2f;    // smaller than the ship, so close calls feel fair
+        for (int b = (int)bossBullets->GetBullets().size() - 1; b >= 0; b--) {
+            const BossBullet& bb = bossBullets->GetBullets()[b];
+            if (bb.reflected) continue;   // bounced back by the shield, it belongs to the player now
+            float dx = bb.pos.x - player->GetPosition().x;
+            float dy = bb.pos.y - player->GetPosition().y;
+
+            if (player->IsShieldActive()) {
+                float sx = dx / player->GetShieldRadiusX();
+                float sy = dy / player->GetShieldRadiusY();
+                if (sx * sx + sy * sy < 1.0f) {
+                    bossBullets->RemoveAt(b);
+                    if (shieldHitCooldownTimer <= 0.0f) {
+                        FMOD_manager->PlaySFX(SFXShieldHit);
+                        shieldHitCooldownTimer = kShieldHitCooldown;
+                    }
+                }
+            }
+            else if (dx * dx + dy * dy < (bb.radius + kPlayerHitRadius) * (bb.radius + kPlayerHitRadius)) {
+                float damage = bb.damage;   // read it first, bb is gone after RemoveAt
+                bossBullets->RemoveAt(b);
+                DamagePlayer(damage);
+                if (explosionCooldownTimer <= 0.0f) {
+                    FMOD_manager->PlaySFXEvent(SFXExplosion);
+                    explosionCooldownTimer = explosionCooldown;
+                }
+            }
+        }
+    }
+
+    // Phase 3 = Bot02 intro window — pause other spawning during the encounter
+   // While the boss section runs there are no new asteroids or bots, only the boss
+    bool bossFlowActive = bossEncounter->IsActive();
+    bool asteroidsSpawning = !bossTestMode && !bossFlowActive && (currentPhase < 3 || currentPhase >= 4);
+    bot01->SetSpawningEnabled(currentPhase != 3 && !bossFlowActive);
     asteroid->SetSpawningEnabled(asteroidsSpawning);
 
     // Life-loss detection — after all collision damage this frame.
@@ -1403,6 +1668,12 @@ void SceneMain::RenderBackground() {
 
     glDisable(GL_SCISSOR_TEST);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+    // The gate and the arena floor are drawn over the nebula and still behind all the 3D objects
+    if (!environment->IsWarpActive()) {
+        if (bossEncounter->IsArenaVisible()) bossArena->RenderBackground();
+        if (bossEncounter->IsGateVisible()) bossEncounter->GetGate().RenderBackground();   // the hull goes on top of the floor
+    }
 }
 
 // Render
@@ -1432,6 +1703,8 @@ void SceneMain::Render() const {
         asteroid->Render(shader, projectionMatrix, viewMatrix);
         bot01->Render(shader, projectionMatrix, viewMatrix);
         bot02->Render(shader, projectionMatrix, viewMatrix);
+        if (bossSpider) bossSpider->Render(shader, projectionMatrix, viewMatrix);
+        if (bossBullets) bossBullets->Render(shader, projectionMatrix, viewMatrix);
     }
 
     // Energy shards — additive emissive spinning orbs
@@ -1458,6 +1731,22 @@ void SceneMain::Render() const {
 
     glUseProgram(0);
 
+    // The arena floor covers the stars, so only the open space above and below it shows them
+    if (bossArena && bossEncounter->IsArenaVisible() && !anyWarp) {
+        float maskTop, maskBottom, maskLeft, maskRight;
+        bossArena->GetStarMask(maskTop, maskBottom, maskLeft, maskRight);
+        environment->SetStarMask(maskTop, maskBottom, maskLeft, maskRight);
+
+        // the corridor hull covers the whole height of the screen
+        if (bossEncounter->IsGateVisible()) {
+            bossEncounter->GetGate().GetStarMask(maskTop, maskBottom, maskLeft, maskRight);
+            environment->SetStarMask2(maskTop, maskBottom, maskLeft, maskRight);
+        }
+    }
+    else {
+        environment->SetStarMask(0.0f, 0.0f);
+    }
+
     // Stars — ImGui draws these on top of 3D (fine; they're small background dots)
     environment->Render();
 }
@@ -1470,7 +1759,7 @@ void SceneMain::PlayHoverSound() {
     if (id == lastHoveredId || now - lastHoverTick < 150) return;
     lastHoveredId = id;
     lastHoverTick = now;
-    uiClickSound->Play(hoverStream);
+    FMOD_manager->PlaySFXEvent(UIclickSound);
 }
 
 void SceneMain::DrawGui() {
@@ -1516,6 +1805,9 @@ void SceneMain::DrawGui() {
             ImGui::TextDisabled("F2   SceneJA  (Jacky test scene)");
             ImGui::TextDisabled("F3   SceneMuntasir (skip title)");
             ImGui::TextDisabled("F4   SceneOLI (Oliver test scene)");
+            ImGui::TextDisabled("F5   Spider boss test scene");
+            ImGui::TextDisabled("F6   Start boss section / skip the gate");
+            ImGui::TextDisabled("F7   Kill the spider boss");
             ImGui::TextDisabled("F9   Debug overlay  (Minimal / Detailed)");
             ImGui::TextDisabled("F10  This window");
             ImGui::TextDisabled("Q    Hold 3s — trigger full warp");
@@ -1534,9 +1826,30 @@ void SceneMain::DrawGui() {
     }
 
     if (environment->IsFullWarp()) return;       // hide all HUD during cinematic warp
-    DrawHUD();
-    DrawPauseMenu();
-    DrawGameOver();
+    if (bossSpider && bossSpider->IsOnScreen()) {
+        hudRenderer->DrawBossBar("SPIDER BOSS", bossSpider->GetHealthFraction(), bossSpider->GetHealthTrailFraction(),
+            BossSpider::kPhase2At, BossSpider::kPhase3At);
+    }
+
+    // The dash: a red lane and a WARNING at the top while the boss gets ready
+    float laneY, laneX, laneStrength;
+    hudRenderer->DrawHUD();
+    if (bossSpider && bossSpider->GetDashLane(laneY, laneX, laneStrength)) {
+        hudRenderer->DrawDashLane(laneY, laneX, BossSpider::kDashLaneHalf, laneStrength);
+        hudRenderer->DrawAttackWarning("SPIDER BOSS DASH INCOMING", bossSpider->GetDashWarningTime());
+    }
+
+    // The big WARNING, after the corridor, right before the boss arrives
+    if (bossEncounter->GetStage() == BossEncounter::Stage::WARNING) {
+        hudRenderer->DrawBossWarning(bossEncounter->GetWarningTime());
+    }
+
+    hudRenderer->DrawPauseMenu();
+    hudRenderer->DrawGameOver();
+
+    // The fade and the banner go last, so they cover everything
+    hudRenderer->DrawFade(bossEncounter->GetFade());
+    hudRenderer->DrawBanner("SPIDER BOSS DEFEATED", "CHECKPOINT", bossEncounter->GetBannerAlpha());
 }
 
 // ── HUD — always-visible overlay ─────────────────────────────────────────────
@@ -1848,15 +2161,14 @@ void SceneMain::DrawPauseMenu() {
         ImGui::SetCursorPosX(btnX);
         ImGui::SetNextItemWidth(btnW);
         if (ImGui::SliderFloat("##music", &musicVolume, 0.0f, 1.0f))
-            SDL_SetAudioStreamGain(bgmPlayer, musicVolume);
+            FMOD_manager->SetBGMVolume(musicVolume);
 
         ImGui::SetCursorPosX(btnX);
         ImGui::Text("SFX Volume");
         ImGui::SetCursorPosX(btnX);
         ImGui::SetNextItemWidth(btnW);
         if (ImGui::SliderFloat("##sfx", &sfxVolume, 0.0f, 1.0f)) {
-            SDL_SetAudioStreamGain(sfxPlayer, sfxVolume);
-            SDL_SetAudioStreamGain(sfxLaserHitStream, sfxVolume * 2.0f);
+            FMOD_manager->SetSFXVolume(sfxVolume);
             if (hoverStream) SDL_SetAudioStreamGain(hoverStream, sfxVolume * GameConst::kHoverStreamGain);
         }
 
@@ -2016,4 +2328,12 @@ void SceneMain::DrawGameOver() {
     }
     PlayHoverSound();
     ImGui::End();
+}
+
+// Damage Player ()
+void SceneMain::DamagePlayer(float amount) {
+    player->TakeDamage(amount);
+
+    FMOD_manager->setMasterPitch(HitPitchLevel);
+    hitPitchTimeRemain = HitPitchDuration + HitPitchRecovyTime;
 }

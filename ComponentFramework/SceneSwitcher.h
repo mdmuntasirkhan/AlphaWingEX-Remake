@@ -5,7 +5,7 @@
 // SceneManager drains the request after DrawGui() each frame.
 // No circular includes: this header has zero game-class dependencies.
 
-enum class GameScene { TITLE, MUN, STG, JA , OLI, BOSS};
+enum class GameScene { TITLE, MUN, STG, JA , OLI, BOSS, MAIN};
 
 struct SceneSwitcher {
     // Scene transition

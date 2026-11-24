@@ -14,6 +14,7 @@ class Asteroid;
 class Bot01;
 class Bot02;
 class Sound;
+class FMOD_AudioManager;
 
 // Draws the in-game HUD, pause menu, and game-over screen for SceneMuntasir.
 // Owns only HUD-presentation state (pending settings, hover debounce, etc.);
@@ -37,6 +38,8 @@ public:
         SDL_AudioStream* sfxLaserHitStream = nullptr;
         SDL_AudioStream* hoverStream       = nullptr;
         Sound*           uiClickSound      = nullptr;
+        FMOD_AudioManager* fmod_manager     = nullptr;
+
 
         // Game-state fields — still owned by SceneMuntasir, HUDRenderer reads/writes via pointer
         bool*  gamePaused        = nullptr;

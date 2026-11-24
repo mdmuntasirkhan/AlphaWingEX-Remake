@@ -3,6 +3,12 @@
 #include <iostream>
 #include <algorithm>
 
+void checkFMOD(FMOD_RESULT check, const std::string& name) {
+	if (check != FMOD_OK) {
+		std::cerr << FMOD_ErrorString(check) << std::endl;
+	}
+}
+
 bool FMOD_AudioManager::OnCreate() {
 	FMOD::Studio::System* rawSystem = nullptr; // need a raw pointer to initialize studio system
 	FMOD_RESULT systemCheck = FMOD::Studio::System::create(&(rawSystem));
@@ -172,6 +178,12 @@ bool FMOD_AudioManager::stopBGMEvent() {
 bool FMOD_AudioManager::SetBGMVolume(float volume) {
 	// MIN: 0.0f -------- MAX: 1.0f
 	BGMVolume = std::clamp(volume, 0.0f, 1.0f); // clamp the volume from 0.0f to 1.0f
+
+	FMOD::Studio::Bus* temp;
+	studioAudioSystem->getBus("bus:/BGM", &temp);
+
+	CHECK(temp->setVolume(volume));
+
 	if (BGMchannel) { 
 		BGMchannel->setVolume(BGMVolume);
 		return true;
@@ -234,6 +246,11 @@ bool FMOD_AudioManager::SetSFXVolume(float volume)
 		return true;
 	}
 
+	FMOD::Studio::Bus* temp;
+	studioAudioSystem->getBus("bus:/SFX", &temp);
+
+	temp->setVolume(volume);
+
 	return false;
 }
 
@@ -291,29 +308,19 @@ bool FMOD_AudioManager::PlaySFXEvent(const std::string& name) {
 
 	auto audioEvent = eventMap.find(name);
 
-	if (audioEvent != eventMap.end()) {
+	if (audioEvent == eventMap.end()) {
 		std::cout << "No such audio event: " << name << std::endl;
 		return false;
 	}
 
 	FMOD::Studio::EventInstance* tempInstance = nullptr;
 
-	FMOD_RESULT systemCheck = audioEvent->second->createInstance(&tempInstance);
-
-	if (systemCheck != FMOD_OK) {
-		std::cerr << "FMOD event instance creation Err: " << FMOD_ErrorString(systemCheck) << std::endl;
-		return false;
-	}
+	CHECK(audioEvent->second->createInstance(&tempInstance));
 
 	tempInstance->setVolume(SFXVolume);
-	// play the SFX
-	systemCheck = tempInstance->start();
 
-	if (systemCheck != FMOD_OK) {
-		std::cerr << "FMOD event instance creation Err: " << FMOD_ErrorString(systemCheck) << std::endl;
-		tempInstance->release();
-		return false;
-	}
+	// play the SFX
+	CHECK(tempInstance->start());
 
 	// release the instance at the end
 	tempInstance->release();
@@ -362,5 +369,13 @@ bool FMOD_AudioManager::setBGMintiensive(const float intensive) {
 		return false;
 	}
 
+	return true;
+}
+
+bool FMOD_AudioManager::setMasterPitch(const float newPitch)
+{
+	FMOD::Studio::Bus* temp;
+	studioAudioSystem->getBus("bus:/", &temp);
+	CHECK(studioAudioSystem->setParameterByName("PitchLevel", newPitch));
 	return true;
 }

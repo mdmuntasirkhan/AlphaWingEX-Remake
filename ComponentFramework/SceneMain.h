@@ -31,11 +31,20 @@ class FMOD_AudioManager;
 inline static std::string MainBank = "MainBank";
 inline static std::string MainTheme = "MainTheme";
 
-inline static std::string SFXLaser = "sfxLaser";
-inline static std::string SFXLaserHit = "sfxLaserHit";
-inline static std::string SFXExplosion = "sfxExplosion";
-inline static std::string SFXMissileHit = "sfxMissileHit";
-inline static std::string SFXShieldHit = "sfxShieldHit";
+inline static std::string SFXLaser = "SFXLaser";
+inline static std::string SFXLaserHit = "SFXLaserHit";
+inline static std::string SFXExplosion = "SFXExplosion";
+inline static std::string SFXMissileHit = "SFXMissileHit";
+inline static std::string SFXShieldHit = "SFXShieldHit";
+inline static std::string UIclickSound = "UIClickSound";
+
+static constexpr float NormalPitchLevel = 0.5f;
+static constexpr float HitPitchLevel = 0.25f;
+static constexpr float HitPitchDuration = 0.65f;
+static constexpr float HitPitchRecovyTime = 0.35f;
+
+static constexpr float Phase1 = 0.0f;
+static constexpr float Phase2 = 2.50f;
 
 // Main Class
 class SceneMain : public Scene {
@@ -94,6 +103,9 @@ private:
 	void DrawPauseMenu(); // ESC pause panel with audio/video settings
 	void DrawGameOver();  // game-over screen with Try Again / Title / Exit buttons
 	void PlayHoverSound(); // plays a quiet click when the cursor moves onto a new button
+
+	// Damage Player at the main time sets its pitch value to a lower level
+	void DamagePlayer(float amount);
 
 	// Auto-save
 	float autoSaveTimer;
@@ -170,6 +182,7 @@ private:
 	HUDRenderer* hudRenderer;
 
 	std::unique_ptr<FMOD_AudioManager> FMOD_manager = nullptr;
+	float hitPitchTimeRemain;
 
 public:
 	explicit SceneMain(bool bossTestMode_ = false);
