@@ -12,6 +12,7 @@ Player::Player() :  mesh { nullptr },
 					speed { 5.0f }, 
 					health { 100 }, 
 					maxHealth { 100 }, 
+					regenHealth {0.0f},
 					lives { 3 },
 					heatLevel { 0.0f },
 					heatLockdown { false },
@@ -144,7 +145,10 @@ void Player::HandleEvents(const SDL_Event& sdlEvent) {
 	if (sdlEvent.type == SDL_EVENT_KEY_DOWN) {
 		switch (sdlEvent.key.scancode) {
 		case SDL_SCANCODE_E:
-			ActivateShield();
+			if (!GetHeatLockdown())
+			{
+				ActivateShield();
+			}
 			break;
 		default:
 			break;
@@ -197,10 +201,16 @@ void Player::Update(float deltaTime) {
 
 	if (shieldActive) {
 		shieldTimer += deltaTime;
+		IncreaseHeatLevel(0.25f);
 		if (shieldTimer >= shieldDuration) {
 			shieldTimer        = shieldDuration;
 			shieldActive       = false;
 			shieldRechargeRate = kRecharge90Rate; // expired = worst penalty
+		}
+
+		else if (GetHeatLockdown())
+		{
+			shieldActive = false;
 		}
 	} else if (shieldTimer > 0.0f) {
 		shieldTimer -= deltaTime * shieldRechargeRate;
@@ -274,8 +284,27 @@ void Player::Render(Shader* shader,
 	glUniformMatrix4fv(shader->GetUniformID("viewMatrix"), 1, GL_FALSE, viewMatrix);
 	glUniformMatrix4fv(shader->GetUniformID("modelMatrix"),	1, GL_FALSE, modelMatrix);
 
+	float shipBodyR = 0.72f;
+	float shipBodyG = 0.76f;
+	float shipBodyB = 0.82f;
+
+	float overheatedR = 1.0f;
+	float overheatedG = 0.1f;
+	float overheatedB = 0.1f;
+	
+	// Flash the ship red if it is overheated, otherwise display its color as normal
+	// Uses the sine waves for the pulsing red flash
+	if (GetHeatLockdown())
+	{
+		float t = (std::sin(heatLevel * 0.25f) + 1.0f) * 0.5f;
+
+		shipBodyR = shipBodyR + (overheatedR - shipBodyR) * t;
+		shipBodyG = shipBodyG + (overheatedG - shipBodyG) * t;
+		shipBodyB = shipBodyB + (overheatedB - shipBodyB) * t;
+	}
+
 	// Ship body — cool metallic silver (Phong shading)
-	glUniform4f(shader->GetUniformID("color"), 0.72f, 0.76f, 0.82f, 1.0f);
+	glUniform4f(shader->GetUniformID("color"), shipBodyR, shipBodyG, shipBodyB, 1.0f);
 	mesh->Render();
 
 	// Cockpit — electric blue (Phong)
@@ -347,7 +376,10 @@ void Player::Render(Shader* shader,
 }
 
 void Player::TakeDamage(float amount) {
-	if (shieldActive) return;
+	if (shieldActive)
+	{
+		return;
+	}
 	if (lives <= 0) return;
 
 	health -= amount;

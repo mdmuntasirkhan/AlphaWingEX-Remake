@@ -456,6 +456,14 @@ void SceneTestOliver::HandleEvents(const SDL_Event& sdlEvent) {
                 player->SetHealth(player->GetHealth() + 50);
             }
             break;
+        case SDL_SCANCODE_3:
+            if (shardCount >= 5 * upgradeHealthRegenCount) // upgrade Health Regen
+            {
+                shardCount -= 5 * upgradeHealthRegenCount;
+                upgradeHealthRegenCount++;
+                player->SetHealthRegen(player->GetHealthRegen() + 0.005f);
+            }
+            break;
         default:
             player->HandleEvents(sdlEvent);
             break;
@@ -572,6 +580,10 @@ void SceneTestOliver::SpawnShards(const Vec3& pos, int count) {
 // Update
 void SceneTestOliver::Update(const float deltaTime) {
     debugOverlay->Update(deltaTime);
+
+    float currentPlayerHP = player->GetHealth();
+    float currentPlayerHPRegen = player->GetHealthRegen();
+    player->SetHealth(currentPlayerHP + currentPlayerHPRegen);
 
     if (gamePaused) return;
 
@@ -926,6 +938,8 @@ void SceneTestOliver::Update(const float deltaTime) {
                 if (asteroid->DamageAsteroid(a, 999)) {
                     SpawnShards(pos, 3);
                     score += 10;
+                    float shield_t = player->GetShieldTimer();
+                    player->SetShieldTimer(shield_t + 2.0f);
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
                         explosionCooldownTimer = explosionCooldown;
@@ -942,6 +956,8 @@ void SceneTestOliver::Update(const float deltaTime) {
                 if (asteroid->DamageSmallAsteroid(a, 999)) {
                     SpawnShards(pos, 2);
                     score += 5;
+                    float shield_t = player->GetShieldTimer();
+                    player->SetShieldTimer(shield_t+1.0f);
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
                         explosionCooldownTimer = explosionCooldown;
@@ -958,6 +974,8 @@ void SceneTestOliver::Update(const float deltaTime) {
                 if (bot01->DamageBot01(e, 999)) {
                     SpawnShards(pos, 5);
                     score += 50;
+                    float shield_t = player->GetShieldTimer();
+                    player->SetShieldTimer(shield_t + 4.0f);
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
                         explosionCooldownTimer = explosionCooldown;
