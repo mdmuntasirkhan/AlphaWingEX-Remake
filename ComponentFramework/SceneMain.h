@@ -1,6 +1,4 @@
 #pragma once
-#ifndef SCENETESTOLIVER_H
-#define SCENETESTOLIVER_H
 #include "Scene.h"
 #include "Vector.h"
 #include <Matrix.h>
@@ -16,6 +14,11 @@
 #include "LevelDirector.h"
 #include "ShardBeacon.h"
 #include "DebugOverlay.h"
+#include "BossSpider.h"
+#include "BossBullets.h"
+#include "BossArena.h"
+#include "BossEncounter.h"
+#include "HUDRenderer.h"
 #include <vector>
 
 using namespace MATH;
@@ -48,6 +51,11 @@ private:
 	Bullet* bullet;
 	Environment* environment;
 
+	BossSpider* bossSpider;
+	BossBullets* bossBullets;
+	BossArena* bossArena;
+	BossEncounter* bossEncounter;   // the flow of the boss section: gate, warning, fight, end
+
 	// Shader and Camera
 	Shader* shader;
 	Matrix4 projectionMatrix;
@@ -78,6 +86,7 @@ private:
 	static constexpr float kCollectRadius = 0.5f;
 
 	void SpawnShards(const Vec3& pos, int count);
+	void ResetBossFight();   // puts the boss section back to the start (Try Again)
 	void SaveGame();
 
 	// DrawGui helpers — called only from DrawGui() each frame
@@ -92,6 +101,9 @@ private:
 
 	// Phase-based enemy progression — driven by PHASE_CHANGE events in the level script
 	int currentPhase;
+
+	// Boss test mode F5 skips the normal level script so only the boss is tested
+	bool bossTestMode;
 
 	// Explosion cooldown
 	float explosionCooldown;
@@ -133,6 +145,11 @@ private:
 	bool  f11Held;
 	float f11HoldTimer;
 
+	// Hold Q to warp
+	bool  Q_Held;
+	float Q_HoldTimer;
+
+
 	// Post-warp control ease-in — smoothly restores full player speed after warp ends
 	bool  prevWarping;
 	float postWarpTimer;
@@ -149,10 +166,13 @@ private:
 	unsigned int     lastHoveredId;
 	Uint64           lastHoverTick;
 
+	// HUD, pause menu, and game-over screen — extracted into HUDRenderer
+	HUDRenderer* hudRenderer;
+
 	std::unique_ptr<FMOD_AudioManager> FMOD_manager = nullptr;
 
 public:
-	explicit SceneMain();
+	explicit SceneMain(bool bossTestMode_ = false);
 	virtual ~SceneMain();
 
 	virtual bool OnCreate() override;
@@ -166,6 +186,3 @@ public:
 	// ImGui
 	virtual void DrawGui() override;
 };
-
-
-#endif // SCENETESTOLIVER_H

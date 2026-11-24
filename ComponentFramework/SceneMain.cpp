@@ -18,7 +18,7 @@
 #include "FMOD_AudioManager.h"
 
 // Constructor
-SceneMain::SceneMain() :
+SceneMain::SceneMain(bool bossTestMode_) :
     levelDirector{ nullptr },
     player{ nullptr },
     asteroid{ nullptr },
@@ -48,6 +48,11 @@ SceneMain::SceneMain() :
     sfxExplosion{ nullptr },
     sfxMissileHit{ nullptr },
     sfxShieldHit{ nullptr },
+    bossTestMode{ bossTestMode_ },
+    bossSpider{ nullptr },
+    bossBullets{ nullptr },
+    bossArena{ nullptr },
+    bossEncounter{ nullptr },
     bgmMusic{ nullptr },
     musicVolume{ 0.1f },
     sfxVolume{ 0.05f },
@@ -117,6 +122,29 @@ bool SceneMain::OnCreate() {
         std::cout << "Bot02 failed to load!\n";
         return false;
     }
+
+    // Spider boss, its bullets, the steel floor and the gate. They are built in every game, so there is no loading stutter
+    // when the boss section starts. The boss does nothing until the encounter activates it.
+    bossBullets = new BossBullets();
+    if (bossBullets->OnCreate("meshes/Temp_AlphaWingEX_Bot02_Bullet.obj",
+        "meshes/Temp_AlphaWing_PlayerShip_Missile.obj") == false) {
+        std::cout << "BossBullets failed to load!\n";
+        return false;
+    }
+
+    bossSpider = new BossSpider();
+    if (bossSpider->OnCreate(bossBullets) == false) {
+        std::cout << "BossSpider failed to load!\n";
+        return false;
+    }
+
+    // The steel floor under the fight. The boss walks as if the floor really scrolls under its feet.
+    bossArena = new BossArena();
+    bossSpider->SetFloorSpeed(bossArena->GetScrollSpeed());
+
+    // The flow of the whole boss section (it also owns the gate)
+    bossEncounter = new BossEncounter();
+
 
     // Bullet - handles regular bullets and missiles
     bullet = new Bullet();
@@ -291,12 +319,55 @@ bool SceneMain::OnCreate() {
     levelDirector->SetAsteroidCallback([this](float largeInterval, float smallInterval) {
         asteroid->SetSpawnRates(largeInterval, smallInterval);
         });
-    levelDirector->AddScript(new Level01Script(), 0.0f);
-    // Level02 starts at t=180s. Bring offset down to ~158s for a 22s overlap window
-    // where both zones' chunks scroll on screen simultaneously (seamless transition).
-    levelDirector->AddScript(new Level02Script(), 180.0f);
+    // The BOSS_ENCOUNTER event in the level script starts the boss section.
+    // If it was already played (dev key F6), the timeline is let go again right away.
+    levelDirector->SetBossCallback([this]() {
+        if (!bossEncounter->Start(4.0f)) levelDirector->ReleaseHold();
+        });
+
+    // In boss test mode (F5) no level script is added, so the section starts by itself after one second
+    if (bossTestMode) bossEncounter->Start(1.0f);
+    if (!bossTestMode) {
+        levelDirector->AddScript(new Level01Script(), 0.0f);
+        // Level02 starts at t=180s. Bring offset down to ~158s for a 22s overlap window
+        // where both zones' chunks scroll on screen simultaneously (seamless transition).
+        levelDirector->AddScript(new Level02Script(), 180.0f);
+    }
 
     debugOverlay = new DebugOverlay();
+
+    // HUD / pause menu / game-over screen
+    hudRenderer = new HUDRenderer();
+    HUDRenderer::Context hudCtx;
+    hudCtx.player = player;
+    hudCtx.bullet = bullet;
+    hudCtx.environment = environment;
+    hudCtx.shardBeacon = shardBeacon;
+    hudCtx.levelDirector = levelDirector;
+    hudCtx.asteroid = asteroid;
+    hudCtx.bot01 = bot01;
+    hudCtx.bot02 = bot02;
+    hudCtx.bgmPlayer = bgmPlayer;
+    hudCtx.sfxPlayer = sfxPlayer;
+    hudCtx.sfxLaserHitStream = sfxLaserHitStream;
+    hudCtx.hoverStream = hoverStream;
+    hudCtx.uiClickSound = uiClickSound;
+    hudCtx.gamePaused = &gamePaused;
+    hudCtx.gameOver = &gameOver;
+    hudCtx.score = &score;
+    hudCtx.shardCount = &shardCount;
+    hudCtx.currentPhase = &currentPhase;
+    hudCtx.prevLives = &prevLives;
+    hudCtx.autoSaveTimer = &autoSaveTimer;
+    hudCtx.beaconTriggerTime = &beaconTriggerTime;
+    hudCtx.Q_Held = &Q_Held;
+    hudCtx.Q_HoldTimer = &Q_HoldTimer;
+    hudCtx.musicVolume = &musicVolume;
+    hudCtx.sfxVolume = &sfxVolume;
+    hudCtx.clearShards = [this]() { shards.clear(); };
+    hudCtx.resetBoss = [this]() { ResetBossFight(); };
+    hudRenderer->Init(hudCtx);
+
 
     return true;
 }
@@ -365,6 +436,28 @@ void SceneMain::OnDestroy() {
     bot02->OnDestroy();
     delete bot02;
     bot02 = nullptr;
+
+    if (bossSpider) {
+        bossSpider->OnDestroy();
+        delete bossSpider;
+        bossSpider = nullptr;
+    }
+
+    if (bossBullets) {
+        bossBullets->OnDestroy();
+        delete bossBullets;
+        bossBullets = nullptr;
+    }
+
+    if (bossArena) {
+        delete bossArena;
+        bossArena = nullptr;
+    }
+
+    if (bossEncounter) {
+        delete bossEncounter;
+        bossEncounter = nullptr;
+    }
 
     bullet->OnDestroy();
     delete bullet;
@@ -455,6 +548,15 @@ void SceneMain::HandleEvents(const SDL_Event& sdlEvent) {
                 player->ApplyImpulse(Vec3(-1.5f, 0.0f, 0.0f)); // recoil
                 FMOD_manager->PlaySFXEvent(SFXLaser);
             }
+            break;
+        case SDL_SCANCODE_F6:
+            // dev key: start the boss section now, or skip the gate and go straight to the fight
+            if (bossEncounter->GetStage() == BossEncounter::Stage::WAITING) bossEncounter->Start(0.5f);
+            else bossEncounter->SkipToFight();
+            break;
+        case SDL_SCANCODE_F7:
+            // dev key: kills the boss, to test the ending
+            if (bossSpider->IsAlive()) bossSpider->TakeDamage(100000.0f);
             break;
         default:
             player->HandleEvents(sdlEvent);
