@@ -27,6 +27,7 @@ private:
 
 	float health;
 	float maxHealth;
+	float regenHealth;
 	int lives;
 	float heatLevel;
 	bool heatLockdown;
@@ -70,6 +71,8 @@ private:
 	static constexpr float kShieldPhaseCooldown     = 1.0f;
 	static constexpr float kShieldRechargedCooldown = 2.0f;
 
+	static constexpr float flashDuration = 0.1f;
+
 	float rollAngle;
 	float rollVelocity;
 	float rollStiffness;
@@ -78,6 +81,8 @@ private:
 
 	float thrustTimer;
 
+	bool isGotHit;
+	float flashTimeRemain;
 public:
 	Player();
 	~Player();
@@ -96,9 +101,12 @@ public:
 	float GetHealth() const { return health; }
 	float GetThrustPower() const { return thrustPower; }
 	float GetMaxHealth() const { return maxHealth; }
+	float GetHealthRegen() const { return regenHealth; }
 	int GetLives() const { return lives; }
 	float GetHeatLevel() const { return heatLevel; }
 	bool GetHeatLockdown() const { return heatLockdown; }
+	bool IsHited() const { return isGotHit; }
+	float GetShieldTimer() const { return shieldTimer; }
 	bool IsGameOver() const { return lives <= 0; }
 
 	// Damage and Reset
@@ -109,12 +117,12 @@ public:
 
 	// State restore (used by save/load system)
 	void SetHealth(float h)				{ health = (h > maxHealth ? maxHealth : h); }
-	void SetThrustPower(float tp)				{ thrustPower = tp; }
+	void SetThrustPower(float tp)		{ thrustPower = tp; }
 	void SetMaxHealth(float maxh)		{ maxHealth = maxh; }
+	void SetHealthRegen(float r)		{ regenHealth = r; }
 	void SetLives(int l)				{ lives  = l; }
 	void SetPosition(float x, float y)	{ pos    = Vec3(x, y, -10.0f); velocity = Vec3(0,0,0); }
-	void MoveTo(float x, float y) { pos = Vec3(x, y, -10.0f); }
-	void LoseLife() { if (lives > 0) { lives--; health = maxHealth; } }
+	void SetShieldTimer(float st)		{ shieldTimer = st; }
 
 	// Shield
 	void SetSFXStream(SDL_AudioStream* stream) { sfxStream = stream; }

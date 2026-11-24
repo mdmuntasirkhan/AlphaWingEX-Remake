@@ -58,7 +58,7 @@ void HUDRenderer::DrawHUD() {
 
     // Game HUD (always visible)
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(318, 292), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(318, 350), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.75f);
     ImGui::Begin("##hud", nullptr,
         ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoMove        |
@@ -108,12 +108,22 @@ void HUDRenderer::DrawHUD() {
     }
 
     // Health bar — green / yellow / red
-    float hp = ctx.player->GetHealth() / 100.0f;
+    ImGui::Text("HP:");
+    float hp = ctx.player->GetHealth() / ctx.player->GetMaxHealth();
     ImVec4 hpCol = hp > 0.6f ? ImVec4(0.0f, 1.0f, 0.0f, 1.0f)
                  : hp > 0.3f ? ImVec4(1.0f, 1.0f, 0.0f, 1.0f)
                              : ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
     ImGui::PushStyleColor(ImGuiCol_PlotHistogram, hpCol);
     ImGui::ProgressBar(hp, ImVec2(-1.0f, 20.0f), "");
+    ImGui::PopStyleColor();
+
+    // Heat level bar — cyan
+    ImGui::Text("HEAT LEVEL:");
+    float heat = ctx.player->GetHeatLevel() / 100.0f;
+    ImVec4 heatCol = ctx.player->GetHeatLockdown() ? ImVec4(1.0f, 0.3f, 0.3f, 1.0f)
+        : ImVec4(0.3, 1.0f, 1.0f, 1.0f);
+    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, heatCol);
+    ImGui::ProgressBar(heat, ImVec2(-1.0f, 20.0f), "");
     ImGui::PopStyleColor();
 
     // Three-chunk shield bar matching the three recharge penalty tiers

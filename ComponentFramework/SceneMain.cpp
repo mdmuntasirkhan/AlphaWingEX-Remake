@@ -563,6 +563,34 @@ void SceneMain::HandleEvents(const SDL_Event& sdlEvent) {
             // dev key: kills the boss, to test the ending
             if (bossSpider->IsAlive()) bossSpider->TakeDamage(100000.0f);
             break;
+        case SDL_SCANCODE_I:
+            shardCount = 9999; // 9999 currency cheat
+            break;
+        case SDL_SCANCODE_1: // upgrade Thrust Power
+            if (shardCount >= 5 * upgradeThrustPowerCount)
+            {
+                shardCount -= 5 * upgradeThrustPowerCount;
+                upgradeThrustPowerCount++;
+                player->SetThrustPower(player->GetThrustPower() * 1.05);
+            }
+            break;
+        case SDL_SCANCODE_2:
+            if (shardCount >= 5 * upgradeMaxHealthCount) // upgrade Max Health
+            {
+                shardCount -= 5 * upgradeMaxHealthCount;
+                upgradeMaxHealthCount++;
+                player->SetMaxHealth(player->GetMaxHealth() + 50);
+                player->SetHealth(player->GetHealth() + 50);
+            }
+            break;
+        case SDL_SCANCODE_3:
+            if (shardCount >= 5 * upgradeHealthRegenCount) // upgrade Health Regen
+            {
+                shardCount -= 5 * upgradeHealthRegenCount;
+                upgradeHealthRegenCount++;
+                player->SetHealthRegen(player->GetHealthRegen() + 0.005f);
+            }
+            break;
         default:
             player->HandleEvents(sdlEvent);
             break;
@@ -575,7 +603,6 @@ void SceneMain::HandleEvents(const SDL_Event& sdlEvent) {
             f11HoldTimer = 0.0f;   // release before 3 s cancels the charge
         }
         break;
-
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
         if (sdlEvent.button.button == SDL_BUTTON_LEFT) {
             if (!ImGui::GetIO().WantCaptureMouse) {
@@ -695,8 +722,12 @@ void SceneMain::SpawnShards(const Vec3& pos, int count) {
 // Update
 void SceneMain::Update(const float deltaTime) {
     debugOverlay->Update(deltaTime);
+    float currentPlayerHP = player->GetHealth();
+    float currentPlayerHPRegen = player->GetHealthRegen();
 
     if (gamePaused) return;
+
+    player->SetHealth(currentPlayerHP + currentPlayerHPRegen);
 
     if (hitPitchTimeRemain > 0){
         hitPitchTimeRemain -= deltaTime;
@@ -1121,6 +1152,8 @@ void SceneMain::Update(const float deltaTime) {
                 if (asteroid->DamageAsteroid(a, 999)) {
                     SpawnShards(pos, 3);
                     score += 10;
+                    float shield_t = player->GetShieldTimer();
+                    player->SetShieldTimer(shield_t + 2.0f);
                     if (explosionCooldownTimer <= 0.0f) {
                         FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
@@ -1137,6 +1170,8 @@ void SceneMain::Update(const float deltaTime) {
                 if (asteroid->DamageSmallAsteroid(a, 999)) {
                     SpawnShards(pos, 2);
                     score += 5;
+                    float shield_t = player->GetShieldTimer();
+                    player->SetShieldTimer(shield_t + 1.0f);
                     if (explosionCooldownTimer <= 0.0f) {
                         FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
@@ -1153,6 +1188,8 @@ void SceneMain::Update(const float deltaTime) {
                 if (bot01->DamageBot01(e, 999)) {
                     SpawnShards(pos, 5);
                     score += 50;
+                    float shield_t = player->GetShieldTimer();
+                    player->SetShieldTimer(shield_t + 4.0f);
                     if (explosionCooldownTimer <= 0.0f) {
                         FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
