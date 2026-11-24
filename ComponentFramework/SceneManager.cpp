@@ -7,6 +7,7 @@
 #include "SceneMuntasir.h"
 #include "SceneTestOliver.h"
 #include "SceneTitle.h"
+#include "SceneMain.h"
 #include "SceneSwitcher.h"
 
 
@@ -139,6 +140,7 @@ void SceneManager::Run() {
 			case GameScene::JA:    BuildNewScene(SceneID::JA);    break;
 			case GameScene::OLI:    BuildNewScene(SceneID::OLI);    break;
 			case GameScene::BOSS:   BuildNewScene(SceneID::BOSS);   break;
+			case GameScene::MAIN:	BuildNewScene(SceneID::MAIN);	break;
 			}
 		}
 
@@ -208,6 +210,7 @@ void SceneManager::HandleEvents() {
 			case SDL_SCANCODE_F3: BuildNewScene(SceneID::MUN);   break;
 			case SDL_SCANCODE_F4: BuildNewScene(SceneID::OLI);   break;
 			case SDL_SCANCODE_F5: BuildNewScene(SceneID::BOSS);  break;
+			case SDL_SCANCODE_F6: BuildNewScene(SceneID::MAIN);  break;
 			default: break;
 			}
 		}
@@ -256,6 +259,12 @@ bool SceneManager::BuildNewScene(SceneID id) {
 
 	case SceneID::OLI:
 		currentScene = new SceneTestOliver();
+		status = currentScene->OnCreate();
+		currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
+		break;
+
+	case SceneID::MAIN:
+		currentScene = new SceneMain();
 		status = currentScene->OnCreate();
 		currentScene->OnVideoChanged(window->getWidth(), window->getHeight());
 		break;

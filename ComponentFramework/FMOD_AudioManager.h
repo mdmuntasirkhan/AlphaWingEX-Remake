@@ -6,12 +6,11 @@
 #include <unordered_map>
 #include <string>
 
-#define CHECK(a)
+#define CHECK(a) checkFMOD(a, #a)
 
 // Naming / unchange Constans
 constexpr float MAX_VOLUME = 1.0F;
 constexpr float MIN_VOLUME = 0.0F;
-
 
 // Custom deleter
 // use for releasing memory from FMOD system
@@ -113,6 +112,7 @@ public:
 	bool PlaySFXEvent(const std::string& name);
 
 	bool setBGMintiensive(const float intensive);
+	bool setMasterPitch(const float newPitch);
 private:
 	/*
 	*	audioSystem is the basic raw system for FMOD api

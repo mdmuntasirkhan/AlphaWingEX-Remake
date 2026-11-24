@@ -21,6 +21,7 @@
 #include "Bot01.h"
 #include "Bot02.h"
 #include "Sound.h"
+#include "FMOD_AudioManager.h"
 
 HUDRenderer::HUDRenderer() :
     ctx{},
@@ -49,7 +50,7 @@ void HUDRenderer::PlayHoverSound() {
     if (id == lastHoveredId || now - lastHoverTick < 150) return;
     lastHoveredId = id;
     lastHoverTick = now;
-    ctx.uiClickSound->Play(ctx.hoverStream);
+    ctx.fmod_manager->PlaySFXEvent("UIClickSound");
 }
 
 // HUD
@@ -349,15 +350,14 @@ void HUDRenderer::DrawPauseMenu() {
             ImGui::SetCursorPosX(btnX);
             ImGui::SetNextItemWidth(btnW);
             if (ImGui::SliderFloat("##music", ctx.musicVolume, 0.0f, 1.0f))
-                SDL_SetAudioStreamGain(ctx.bgmPlayer, *ctx.musicVolume);
+                ctx.fmod_manager->SetBGMVolume(*ctx.musicVolume);
 
             ImGui::SetCursorPosX(btnX);
             ImGui::Text("SFX Volume");
             ImGui::SetCursorPosX(btnX);
             ImGui::SetNextItemWidth(btnW);
             if (ImGui::SliderFloat("##sfx", ctx.sfxVolume, 0.0f, 1.0f)) {
-                SDL_SetAudioStreamGain(ctx.sfxPlayer,         *ctx.sfxVolume);
-                SDL_SetAudioStreamGain(ctx.sfxLaserHitStream, *ctx.sfxVolume * 2.0f);
+                ctx.fmod_manager->SetSFXVolume(*ctx.sfxVolume);
                 if (ctx.hoverStream) SDL_SetAudioStreamGain(ctx.hoverStream, *ctx.sfxVolume * GameConst::kHoverStreamGain);
             }
 
