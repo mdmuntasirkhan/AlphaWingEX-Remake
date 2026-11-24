@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "revision": 0,
+    "rules": [
+        {
+            "primary-output": "Debug\\Shader.obj",
+            "outputs": [
+                "Debug\\Shader.cpp.obj.dt.module.json",
+                "Debug\\Shader.cpp.obj.dt.d.json"
+            ],
+            "requires": []
+        }
+    ]
+}

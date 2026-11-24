@@ -12,6 +12,13 @@ uniform vec3  viewPos;
 uniform float emissive;
 
 void main() {
+    
+    // for the red flash when taking damage
+    if (emissive > 1.5) {
+        fragColor = color;
+        return;
+    }
+    
     if (emissive > 0.5) {
         // Fresnel rim: transparent at center, opaque at edge — classic shield bubble.
         // Back faces are culled by the caller so only the outer surface renders.

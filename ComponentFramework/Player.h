@@ -20,6 +20,7 @@ private:
 	Mesh* cockpitMesh;
 	Mesh* attachmentMesh;
 	Mesh* thrustMesh;
+	Mesh* damageFlashMesh;
 	Matrix4 modelMatrix;
 
 	Vec3 pos;
@@ -78,6 +79,9 @@ private:
 	float maxRollAngle;
 
 	float thrustTimer;
+
+	float damageFlashTimer;
+	const float kFlashDuration = 0.25f;
 
 public:
 	Player();
