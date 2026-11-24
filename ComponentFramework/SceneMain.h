@@ -46,6 +46,7 @@ static constexpr float HitPitchRecovyTime = 0.35f;
 static constexpr float Phase1 = 0.0f;
 static constexpr float Phase2 = 3.0f;
 
+static constexpr int instanceThurstHold = 100;
 // Main Class
 class SceneMain : public Scene {
 private:
@@ -189,6 +190,7 @@ private:
 	std::unique_ptr<FMOD_AudioManager> FMOD_manager = nullptr;
 	float hitPitchTimeRemain;
 
+	int instance = 0;
 public:
 	explicit SceneMain(bool bossTestMode_ = false);
 	virtual ~SceneMain();

@@ -77,6 +77,8 @@ public:
 	void RemoveAsteroid(int index);
 	void RemoveSmallAsteroid(int index);
 
+	int GetCount() const { return (int)asteroidPositions.size() + smallAsteroidPositions.size(); }
+
 	// Knockback
 	void PushAsteroid(int index, float dx, float dy) {
 		if (index >= 0 && index < (int)asteroidKnockVelX.size()) {

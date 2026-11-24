@@ -315,19 +315,21 @@ bool SceneMain::OnCreate() {
     levelDirector->SetBot01Callback([this](int count, float interval, bool shielded) {
         bot01->TriggerWave(shielded ? Bot01WaveType::SHIELDED : Bot01WaveType::STANDARD,
             count, interval);
-        });
+        instance++; });
     levelDirector->SetBot02Callback([this]() {
         if (bot02->GetCount() == 0)
             bot02->Spawn(player->GetPosition().y);
+            instance++;
         });
     levelDirector->SetAsteroidCallback([this](float largeInterval, float smallInterval) {
         asteroid->SetSpawnRates(largeInterval, smallInterval);
+        instance++;
         });
     // The BOSS_ENCOUNTER event in the level script starts the boss section.
     // If it was already played (dev key F6), the timeline is let go again right away.
     levelDirector->SetBossCallback([this]() {
         if (!bossEncounter->Start(4.0f)) levelDirector->ReleaseHold();
-        });
+    });
 
     // In boss test mode (F5) no level script is added, so the section starts by itself after one second
     if (bossTestMode) bossEncounter->Start(1.0f);
@@ -556,7 +558,7 @@ void SceneMain::HandleEvents(const SDL_Event& sdlEvent) {
                 FMOD_manager->PlaySFXEvent(SFXLaser);
             }
             break;
-        case SDL_SCANCODE_F6:
+        case SDL_SCANCODE_F8:
             // dev key: start the boss section now, or skip the gate and go straight to the fight
             if (bossEncounter->GetStage() == BossEncounter::Stage::WAITING) bossEncounter->Start(0.5f);
             else bossEncounter->SkipToFight();
@@ -745,7 +747,8 @@ void SceneMain::Update(const float deltaTime) {
 
     // if players health drops below half change the bgm to phase 2
     // (quite expensive, should be in somewhere else)
-    if (player->GetHealth() <= player->GetMaxHealth() / 2) {
+    instance = bot01->GetCount() + bot02->GetCount() + asteroid->GetCount();
+    if (player->GetHealth() <= player->GetMaxHealth() / 2 || instance >= instanceThurstHold) {
         FMOD_manager->setBGMintiensive(Phase2);
     }
     else {

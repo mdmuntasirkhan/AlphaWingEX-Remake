@@ -7,9 +7,6 @@
     <ClCompile Include="SaveData.cpp" />
     <ClCompile Include="Timer.cpp" />
     <ClCompile Include="Window.cpp" />
-    <ClCompile Include="Asteroid.cpp">
-      <Filter>Character\Player</Filter>
-    </ClCompile>
     <ClCompile Include="Bot01.cpp">
       <Filter>Character\Enemy</Filter>
     </ClCompile>
@@ -133,6 +130,9 @@
     <ClCompile Include="BossGate.cpp">
       <Filter>Character\Enemy</Filter>
     </ClCompile>
+    <ClCompile Include="Asteroid.cpp">
+      <Filter>Character\Enemy</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DebugOverlay.h" />
@@ -144,9 +144,6 @@
     <ClInclude Include="Timer.h" />
     <ClInclude Include="tiny_obj_loader.h" />
     <ClInclude Include="Window.h" />
-    <ClInclude Include="Asteroid.h">
-      <Filter>Character\Player</Filter>
-    </ClInclude>
     <ClInclude Include="Bot02.h">
       <Filter>Character\Enemy</Filter>
     </ClInclude>
@@ -283,6 +280,9 @@
       <Filter>Character\Enemy</Filter>
     </ClInclude>
     <ClInclude Include="BossGate.h">
+      <Filter>Character\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="Asteroid.h">
       <Filter>Character\Enemy</Filter>
     </ClInclude>
   </ItemGroup>
