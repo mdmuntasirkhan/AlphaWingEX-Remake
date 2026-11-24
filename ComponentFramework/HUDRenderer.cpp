@@ -21,6 +21,7 @@
 #include "Bot01.h"
 #include "Bot02.h"
 #include "Sound.h"
+#include "FMOD_AudioManager.h"
 
 HUDRenderer::HUDRenderer() :
     ctx{},
@@ -49,7 +50,7 @@ void HUDRenderer::PlayHoverSound() {
     if (id == lastHoveredId || now - lastHoverTick < 150) return;
     lastHoveredId = id;
     lastHoverTick = now;
-    ctx.uiClickSound->Play(ctx.hoverStream);
+    ctx.fmod_manager->PlaySFXEvent("UIClickSound");
 }
 
 // HUD
@@ -57,7 +58,7 @@ void HUDRenderer::DrawHUD() {
 
     // Game HUD (always visible)
     ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(318, 292), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(318, 350), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.75f);
     ImGui::Begin("##hud", nullptr,
         ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoMove        |
@@ -107,12 +108,22 @@ void HUDRenderer::DrawHUD() {
     }
 
     // Health bar — green / yellow / red
-    float hp = ctx.player->GetHealth() / 100.0f;
+    ImGui::Text("HP:");
+    float hp = ctx.player->GetHealth() / ctx.player->GetMaxHealth();
     ImVec4 hpCol = hp > 0.6f ? ImVec4(0.0f, 1.0f, 0.0f, 1.0f)
                  : hp > 0.3f ? ImVec4(1.0f, 1.0f, 0.0f, 1.0f)
                              : ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
     ImGui::PushStyleColor(ImGuiCol_PlotHistogram, hpCol);
     ImGui::ProgressBar(hp, ImVec2(-1.0f, 20.0f), "");
+    ImGui::PopStyleColor();
+
+    // Heat level bar — cyan
+    ImGui::Text("HEAT LEVEL:");
+    float heat = ctx.player->GetHeatLevel() / 100.0f;
+    ImVec4 heatCol = ctx.player->GetHeatLockdown() ? ImVec4(1.0f, 0.3f, 0.3f, 1.0f)
+        : ImVec4(0.3, 1.0f, 1.0f, 1.0f);
+    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, heatCol);
+    ImGui::ProgressBar(heat, ImVec2(-1.0f, 20.0f), "");
     ImGui::PopStyleColor();
 
     // Three-chunk shield bar matching the three recharge penalty tiers
@@ -349,15 +360,14 @@ void HUDRenderer::DrawPauseMenu() {
             ImGui::SetCursorPosX(btnX);
             ImGui::SetNextItemWidth(btnW);
             if (ImGui::SliderFloat("##music", ctx.musicVolume, 0.0f, 1.0f))
-                SDL_SetAudioStreamGain(ctx.bgmPlayer, *ctx.musicVolume);
+                ctx.fmod_manager->SetBGMVolume(*ctx.musicVolume);
 
             ImGui::SetCursorPosX(btnX);
             ImGui::Text("SFX Volume");
             ImGui::SetCursorPosX(btnX);
             ImGui::SetNextItemWidth(btnW);
             if (ImGui::SliderFloat("##sfx", ctx.sfxVolume, 0.0f, 1.0f)) {
-                SDL_SetAudioStreamGain(ctx.sfxPlayer,         *ctx.sfxVolume);
-                SDL_SetAudioStreamGain(ctx.sfxLaserHitStream, *ctx.sfxVolume * 2.0f);
+                ctx.fmod_manager->SetSFXVolume(*ctx.sfxVolume);
                 if (ctx.hoverStream) SDL_SetAudioStreamGain(ctx.hoverStream, *ctx.sfxVolume * GameConst::kHoverStreamGain);
             }
 
@@ -632,6 +642,42 @@ void HUDRenderer::DrawBanner(const char* title, const char* subtitle, float alph
         ImVec2((screen.x - titleBox.x) * 0.5f, screen.y * 0.45f - titleBox.y), IM_COL32(235, 235, 235, (int)(255.0f * alpha)), title);
     dl->AddText(ImGui::GetFont(), subSize,
         ImVec2((screen.x - subBox.x) * 0.5f, screen.y * 0.45f + subSize * 0.5f), IM_COL32(150, 220, 235, (int)(255.0f * alpha)), subtitle);
+}
+
+void HUDRenderer::DrawSurroundingBars()
+{
+    Vec4 clip = ctx.projectionMatrix * ctx.viewMatrix * Vec4(ctx.player->GetPosition(), 1.0f);
+
+    ImGuiViewport* ImGuiMainViewPort = ImGui::GetMainViewport();
+    ImVec2 shipPosBaseOnImGuiVP(
+        ImGuiMainViewPort->Pos.x + (0.5f + 0.5f * clip.x / clip.w) * ImGuiMainViewPort->Size.x,
+        ImGuiMainViewPort->Pos.y + (0.5f - 0.5f * clip.y / clip.w) * ImGuiMainViewPort->Size.y);
+
+    ImDrawList* dl = ImGui::GetBackgroundDrawList(); // use background drawlist for drawing
+    ImVec2 radius(120.0f, 60.0f);
+
+    // draw the Hp bar
+    float hp = ctx.player->GetHealth() / ctx.player->GetMaxHealth();
+    float shield = ctx.player->GetShieldChargeFraction();
+
+    // creats a mini function
+    auto drawBar = [&](float start, float end, float fraction, ImVec4 color) {
+        float fillEnd = start + (end - start) * fraction;
+        dl->PathEllipticalArcTo(shipPosBaseOnImGuiVP, radius, 0.0f, start, fillEnd, 50);
+        ImU32 barColor = ImGui::ColorConvertFloat4ToU32(color);
+        dl->PathStroke(barColor, 0, 8.0f);
+    };
+
+    ImVec4 hpCol = ctx.player->GetHealth() > 0.6f ? ImVec4(0.0f, 1.0f, 0.0f, 1.0f)
+        : ctx.player->GetHealth() > 0.3f ? ImVec4(1.0f, 1.0f, 0.0f, 1.0f)
+        : ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+
+    drawBar(-2.5f, -0.5f, hp, hpCol);
+
+    ImVec4 heatCol = ctx.player->GetHeatLockdown() ? ImVec4(1.0f, 0.3f, 0.3f, 1.0f)
+        : ImVec4(0.3, 1.0f, 1.0f, 1.0f);
+
+    drawBar(2.5f, 0.5f, shield, heatCol);
 }
 
 // A WARNING at the top of the screen, for one dangerous attack.

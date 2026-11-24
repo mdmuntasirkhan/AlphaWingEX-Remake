@@ -9,9 +9,11 @@ Player::Player() :  mesh { nullptr },
 					cockpitMesh { nullptr },
 					attachmentMesh { nullptr },
 					thrustMesh { nullptr },
+					damageFlashMesh { nullptr },
 					speed { 5.0f }, 
 					health { 100 }, 
 					maxHealth { 100 }, 
+					regenHealth {0.0f},
 					lives { 3 },
 					heatLevel { 0.0f },
 					heatLockdown { false },
@@ -35,6 +37,7 @@ Player::Player() :  mesh { nullptr },
 					rollDamping          { 16.0f },
 					maxRollAngle         { 5.0f },
 					thrustTimer          { 0.0f },
+					damageFlashTimer	 { 0.0f },
 					sfxStream            { nullptr },
 					sfxShieldPhase01     { nullptr },
 					sfxShieldPhase02     { nullptr },
@@ -87,6 +90,14 @@ bool Player::OnCreate(const char* meshFile) {
 		return false;
 	}
 
+	
+	damageFlashMesh = new Mesh("meshes/quad.obj");
+	if (damageFlashMesh->OnCreate() == false) {
+		std::cout << "Thrust mesh not found!\n";
+		return false;
+	}
+
+
 	pos = Vec3(0.0f, 0.0f, -10.0f);
 	modelMatrix = MMath::translate(pos) *
 				  MMath::scale(0.5f, 0.5f, 0.5f);
@@ -134,6 +145,12 @@ void Player::OnDestroy() {
 		thrustMesh = nullptr;
 	}
 
+	if (damageFlashMesh) {
+		damageFlashMesh->OnDestroy();
+		delete damageFlashMesh;
+		damageFlashMesh = nullptr;
+	}
+
 	if (sfxShieldPhase01)   { sfxShieldPhase01->OnDestroy();   delete sfxShieldPhase01;   sfxShieldPhase01   = nullptr; }
 	if (sfxShieldPhase02)   { sfxShieldPhase02->OnDestroy();   delete sfxShieldPhase02;   sfxShieldPhase02   = nullptr; }
 	if (sfxShieldRecharged) { sfxShieldRecharged->OnDestroy(); delete sfxShieldRecharged; sfxShieldRecharged = nullptr; }
@@ -144,7 +161,10 @@ void Player::HandleEvents(const SDL_Event& sdlEvent) {
 	if (sdlEvent.type == SDL_EVENT_KEY_DOWN) {
 		switch (sdlEvent.key.scancode) {
 		case SDL_SCANCODE_E:
-			ActivateShield();
+			if (!GetHeatLockdown())
+			{
+				ActivateShield();
+			}
 			break;
 		default:
 			break;
@@ -184,6 +204,14 @@ void Player::Update(float deltaTime) {
 	if (pos.y < -GameConst::kWorldBoundY) { pos.y = -GameConst::kWorldBoundY; velocity.y = 0.0f; }
 	if (pos.y >  GameConst::kWorldBoundY) { pos.y =  GameConst::kWorldBoundY; velocity.y = 0.0f; }
 
+	// flash the screen red briefly when damaged
+	if (damageFlashTimer > 0.0f) {
+		damageFlashTimer -= deltaTime;
+		if (damageFlashTimer < 0.0f) {
+			damageFlashTimer = 0.0f;
+		}
+	}
+
 
 	thrustTimer += deltaTime;
 
@@ -197,10 +225,16 @@ void Player::Update(float deltaTime) {
 
 	if (shieldActive) {
 		shieldTimer += deltaTime;
+		IncreaseHeatLevel(0.25f);
 		if (shieldTimer >= shieldDuration) {
 			shieldTimer        = shieldDuration;
 			shieldActive       = false;
 			shieldRechargeRate = kRecharge90Rate; // expired = worst penalty
+		}
+
+		else if (GetHeatLockdown())
+		{
+			shieldActive = false;
 		}
 	} else if (shieldTimer > 0.0f) {
 		shieldTimer -= deltaTime * shieldRechargeRate;
@@ -262,6 +296,11 @@ void Player::Update(float deltaTime) {
 		}
 	}
 
+	flashTimeRemain -= deltaTime;
+	if (flashTimeRemain < 0.0f) {
+		isGotHit = false;
+		flashTimeRemain = 0.0f;
+	}
 }
 
 
@@ -274,8 +313,33 @@ void Player::Render(Shader* shader,
 	glUniformMatrix4fv(shader->GetUniformID("viewMatrix"), 1, GL_FALSE, viewMatrix);
 	glUniformMatrix4fv(shader->GetUniformID("modelMatrix"),	1, GL_FALSE, modelMatrix);
 
+	float shipBodyR = 0.72f;
+	float shipBodyG = 0.76f;
+	float shipBodyB = 0.82f;
+
+	float overheatedR = 1.0f;
+	float overheatedG = 0.1f;
+	float overheatedB = 0.1f;
+	
+	// Flash the ship red if it is overheated, otherwise display its color as normal
+	// Uses the sine waves for the pulsing red flash
+	if (GetHeatLockdown())
+	{
+		float t = (std::sin(heatLevel * 0.25f) + 1.0f) * 0.5f;
+
+		shipBodyR = shipBodyR + (overheatedR - shipBodyR) * t;
+		shipBodyG = shipBodyG + (overheatedG - shipBodyG) * t;
+		shipBodyB = shipBodyB + (overheatedB - shipBodyB) * t;
+	}
+	else if (IsHited() && !GetHeatLockdown()) {
+		float t = flashTimeRemain / flashDuration;
+		shipBodyR = shipBodyR + (overheatedR - shipBodyR) * t;
+		shipBodyG = shipBodyG + (overheatedG - shipBodyG) * t;
+		shipBodyB = shipBodyB + (overheatedB - shipBodyB) * t;
+	}
+
 	// Ship body — cool metallic silver (Phong shading)
-	glUniform4f(shader->GetUniformID("color"), 0.72f, 0.76f, 0.82f, 1.0f);
+	glUniform4f(shader->GetUniformID("color"), shipBodyR, shipBodyG, shipBodyB, 1.0f);
 	mesh->Render();
 
 	// Cockpit — electric blue (Phong)
@@ -344,17 +408,52 @@ void Player::Render(Shader* shader,
 		glDisable(GL_BLEND);
 		glDepthMask(GL_TRUE);
 	}
+
+	if (damageFlashTimer > 0.0f && damageFlashMesh != nullptr) {
+		float maxAlpha = 0.4f;
+		float currentAlpha = (damageFlashTimer / kFlashDuration) * maxAlpha;
+
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glDepthMask(GL_FALSE);
+		glDisable(GL_DEPTH_TEST);
+
+		// using the identity matrix to have the quad fill the screen
+		Matrix4 identity;
+		glUniformMatrix4fv(shader->GetUniformID("projectionMatrix"), 1, GL_FALSE, identity);
+		glUniformMatrix4fv(shader->GetUniformID("viewMatrix"), 1, GL_FALSE, identity);
+		glUniformMatrix4fv(shader->GetUniformID("modelMatrix"), 1, GL_FALSE, identity);
+
+		glUniform1f(shader->GetUniformID("emissive"), 2.0f); // enters the 1.5f condition in the frag shader
+		glUniform4f(shader->GetUniformID("color"), 1.0f, 0.0f, 0.0f, currentAlpha);
+
+		damageFlashMesh->Render();
+
+		// restore previous state so anything rendered after Player doesnt get messed up
+		glUniform1f(shader->GetUniformID("emissive"), 0.0f);
+		glEnable(GL_DEPTH_TEST);
+		glDepthMask(GL_TRUE);
+		glDisable(GL_BLEND);
+	}
 }
 
 void Player::TakeDamage(float amount) {
-	if (shieldActive) return;
+	if (shieldActive)
+	{
+		return;
+	}
 	if (lives <= 0) return;
+
+	damageFlashTimer = kFlashDuration;
 
 	health -= amount;
 	if (health <= 0.0f) {
 		lives--;
 		health = maxHealth;
 	}
+
+	isGotHit = true;
+	flashTimeRemain = flashDuration;
 }
 
 void Player::ActivateShield() {

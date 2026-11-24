@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <SDL3/SDL_stdinc.h>
+#include <Matrix.h>
 
 struct SDL_AudioStream;
 class Player;
@@ -14,6 +15,8 @@ class Asteroid;
 class Bot01;
 class Bot02;
 class Sound;
+class FMOD_AudioManager;
+class ImVec2;
 
 // Draws the in-game HUD, pause menu, and game-over screen for SceneMuntasir.
 // Owns only HUD-presentation state (pending settings, hover debounce, etc.);
@@ -37,6 +40,10 @@ public:
         SDL_AudioStream* sfxLaserHitStream = nullptr;
         SDL_AudioStream* hoverStream       = nullptr;
         Sound*           uiClickSound      = nullptr;
+        FMOD_AudioManager* fmod_manager     = nullptr;
+
+        MATH::Matrix4 projectionMatrix;
+        MATH::Matrix4 viewMatrix;
 
         // Game-state fields — still owned by SceneMuntasir, HUDRenderer reads/writes via pointer
         bool*  gamePaused        = nullptr;
@@ -51,6 +58,7 @@ public:
         float* Q_HoldTimer       = nullptr;
         float* musicVolume       = nullptr;
         float* sfxVolume         = nullptr;
+        float* heatLevel         = nullptr;
 
         // SceneMuntasir::shards is a private std::vector<Shard>; this callback lets
         // DrawGameOver's "Try Again" button clear it without exposing the Shard type.
@@ -87,6 +95,8 @@ public:
 
     // Big text in the middle of the screen, for example when the boss is defeated.
     void DrawBanner(const char* title, const char* subtitle, float alpha);
+
+    void DrawSurroundingBars();
 
 private:
     void PlayHoverSound();

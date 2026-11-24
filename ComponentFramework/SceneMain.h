@@ -1,6 +1,4 @@
 #pragma once
-#ifndef SCENETESTOLIVER_H
-#define SCENETESTOLIVER_H
 #include "Scene.h"
 #include "Vector.h"
 #include <Matrix.h>
@@ -16,6 +14,11 @@
 #include "LevelDirector.h"
 #include "ShardBeacon.h"
 #include "DebugOverlay.h"
+#include "BossSpider.h"
+#include "BossBullets.h"
+#include "BossArena.h"
+#include "BossEncounter.h"
+#include "HUDRenderer.h"
 #include <vector>
 
 using namespace MATH;
@@ -24,6 +27,26 @@ union SDL_Event;
 class Shader;
 class FMOD_AudioManager;
 
+// Naming Veriables
+inline static std::string MainBank = "MainBank";
+inline static std::string MainTheme = "MainTheme";
+
+inline static std::string SFXLaser = "SFXLaser";
+inline static std::string SFXLaserHit = "SFXLaserHit";
+inline static std::string SFXExplosion = "SFXExplosion";
+inline static std::string SFXMissileHit = "SFXMissileHit";
+inline static std::string SFXShieldHit = "SFXShieldHit";
+inline static std::string UIclickSound = "UIClickSound";
+
+static constexpr float NormalPitchLevel = 0.5f;
+static constexpr float HitPitchLevel = 0.25f;
+static constexpr float HitPitchDuration = 0.65f;
+static constexpr float HitPitchRecovyTime = 0.35f;
+
+static constexpr float Phase1 = 0.0f;
+static constexpr float Phase2 = 3.0f;
+
+// Main Class
 class SceneMain : public Scene {
 private:
 	// Level scripting — environment mesh chunks, timeline events
@@ -36,6 +59,11 @@ private:
 	Bot02* bot02;
 	Bullet* bullet;
 	Environment* environment;
+
+	BossSpider* bossSpider;
+	BossBullets* bossBullets;
+	BossArena* bossArena;
+	BossEncounter* bossEncounter;   // the flow of the boss section: gate, warning, fight, end
 
 	// Shader and Camera
 	Shader* shader;
@@ -58,6 +86,11 @@ private:
 	int   shardCount;
 	Mesh* shardMesh;
 
+	// How many times each stat has been upgraded
+	int upgradeThrustPowerCount;
+	int upgradeMaxHealthCount;
+	int upgradeHealthRegenCount;
+
 	// Lost shard beacon — satellite placed at death position, recoverable next run
 	ShardBeacon* shardBeacon;
 	float beaconTriggerTime;  // level time at which beacon activates (0 = inactive or immediate)
@@ -67,6 +100,7 @@ private:
 	static constexpr float kCollectRadius = 0.5f;
 
 	void SpawnShards(const Vec3& pos, int count);
+	void ResetBossFight();   // puts the boss section back to the start (Try Again)
 	void SaveGame();
 
 	// DrawGui helpers — called only from DrawGui() each frame
@@ -75,12 +109,18 @@ private:
 	void DrawGameOver();  // game-over screen with Try Again / Title / Exit buttons
 	void PlayHoverSound(); // plays a quiet click when the cursor moves onto a new button
 
+	// Damage Player at the main time sets its pitch value to a lower level
+	void DamagePlayer(float amount);
+
 	// Auto-save
 	float autoSaveTimer;
 	static constexpr float kAutoSaveInterval = 10.0f;
 
 	// Phase-based enemy progression — driven by PHASE_CHANGE events in the level script
 	int currentPhase;
+
+	// Boss test mode F5 skips the normal level script so only the boss is tested
+	bool bossTestMode;
 
 	// Explosion cooldown
 	float explosionCooldown;
@@ -122,6 +162,11 @@ private:
 	bool  f11Held;
 	float f11HoldTimer;
 
+	// Hold Q to warp
+	bool  Q_Held;
+	float Q_HoldTimer;
+
+
 	// Post-warp control ease-in — smoothly restores full player speed after warp ends
 	bool  prevWarping;
 	float postWarpTimer;
@@ -138,10 +183,14 @@ private:
 	unsigned int     lastHoveredId;
 	Uint64           lastHoverTick;
 
+	// HUD, pause menu, and game-over screen — extracted into HUDRenderer
+	HUDRenderer* hudRenderer;
+
 	std::unique_ptr<FMOD_AudioManager> FMOD_manager = nullptr;
+	float hitPitchTimeRemain;
 
 public:
-	explicit SceneMain();
+	explicit SceneMain(bool bossTestMode_ = false);
 	virtual ~SceneMain();
 
 	virtual bool OnCreate() override;
@@ -155,6 +204,3 @@ public:
 	// ImGui
 	virtual void DrawGui() override;
 };
-
-
-#endif // SCENETESTOLIVER_H

@@ -18,7 +18,7 @@
 #include "FMOD_AudioManager.h"
 
 // Constructor
-SceneMain::SceneMain() :
+SceneMain::SceneMain(bool bossTestMode_) :
     levelDirector{ nullptr },
     player{ nullptr },
     asteroid{ nullptr },
@@ -48,6 +48,11 @@ SceneMain::SceneMain() :
     sfxExplosion{ nullptr },
     sfxMissileHit{ nullptr },
     sfxShieldHit{ nullptr },
+    bossTestMode{ bossTestMode_ },
+    bossSpider{ nullptr },
+    bossBullets{ nullptr },
+    bossArena{ nullptr },
+    bossEncounter{ nullptr },
     bgmMusic{ nullptr },
     musicVolume{ 0.1f },
     sfxVolume{ 0.05f },
@@ -117,6 +122,29 @@ bool SceneMain::OnCreate() {
         std::cout << "Bot02 failed to load!\n";
         return false;
     }
+
+    // Spider boss, its bullets, the steel floor and the gate. They are built in every game, so there is no loading stutter
+    // when the boss section starts. The boss does nothing until the encounter activates it.
+    bossBullets = new BossBullets();
+    if (bossBullets->OnCreate("meshes/Temp_AlphaWingEX_Bot02_Bullet.obj",
+        "meshes/Temp_AlphaWing_PlayerShip_Missile.obj") == false) {
+        std::cout << "BossBullets failed to load!\n";
+        return false;
+    }
+
+    bossSpider = new BossSpider();
+    if (bossSpider->OnCreate(bossBullets) == false) {
+        std::cout << "BossSpider failed to load!\n";
+        return false;
+    }
+
+    // The steel floor under the fight. The boss walks as if the floor really scrolls under its feet.
+    bossArena = new BossArena();
+    bossSpider->SetFloorSpeed(bossArena->GetScrollSpeed());
+
+    // The flow of the whole boss section (it also owns the gate)
+    bossEncounter = new BossEncounter();
+
 
     // Bullet - handles regular bullets and missiles
     bullet = new Bullet();
@@ -199,12 +227,20 @@ bool SceneMain::OnCreate() {
     FMOD_manager->loadBank("Master_String", "audio/bank/Master.strings.bank");
     FMOD_manager->loadBank("Master_Bus", "audio/bank/Bus.bank");
 
-    FMOD_manager->loadBank("MainBank", "audio/bank/AlphaWingEX.bank");
+    FMOD_manager->loadBank(MainBank, "audio/bank/AlphaWingEX.bank");
 
-    // Music
-    bgmMusic = new Sound("audio/music/deadmou5-gg.wav");
-    bgmMusic->OnCreate();
-    bgmMusic->Play(bgmPlayer);
+    // Music FMOD
+    FMOD_manager->loadEvent(MainTheme, "event:/BGM/BGM-Dynamic");
+    FMOD_manager->PlayBGMEvent(MainTheme);
+    FMOD_manager->setMasterPitch(NormalPitchLevel);
+    FMOD_manager->SetBGMVolume(0.0f);
+
+    // SFX FMOD
+    FMOD_manager->loadEvent(SFXLaser, "event:/SFX/SFX-LaserShoot");
+    FMOD_manager->loadEvent(SFXLaserHit, "event:/SFX/SFX-LaserHit");
+    FMOD_manager->loadEvent(SFXExplosion, "event:/SFX/SFX-LaserExplosion");
+    FMOD_manager->loadEvent(SFXMissileHit, "event:/SFX/SFX-LaserMissileHit");
+    FMOD_manager->loadEvent(SFXShieldHit, "event:/SFX/SFX-ShiledHit");
 
     // SFX
     sfxLaser = new Sound("audio/sfx/LaserShoot.wav");
@@ -232,6 +268,8 @@ bool SceneMain::OnCreate() {
     }
     uiClickSound = new Sound("audio/sfx/Select01.wav");
     uiClickSound->OnCreate();
+
+    FMOD_manager->loadEvent(UIclickSound, "event:/SFX/SFX-Hover");
 
     SDL_Log("Music queued bytes: %d", SDL_GetAudioStreamQueued(bgmPlayer));
     SDL_Log("SFX queued bytes: %d", SDL_GetAudioStreamQueued(sfxPlayer));
@@ -266,8 +304,8 @@ bool SceneMain::OnCreate() {
     prevLives = player->GetLives();
 
     // Apply saved audio preferences
-    SDL_SetAudioStreamGain(bgmPlayer, SaveData::current.musicVolume);
-    SDL_SetAudioStreamGain(sfxPlayer, SaveData::current.sfxVolume);
+    FMOD_manager->SetBGMVolume(SaveData::current.musicVolume);
+    FMOD_manager->SetSFXVolume(SaveData::current.sfxVolume);
     musicVolume = SaveData::current.musicVolume;
     sfxVolume = SaveData::current.sfxVolume;
 
@@ -285,12 +323,58 @@ bool SceneMain::OnCreate() {
     levelDirector->SetAsteroidCallback([this](float largeInterval, float smallInterval) {
         asteroid->SetSpawnRates(largeInterval, smallInterval);
         });
-    levelDirector->AddScript(new Level01Script(), 0.0f);
-    // Level02 starts at t=180s. Bring offset down to ~158s for a 22s overlap window
-    // where both zones' chunks scroll on screen simultaneously (seamless transition).
-    levelDirector->AddScript(new Level02Script(), 180.0f);
+    // The BOSS_ENCOUNTER event in the level script starts the boss section.
+    // If it was already played (dev key F6), the timeline is let go again right away.
+    levelDirector->SetBossCallback([this]() {
+        if (!bossEncounter->Start(4.0f)) levelDirector->ReleaseHold();
+        });
+
+    // In boss test mode (F5) no level script is added, so the section starts by itself after one second
+    if (bossTestMode) bossEncounter->Start(1.0f);
+    if (!bossTestMode) {
+        levelDirector->AddScript(new Level01Script(), 0.0f);
+        // Level02 starts at t=180s. Bring offset down to ~158s for a 22s overlap window
+        // where both zones' chunks scroll on screen simultaneously (seamless transition).
+        levelDirector->AddScript(new Level02Script(), 180.0f);
+    }
 
     debugOverlay = new DebugOverlay();
+
+    // HUD / pause menu / game-over screen
+    hudRenderer = new HUDRenderer();
+    HUDRenderer::Context hudCtx;
+    hudCtx.player = player;
+    hudCtx.bullet = bullet;
+    hudCtx.environment = environment;
+    hudCtx.shardBeacon = shardBeacon;
+    hudCtx.levelDirector = levelDirector;
+    hudCtx.asteroid = asteroid;
+    hudCtx.bot01 = bot01;
+    hudCtx.bot02 = bot02;
+    hudCtx.bgmPlayer = bgmPlayer;
+    hudCtx.sfxPlayer = sfxPlayer;
+    hudCtx.sfxLaserHitStream = sfxLaserHitStream;
+    hudCtx.hoverStream = hoverStream;
+    hudCtx.uiClickSound = uiClickSound;
+    hudCtx.gamePaused = &gamePaused;
+    hudCtx.gameOver = &gameOver;
+    hudCtx.score = &score;
+    hudCtx.shardCount = &shardCount;
+    hudCtx.currentPhase = &currentPhase;
+    hudCtx.prevLives = &prevLives;
+    hudCtx.autoSaveTimer = &autoSaveTimer;
+    hudCtx.beaconTriggerTime = &beaconTriggerTime;
+    hudCtx.Q_Held = &Q_Held;
+    hudCtx.Q_HoldTimer = &Q_HoldTimer;
+    hudCtx.musicVolume = &musicVolume;
+    hudCtx.sfxVolume = &sfxVolume;
+    hudCtx.clearShards = [this]() { shards.clear(); };
+    hudCtx.resetBoss = [this]() { ResetBossFight(); };
+    hudCtx.fmod_manager = FMOD_manager.get();
+    hudCtx.viewMatrix = viewMatrix;
+    hudCtx.projectionMatrix = projectionMatrix;
+    hudRenderer->Init(hudCtx);
+
 
     return true;
 }
@@ -360,6 +444,28 @@ void SceneMain::OnDestroy() {
     delete bot02;
     bot02 = nullptr;
 
+    if (bossSpider) {
+        bossSpider->OnDestroy();
+        delete bossSpider;
+        bossSpider = nullptr;
+    }
+
+    if (bossBullets) {
+        bossBullets->OnDestroy();
+        delete bossBullets;
+        bossBullets = nullptr;
+    }
+
+    if (bossArena) {
+        delete bossArena;
+        bossArena = nullptr;
+    }
+
+    if (bossEncounter) {
+        delete bossEncounter;
+        bossEncounter = nullptr;
+    }
+
     bullet->OnDestroy();
     delete bullet;
     bullet = nullptr;
@@ -402,9 +508,7 @@ void SceneMain::OnDestroy() {
     SDL_DestroyAudioStream(bgmPlayer);
     SDL_DestroyAudioStream(sfxPlayer);
     SDL_DestroyAudioStream(sfxLaserHitStream);
-    bgmMusic->OnDestroy();
-    delete bgmMusic;
-
+    
     delete debugOverlay;
     debugOverlay = nullptr;
 
@@ -449,7 +553,44 @@ void SceneMain::HandleEvents(const SDL_Event& sdlEvent) {
                 bullet->Spawn(player->GetPosition());
                 player->IncreaseHeatLevel(10.0f);
                 player->ApplyImpulse(Vec3(-1.5f, 0.0f, 0.0f)); // recoil
-                sfxLaser->Play(sfxPlayer);
+                FMOD_manager->PlaySFXEvent(SFXLaser);
+            }
+            break;
+        case SDL_SCANCODE_F6:
+            // dev key: start the boss section now, or skip the gate and go straight to the fight
+            if (bossEncounter->GetStage() == BossEncounter::Stage::WAITING) bossEncounter->Start(0.5f);
+            else bossEncounter->SkipToFight();
+            break;
+        case SDL_SCANCODE_F7:
+            // dev key: kills the boss, to test the ending
+            if (bossSpider->IsAlive()) bossSpider->TakeDamage(100000.0f);
+            break;
+        case SDL_SCANCODE_I:
+            shardCount = 9999; // 9999 currency cheat
+            break;
+        case SDL_SCANCODE_1: // upgrade Thrust Power
+            if (shardCount >= 5 * upgradeThrustPowerCount)
+            {
+                shardCount -= 5 * upgradeThrustPowerCount;
+                upgradeThrustPowerCount++;
+                player->SetThrustPower(player->GetThrustPower() * 1.05);
+            }
+            break;
+        case SDL_SCANCODE_2:
+            if (shardCount >= 5 * upgradeMaxHealthCount) // upgrade Max Health
+            {
+                shardCount -= 5 * upgradeMaxHealthCount;
+                upgradeMaxHealthCount++;
+                player->SetMaxHealth(player->GetMaxHealth() + 50);
+                player->SetHealth(player->GetHealth() + 50);
+            }
+            break;
+        case SDL_SCANCODE_3:
+            if (shardCount >= 5 * upgradeHealthRegenCount) // upgrade Health Regen
+            {
+                shardCount -= 5 * upgradeHealthRegenCount;
+                upgradeHealthRegenCount++;
+                player->SetHealthRegen(player->GetHealthRegen() + 0.005f);
             }
             break;
         default:
@@ -464,7 +605,6 @@ void SceneMain::HandleEvents(const SDL_Event& sdlEvent) {
             f11HoldTimer = 0.0f;   // release before 3 s cancels the charge
         }
         break;
-
     case SDL_EVENT_MOUSE_BUTTON_DOWN:
         if (sdlEvent.button.button == SDL_BUTTON_LEFT) {
             if (!ImGui::GetIO().WantCaptureMouse) {
@@ -472,7 +612,7 @@ void SceneMain::HandleEvents(const SDL_Event& sdlEvent) {
                     bullet->Spawn(player->GetPosition());
                     player->IncreaseHeatLevel(1.0f);
                     player->ApplyImpulse(Vec3(-1.5f, 0.0f, 0.0f)); // recoil
-                    sfxLaser->Play(sfxPlayer);
+                    FMOD_manager->PlaySFXEvent(SFXLaser);
                 }
             }
         }
@@ -492,10 +632,15 @@ void SceneMain::HandleEvents(const SDL_Event& sdlEvent) {
                     };
 
                 bool launched = false;
-                if (!bot02->GetPositions().empty()) {
+                if (bossSpider && bossSpider->IsAlive() && bossSpider->IsOnScreen()) {
+                    // the boss is the last one in the Bot02 target list (see Update), so its index comes after the real Bot02s
+                    bullet->SpawnHoming(player->GetPosition(),
+                        MissileTargetType::BOT02, (int)bot02->GetPositions().size());
+                    launched = true;
+                }
+                else if (!bot02->GetPositions().empty()) {
                     bullet->SpawnHoming(player->GetPosition(),
                         MissileTargetType::BOT02, nearestIdx(bot02->GetPositions()));
-                    player->IncreaseHeatLevel(10.0f);
                     launched = true;
                 }
                 else if (!bot01->GetBot01Positions().empty()) {
@@ -552,6 +697,17 @@ void SceneMain::SaveGame() {
     SaveData::current.Save();
 }
 
+// Puts the whole boss section back to the start. Try Again calls this.
+void SceneMain::ResetBossFight() {
+    bossEncounter->Reset();
+    bossSpider->Reset();
+    bossBullets->Clear();
+    bossArena->SetExtent(-1000.0f, 1000.0f);
+
+    // in the F5 test scene the section starts by itself
+    if (bossTestMode) bossEncounter->Start(1.0f);
+}
+
 void SceneMain::SpawnShards(const Vec3& pos, int count) {
     for (int i = 0; i < count; i++) {
         Shard s;
@@ -568,8 +724,35 @@ void SceneMain::SpawnShards(const Vec3& pos, int count) {
 // Update
 void SceneMain::Update(const float deltaTime) {
     debugOverlay->Update(deltaTime);
+    float currentPlayerHP = player->GetHealth();
+    float currentPlayerHPRegen = player->GetHealthRegen();
 
     if (gamePaused) return;
+
+    player->SetHealth(currentPlayerHP + currentPlayerHPRegen);
+
+    if (hitPitchTimeRemain > 0){
+        hitPitchTimeRemain -= deltaTime;
+
+        if (hitPitchTimeRemain <= HitPitchRecovyTime) {
+            float t = 1.0f - hitPitchTimeRemain / HitPitchRecovyTime;
+            float blend = t * t * (3.0f - 2.0f * t);
+            float recoveryPitch = HitPitchLevel + (NormalPitchLevel - HitPitchLevel) * blend;
+
+            FMOD_manager->setMasterPitch(recoveryPitch);
+        }
+    }
+
+    // if players health drops below half change the bgm to phase 2
+    // (quite expensive, should be in somewhere else)
+    if (player->GetHealth() <= player->GetMaxHealth() / 2) {
+        FMOD_manager->setBGMintiensive(Phase2);
+    }
+    else {
+        FMOD_manager->setBGMintiensive(Phase1);
+    }
+
+    FMOD_manager->Update();
 
     // Cooldown timers
     if (explosionCooldownTimer > 0.0f)
@@ -635,15 +818,67 @@ void SceneMain::Update(const float deltaTime) {
     player->Update(dtMult * deltaTime);
 
     if (!warping) {
+        // The player's missiles can lock on to the boss. It goes at the end of the Bot02 list, so no other code changes.
+        std::vector<Vec3> bot02Targets = bot02->GetPositions();
+        if (bossSpider && bossSpider->IsAlive()) bot02Targets.push_back(bossSpider->GetPosition());
+
         bullet->Update(deltaTime,
             asteroid->GetAsteroidPositions(), Vec3(-asteroid->GetAsteroidSpeed(), 0.0f, 0.0f),
             bot01->GetBot01Positions(), Vec3(-bot01->GetBot01Speed(), 0.0f, 0.0f),
-            bot02->GetPositions(), Vec3(0.0f, 0.0f, 0.0f));
+            bot02Targets, Vec3(0.0f, 0.0f, 0.0f));
         asteroid->Update(deltaTime);
         bot01->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
         bot01->UpdateShields(deltaTime, bullet->GetMissilePositions());
         bot02->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
     }
+
+    // The boss section: the corridor, the warning, the fight, the ending
+    if (bossEncounter->IsActive()) {
+        bossEncounter->Update(deltaTime);
+
+        if (bossEncounter->PopSpawnBoss()) bossSpider->Activate();
+
+        // The hull of the arena corridor pushes the player. Pushed into the left edge of the screen,
+        // he is crushed: he loses a life and the corridor starts coming in again from the beginning.
+        if (bossEncounter->IsGateVisible() && bossEncounter->GetGate().PushPlayer(player)) {
+            player->LoseLife();
+            player->SetPosition(0.0f, 0.0f);
+            bossEncounter->RestartEntry();   // does nothing once the fight has started
+            if (bossEncounter->GetStage() == BossEncounter::Stage::ENTRY) {
+                bossSpider->Reset();
+                bossBullets->Clear();
+            }
+            if (explosionCooldownTimer <= 0.0f) {
+                FMOD_manager->PlaySFXEvent(SFXExplosion);
+                explosionCooldownTimer = explosionCooldown;
+            }
+        }
+
+        // the steel floor slides in and out
+        float arenaLeft, arenaRight;
+        bossEncounter->GetArenaExtent(arenaLeft, arenaRight);
+        bossArena->SetExtent(arenaLeft, arenaRight);
+        bossArena->SetLeftCap(!bossEncounter->IsGateVisible());   // the corridor hull covers the left end
+
+        // The screen is black now: bank every shard on the screen and save. This is the checkpoint.
+        if (bossEncounter->PopCheckpoint()) {
+            bossBullets->Clear();
+            shardCount += (int)shards.size();
+            shards.clear();
+            SaveGame();
+        }
+
+        // the section is over, the level timeline carries on
+        if (bossEncounter->PopFinished()) levelDirector->ReleaseHold();
+    }
+
+    // The floor is faster while the arena slides in. The boss's legs follow it.
+    bossArena->SetScrollSpeed(bossEncounter->GetFloorSpeed());
+    bossSpider->SetFloorSpeed(bossArena->GetScrollSpeed());
+
+    if (bossSpider) bossSpider->Update(deltaTime, player->GetPosition().x, player->GetPosition().y);
+    if (bossBullets) bossBullets->Update(deltaTime, player->GetPosition(), player->GetVelocity());
+    if (bossArena) bossArena->Update(deltaTime);
 
     environment->Update(deltaTime);
 
@@ -742,13 +977,12 @@ void SceneMain::Update(const float deltaTime) {
                 bullet->RemoveAt(b);
                 bot01->PushX(e, 1.0f);
                 bot01->PushY(e, 0.0f);
-                SDL_ClearAudioStream(sfxLaserHitStream);
-                sfxLaserHit->Play(sfxLaserHitStream);
+                FMOD_manager->PlaySFXEvent(SFXLaserHit);
                 if (bot01->DamageBot01(e)) {
                     SpawnShards(deathPos, 5);
                     score += 100;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
@@ -766,13 +1000,12 @@ void SceneMain::Update(const float deltaTime) {
                 Vec3 deathPos = asteroid->GetAsteroidPositions()[a];
                 bullet->RemoveAt(b);
                 asteroid->PushAsteroid(a, 1.5f, 0.0f);
-                SDL_ClearAudioStream(sfxLaserHitStream);
-                sfxLaserHit->Play(sfxLaserHitStream);
+                FMOD_manager->PlaySFXEvent(SFXLaserHit);
                 if (asteroid->DamageAsteroid(a)) {
                     SpawnShards(deathPos, 3);
                     score += 50;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
@@ -790,13 +1023,12 @@ void SceneMain::Update(const float deltaTime) {
                 Vec3 deathPos = asteroid->GetSmallAsteroidPositions()[a];
                 bullet->RemoveAt(b);
                 asteroid->PushSmallAsteroid(a, 2.5f, 0.0f);
-                SDL_ClearAudioStream(sfxLaserHitStream);
-                sfxLaserHit->Play(sfxLaserHitStream);
+                FMOD_manager->PlaySFXEvent(SFXLaserHit);
                 if (asteroid->DamageSmallAsteroid(a)) {
                     SpawnShards(deathPos, 2);
                     score += 25;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
@@ -831,13 +1063,13 @@ void SceneMain::Update(const float deltaTime) {
                     SpawnShards(deathPos, 7);
                     score += 100;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
                 else {
                     SpawnShards(deathPos, 2);
-                    sfxMissileHit->Play(sfxPlayer);
+                    FMOD_manager->PlaySFXEvent(SFXMissileHit);
                 }
                 break;
             }
@@ -861,13 +1093,13 @@ void SceneMain::Update(const float deltaTime) {
                     SpawnShards(deathPos, 5);
                     score += 50;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
                 else {
                     SpawnShards(deathPos, 2);
-                    sfxMissileHit->Play(sfxPlayer);
+                    FMOD_manager->PlaySFXEvent(SFXMissileHit);
                 }
                 break;
             }
@@ -891,13 +1123,13 @@ void SceneMain::Update(const float deltaTime) {
                     SpawnShards(deathPos, 3);
                     score += 25;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
                 else {
                     SpawnShards(deathPos, 1);
-                    sfxMissileHit->Play(sfxPlayer);
+                    FMOD_manager->PlaySFXEvent(SFXMissileHit);
                 }
                 break;
             }
@@ -922,8 +1154,10 @@ void SceneMain::Update(const float deltaTime) {
                 if (asteroid->DamageAsteroid(a, 999)) {
                     SpawnShards(pos, 3);
                     score += 10;
+                    float shield_t = player->GetShieldTimer();
+                    player->SetShieldTimer(shield_t + 2.0f);
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
@@ -938,8 +1172,10 @@ void SceneMain::Update(const float deltaTime) {
                 if (asteroid->DamageSmallAsteroid(a, 999)) {
                     SpawnShards(pos, 2);
                     score += 5;
+                    float shield_t = player->GetShieldTimer();
+                    player->SetShieldTimer(shield_t + 1.0f);
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
@@ -954,8 +1190,10 @@ void SceneMain::Update(const float deltaTime) {
                 if (bot01->DamageBot01(e, 999)) {
                     SpawnShards(pos, 5);
                     score += 50;
+                    float shield_t = player->GetShieldTimer();
+                    player->SetShieldTimer(shield_t + 4.0f);
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
@@ -1015,9 +1253,52 @@ void SceneMain::Update(const float deltaTime) {
                     bot02->MarkBulletReflected(b);
 
                     if (shieldHitCooldownTimer <= 0.0f) {
-                        sfxShieldHit->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXShieldHit);
                         shieldHitCooldownTimer = kShieldHitCooldown;
                     }
+                }
+            }
+        }
+        // Boss bullets bounce off the shield the same way. A bounced bullet turns light blue, stops hurting the
+// player and flies back at the boss.
+        if (bossBullets) {
+            for (int b = (int)bossBullets->GetBullets().size() - 1; b >= 0; b--) {
+                BossBullet& bb = bossBullets->GetBullets()[b];
+                if (bb.reflected) continue;
+
+                float rx = bb.pos.x - sp.x;
+                float ry = bb.pos.y - sp.y;
+                if ((rx * rx) / srx2 + (ry * ry) / sry2 >= 1.0f) continue;
+
+                // the same moving-wall bounce as the Bot02 bullets above
+                float nx = rx / srx2;
+                float ny = ry / sry2;
+                float nlen = sqrtf(nx * nx + ny * ny);
+                if (nlen > 0.0001f) { nx /= nlen; ny /= nlen; }
+
+                float rvx = bb.vel.x - pVel.x;
+                float rvy = bb.vel.y - pVel.y;
+                float relDotN = rvx * nx + rvy * ny;
+                if (relDotN >= 0.0f) continue;   // moving away from the shield already
+
+                rvx -= 2.0f * relDotN * nx;
+                rvy -= 2.0f * relDotN * ny;
+                float outVx = rvx + pVel.x * kVelInfluence;
+                float outVy = rvy + pVel.y * kVelInfluence;
+                float spd = sqrtf(outVx * outVx + outVy * outVy);
+                if (spd > 0.001f) {
+                    bb.vel.x = outVx / spd * kRicochetSpeed;
+                    bb.vel.y = outVy / spd * kRicochetSpeed;
+                }
+
+                bb.reflected = true;
+                bb.accel = 0.0f;                    // no more speeding up
+                bb.health = 0;                      // lasers pass through it now
+                bb.color = Vec3(0.5f, 0.95f, 1.0f);   // light blue, so it is clear it is the player's now
+
+                if (shieldHitCooldownTimer <= 0.0f) {
+                    FMOD_manager->PlaySFX(SFXShieldHit);
+                    shieldHitCooldownTimer = kShieldHitCooldown;
                 }
             }
         }
@@ -1038,7 +1319,7 @@ void SceneMain::Update(const float deltaTime) {
                 if (bot02->DamageBot02(e, 2)) {
                     SpawnShards(deathPos, 8);
                     score += 300;
-                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
+                    if (explosionCooldownTimer <= 0.0f) { FMOD_manager->PlaySFXEvent(SFXExplosion); explosionCooldownTimer = explosionCooldown; }
                 }
                 hit = true;
             }
@@ -1054,7 +1335,7 @@ void SceneMain::Update(const float deltaTime) {
                 if (bot01->DamageBot01(e, 2)) {
                     SpawnShards(deathPos, 5);
                     score += 100;
-                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
+                    if (explosionCooldownTimer <= 0.0f) { FMOD_manager->PlaySFXEvent(SFXExplosion); explosionCooldownTimer = explosionCooldown; }
                 }
                 hit = true;
             }
@@ -1070,7 +1351,7 @@ void SceneMain::Update(const float deltaTime) {
                 if (asteroid->DamageAsteroid(a, 3)) {
                     SpawnShards(deathPos, 3);
                     score += 50;
-                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
+                    if (explosionCooldownTimer <= 0.0f) { FMOD_manager->PlaySFXEvent(SFXExplosion); explosionCooldownTimer = explosionCooldown; }
                 }
                 hit = true;
             }
@@ -1086,7 +1367,7 @@ void SceneMain::Update(const float deltaTime) {
                 if (asteroid->DamageSmallAsteroid(a, 3)) {
                     SpawnShards(deathPos, 2);
                     score += 25;
-                    if (explosionCooldownTimer <= 0.0f) { sfxExplosion->Play(sfxPlayer); explosionCooldownTimer = explosionCooldown; }
+                    if (explosionCooldownTimer <= 0.0f) { FMOD_manager->PlaySFXEvent(SFXExplosion); explosionCooldownTimer = explosionCooldown; }
                 }
                 hit = true;
             }
@@ -1103,9 +1384,9 @@ void SceneMain::Update(const float deltaTime) {
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx / len * 4.0f, dy / len * 4.0f, 0.0f));
             asteroid->RemoveAsteroid(a);
             SpawnShards(deathPos, 3);
-            player->TakeDamage(25.0f);
+            DamagePlayer(25.0f);
             if (explosionCooldownTimer <= 0.0f) {
-                sfxExplosion->Play(sfxPlayer);
+                FMOD_manager->PlaySFXEvent(SFXExplosion);
                 explosionCooldownTimer = explosionCooldown;
             }
         }
@@ -1121,9 +1402,9 @@ void SceneMain::Update(const float deltaTime) {
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx / len * 2.5f, dy / len * 2.5f, 0.0f));
             asteroid->RemoveSmallAsteroid(a);
             SpawnShards(deathPos, 2);
-            player->TakeDamage(10.0f);
+            DamagePlayer(10.0f);
             if (explosionCooldownTimer <= 0.0f) {
-                sfxExplosion->Play(sfxPlayer);
+                FMOD_manager->PlaySFXEvent(SFXExplosion);
                 explosionCooldownTimer = explosionCooldown;
             }
         }
@@ -1139,9 +1420,9 @@ void SceneMain::Update(const float deltaTime) {
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx / len * 5.0f, dy / len * 5.0f, 0.0f));
             bot01->RemoveBot01(e);
             SpawnShards(deathPos, 5);
-            player->TakeDamage(40.0f);
+            DamagePlayer(40.0f);
             if (explosionCooldownTimer <= 0.0f) {
-                sfxExplosion->Play(sfxPlayer);
+                FMOD_manager->PlaySFXEvent(SFXExplosion);
                 explosionCooldownTimer = explosionCooldown;
             }
         }
@@ -1160,7 +1441,7 @@ void SceneMain::Update(const float deltaTime) {
                     SpawnShards(deathPos, 8);
                     score += 300;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
@@ -1186,13 +1467,13 @@ void SceneMain::Update(const float deltaTime) {
                     SpawnShards(deathPos, 10);
                     score += 300;
                     if (explosionCooldownTimer <= 0.0f) {
-                        sfxExplosion->Play(sfxPlayer);
+                        FMOD_manager->PlaySFXEvent(SFXExplosion);
                         explosionCooldownTimer = explosionCooldown;
                     }
                 }
                 else {
                     SpawnShards(deathPos, 3);
-                    sfxMissileHit->Play(sfxPlayer);
+                    FMOD_manager->PlaySFXEvent(SFXMissileHit);
                 }
                 break;
             }
@@ -1209,9 +1490,9 @@ void SceneMain::Update(const float deltaTime) {
             if (len > 0.001f) player->ApplyImpulse(Vec3(dx / len * 6.0f, dy / len * 6.0f, 0.0f));
             bot02->RemoveBot02(e);
             SpawnShards(deathPos, 8);
-            player->TakeDamage(50.0f);
+            DamagePlayer(50.0f);
             if (explosionCooldownTimer <= 0.0f) {
-                sfxExplosion->Play(sfxPlayer);
+                FMOD_manager->PlaySFXEvent(SFXExplosion);
                 explosionCooldownTimer = explosionCooldown;
             }
         }
@@ -1225,7 +1506,7 @@ void SceneMain::Update(const float deltaTime) {
             if (player->IsShieldActive()) {
                 bot02->RemoveBullet(b);
                 if (shieldHitCooldownTimer <= 0.0f) {
-                    sfxShieldHit->Play(sfxPlayer);
+                    FMOD_manager->PlaySFX(SFXShieldHit);
                     shieldHitCooldownTimer = kShieldHitCooldown;
                 }
             }
@@ -1235,19 +1516,148 @@ void SceneMain::Update(const float deltaTime) {
                 if (vlen > 0.001f)
                     player->ApplyImpulse(Vec3(vel.x / vlen * -5.0f, vel.y / vlen * -5.0f, 0.0f));
                 bot02->RemoveBullet(b);
-                player->TakeDamage(25.0f);
+                DamagePlayer(25.0f);
                 if (explosionCooldownTimer <= 0.0f) {
-                    sfxExplosion->Play(sfxPlayer);
+                    FMOD_manager->PlaySFXEvent(SFXExplosion);
                     explosionCooldownTimer = explosionCooldown;
                 }
             }
         }
     }
 
-    // All spawning is driven by the level script.
-    // The only phase gates remaining are the Bot02 intro window (phase 3) pause flags.
-    bool asteroidsSpawning = currentPhase < 3 || currentPhase >= 4;
-    bot01->SetSpawningEnabled(currentPhase != 3);
+    // Player lasers and missiles hurt the spider boss
+    if (bossSpider && bossSpider->IsAlive()) {
+        static constexpr float kLaserHitRadius = 0.15f;
+        static constexpr float kMissileHitRadius = 0.2f;
+
+        for (int l = (int)bullet->GetPositions().size() - 1; l >= 0; l--) {
+            if (bossSpider->IsHit(bullet->GetPositions()[l], kLaserHitRadius)) {
+                bullet->RemoveAt(l);
+                bool killed = bossSpider->TakeDamage(BossSpider::kLaserDamage);
+                FMOD_manager->PlaySFXEvent(SFXLaserHit);
+                if (killed) {
+                    FMOD_manager->PlaySFXEvent(SFXExplosion);
+                    break;
+                }
+            }
+        }
+
+        for (int m = (int)bullet->GetMissilePositions().size() - 1; m >= 0 && bossSpider->IsAlive(); m--) {
+            if (bossSpider->IsHit(bullet->GetMissilePositions()[m], kMissileHitRadius)) {
+                bullet->RemoveMissileAt(m);
+                bool killed = bossSpider->TakeDamage(BossSpider::kMissileDamage);
+                SpawnShards(bossSpider->GetPosition(), 3);
+                if (killed) FMOD_manager->PlaySFXEvent(SFXExplosion);
+                else FMOD_manager->PlaySFXEvent(SFXMissileHit);
+            }
+        }
+    }
+
+    // Boss bullets that the shield bounced back hurt the boss
+    if (bossBullets && bossSpider && bossSpider->IsAlive()) {
+        for (int b = (int)bossBullets->GetBullets().size() - 1; b >= 0; b--) {
+            BossBullet& bb = bossBullets->GetBullets()[b];
+            if (!bb.reflected) continue;
+            if (!bossSpider->IsHit(bb.pos, bb.radius)) continue;
+
+            Vec3 hitPos = bb.pos;
+            float damage = bb.guided ? BossSpider::kReflectMissileDamage : BossSpider::kReflectDamage;
+            bossBullets->RemoveAt(b);   // bb is gone after this
+
+            bool killed = bossSpider->TakeDamage(damage);
+            SpawnShards(hitPos, 2);
+            FMOD_manager->PlaySFXEvent(SFXMissileHit);
+            if (killed) {
+                FMOD_manager->PlaySFXEvent(SFXExplosion);
+                break;   // the boss cleared all its bullets when it died
+            }
+        }
+    }
+
+    // The running boss hurts the player when it touches him. The shield stops the damage and bounces him off.
+    if (bossSpider && bossSpider->CheckDashHit(player->GetPosition(), 0.3f)) {
+        float side = (player->GetPosition().y >= bossSpider->GetPosition().y) ? 1.0f : -1.0f;
+        player->ApplyImpulse(Vec3(0.0f, side * 7.0f, 0.0f));
+        DamagePlayer(BossSpider::kDashDamage);
+        if (explosionCooldownTimer <= 0.0f) {
+            FMOD_manager->PlaySFXEvent(SFXExplosion);
+            explosionCooldownTimer = explosionCooldown;
+        }
+    }
+
+    // The boss finished dying: a pile of shards, points and a big bang
+    if (bossSpider && bossSpider->PopDeathRequest()) {
+        SpawnShards(bossSpider->GetPosition(), 40);
+        score += 2000;
+        FMOD_manager->PlaySFXEvent(SFXExplosion);
+        bossEncounter->OnBossDefeated();   // starts the ending
+    }
+
+    // Player lasers shoot down the boss bullets that have health (the seekers)
+    if (bossBullets) {
+        static constexpr float kLaserRadius = 0.15f;
+        for (int l = (int)bullet->GetPositions().size() - 1; l >= 0; l--) {
+            Vec3 laser = bullet->GetPositions()[l];
+            for (int b = (int)bossBullets->GetBullets().size() - 1; b >= 0; b--) {
+                BossBullet& bb = bossBullets->GetBullets()[b];
+                if (bb.health <= 0) continue;   // plain bullets can't be shot
+
+                float dx = bb.pos.x - laser.x;
+                float dy = bb.pos.y - laser.y;
+                float reach = bb.radius + kLaserRadius;
+                if (dx * dx + dy * dy < reach * reach) {
+                    bullet->RemoveAt(l);
+                    bb.health--;
+                    if (bb.health <= 0) {
+                        bossBullets->RemoveAt(b);   // bb is gone after this, so nothing touches it again
+                        if (explosionCooldownTimer <= 0.0f) {
+                            FMOD_manager->PlaySFXEvent(SFXExplosion);
+                            explosionCooldownTimer = explosionCooldown;
+                        }
+                    }
+                    break;   // this laser is used up, go to the next laser
+                }
+            }
+        }
+    }
+
+    // Boss bullets hit player. The shield destroys them, otherwise they hurt.
+    if (bossBullets) {
+        static constexpr float kPlayerHitRadius = 0.2f;    // smaller than the ship, so close calls feel fair
+        for (int b = (int)bossBullets->GetBullets().size() - 1; b >= 0; b--) {
+            const BossBullet& bb = bossBullets->GetBullets()[b];
+            if (bb.reflected) continue;   // bounced back by the shield, it belongs to the player now
+            float dx = bb.pos.x - player->GetPosition().x;
+            float dy = bb.pos.y - player->GetPosition().y;
+
+            if (player->IsShieldActive()) {
+                float sx = dx / player->GetShieldRadiusX();
+                float sy = dy / player->GetShieldRadiusY();
+                if (sx * sx + sy * sy < 1.0f) {
+                    bossBullets->RemoveAt(b);
+                    if (shieldHitCooldownTimer <= 0.0f) {
+                        FMOD_manager->PlaySFX(SFXShieldHit);
+                        shieldHitCooldownTimer = kShieldHitCooldown;
+                    }
+                }
+            }
+            else if (dx * dx + dy * dy < (bb.radius + kPlayerHitRadius) * (bb.radius + kPlayerHitRadius)) {
+                float damage = bb.damage;   // read it first, bb is gone after RemoveAt
+                bossBullets->RemoveAt(b);
+                DamagePlayer(damage);
+                if (explosionCooldownTimer <= 0.0f) {
+                    FMOD_manager->PlaySFXEvent(SFXExplosion);
+                    explosionCooldownTimer = explosionCooldown;
+                }
+            }
+        }
+    }
+
+    // Phase 3 = Bot02 intro window — pause other spawning during the encounter
+   // While the boss section runs there are no new asteroids or bots, only the boss
+    bool bossFlowActive = bossEncounter->IsActive();
+    bool asteroidsSpawning = !bossTestMode && !bossFlowActive && (currentPhase < 3 || currentPhase >= 4);
+    bot01->SetSpawningEnabled(currentPhase != 3 && !bossFlowActive);
     asteroid->SetSpawningEnabled(asteroidsSpawning);
 
     // Life-loss detection — after all collision damage this frame.
@@ -1297,6 +1707,12 @@ void SceneMain::RenderBackground() {
 
     glDisable(GL_SCISSOR_TEST);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+    // The gate and the arena floor are drawn over the nebula and still behind all the 3D objects
+    if (!environment->IsWarpActive()) {
+        if (bossEncounter->IsArenaVisible()) bossArena->RenderBackground();
+        if (bossEncounter->IsGateVisible()) bossEncounter->GetGate().RenderBackground();   // the hull goes on top of the floor
+    }
 }
 
 // Render
@@ -1326,6 +1742,8 @@ void SceneMain::Render() const {
         asteroid->Render(shader, projectionMatrix, viewMatrix);
         bot01->Render(shader, projectionMatrix, viewMatrix);
         bot02->Render(shader, projectionMatrix, viewMatrix);
+        if (bossSpider) bossSpider->Render(shader, projectionMatrix, viewMatrix);
+        if (bossBullets) bossBullets->Render(shader, projectionMatrix, viewMatrix);
     }
 
     // Energy shards — additive emissive spinning orbs
@@ -1352,6 +1770,22 @@ void SceneMain::Render() const {
 
     glUseProgram(0);
 
+    // The arena floor covers the stars, so only the open space above and below it shows them
+    if (bossArena && bossEncounter->IsArenaVisible() && !anyWarp) {
+        float maskTop, maskBottom, maskLeft, maskRight;
+        bossArena->GetStarMask(maskTop, maskBottom, maskLeft, maskRight);
+        environment->SetStarMask(maskTop, maskBottom, maskLeft, maskRight);
+
+        // the corridor hull covers the whole height of the screen
+        if (bossEncounter->IsGateVisible()) {
+            bossEncounter->GetGate().GetStarMask(maskTop, maskBottom, maskLeft, maskRight);
+            environment->SetStarMask2(maskTop, maskBottom, maskLeft, maskRight);
+        }
+    }
+    else {
+        environment->SetStarMask(0.0f, 0.0f);
+    }
+
     // Stars — ImGui draws these on top of 3D (fine; they're small background dots)
     environment->Render();
 }
@@ -1364,7 +1798,7 @@ void SceneMain::PlayHoverSound() {
     if (id == lastHoveredId || now - lastHoverTick < 150) return;
     lastHoveredId = id;
     lastHoverTick = now;
-    uiClickSound->Play(hoverStream);
+    FMOD_manager->PlaySFXEvent(UIclickSound);
 }
 
 void SceneMain::DrawGui() {
@@ -1410,6 +1844,9 @@ void SceneMain::DrawGui() {
             ImGui::TextDisabled("F2   SceneJA  (Jacky test scene)");
             ImGui::TextDisabled("F3   SceneMuntasir (skip title)");
             ImGui::TextDisabled("F4   SceneOLI (Oliver test scene)");
+            ImGui::TextDisabled("F5   Spider boss test scene");
+            ImGui::TextDisabled("F6   Start boss section / skip the gate");
+            ImGui::TextDisabled("F7   Kill the spider boss");
             ImGui::TextDisabled("F9   Debug overlay  (Minimal / Detailed)");
             ImGui::TextDisabled("F10  This window");
             ImGui::TextDisabled("Q    Hold 3s — trigger full warp");
@@ -1428,486 +1865,38 @@ void SceneMain::DrawGui() {
     }
 
     if (environment->IsFullWarp()) return;       // hide all HUD during cinematic warp
-    DrawHUD();
-    DrawPauseMenu();
-    DrawGameOver();
+    if (bossSpider && bossSpider->IsOnScreen()) {
+        hudRenderer->DrawBossBar("SPIDER BOSS", bossSpider->GetHealthFraction(), bossSpider->GetHealthTrailFraction(),
+            BossSpider::kPhase2At, BossSpider::kPhase3At);
+    }
+
+    hudRenderer->DrawSurroundingBars();
+
+    // The dash: a red lane and a WARNING at the top while the boss gets ready
+    float laneY, laneX, laneStrength;
+    hudRenderer->DrawHUD();
+    if (bossSpider && bossSpider->GetDashLane(laneY, laneX, laneStrength)) {
+        hudRenderer->DrawDashLane(laneY, laneX, BossSpider::kDashLaneHalf, laneStrength);
+        hudRenderer->DrawAttackWarning("SPIDER BOSS DASH INCOMING", bossSpider->GetDashWarningTime());
+    }
+
+    // The big WARNING, after the corridor, right before the boss arrives
+    if (bossEncounter->GetStage() == BossEncounter::Stage::WARNING) {
+        hudRenderer->DrawBossWarning(bossEncounter->GetWarningTime());
+    }
+
+    hudRenderer->DrawPauseMenu();
+    hudRenderer->DrawGameOver();
+
+    // The fade and the banner go last, so they cover everything
+    hudRenderer->DrawFade(bossEncounter->GetFade());
+    hudRenderer->DrawBanner("SPIDER BOSS DEFEATED", "CHECKPOINT", bossEncounter->GetBannerAlpha());
 }
 
-// ── HUD — always-visible overlay ─────────────────────────────────────────────
-void SceneMain::DrawHUD() {
+// Damage Player ()
+void SceneMain::DamagePlayer(float amount) {
+    player->TakeDamage(amount);
 
-    // ── Game HUD (always visible) ─────────────────────────────────────────
-    ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(318, 292), ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(0.75f);
-    ImGui::Begin("##hud", nullptr,
-        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar |
-        ImGuiWindowFlags_NoBringToFrontOnFocus);
-
-    ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f),
-        "PILOT: %s", SaveData::current.profileName.c_str());
-    ImGui::Text("SCORE: %-8d   HI: %d", score, SaveData::current.highScore);
-    ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.1f, 1.0f), "SHARDS: %d", shardCount);
-    // Missile slots — solid colored bars (green=ready, dark=spent) + vertical reload bar
-    ImGui::Text("MISSILES");
-    const ImVec2 slotSize(14.0f, 22.0f);
-    const float  slotGap = 3.0f;
-    int maxM = bullet->GetMaxMissiles();
-    int curM = bullet->GetMissileCount();
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    for (int mi = 0; mi < maxM; mi++) {
-        if (mi > 0) ImGui::SameLine(0.0f, slotGap);
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        bool  ready = (mi < curM);
-        ImU32 fill = ready ? IM_COL32(55, 210, 80, 255) : IM_COL32(28, 28, 28, 220);
-        dl->AddRectFilled(p, ImVec2(p.x + slotSize.x, p.y + slotSize.y), fill, 2.0f);
-        dl->AddRect(p, ImVec2(p.x + slotSize.x, p.y + slotSize.y), IM_COL32(160, 160, 160, 200), 2.0f);
-        ImGui::Dummy(slotSize);
-    }
-    // Vertical reload bar — fills from the bottom up while a slot reloads
-    if (curM < maxM) {
-        ImGui::SameLine(0.0f, slotGap * 2.0f);
-        float   frac = bullet->GetReloadFraction();
-        ImVec2  p = ImGui::GetCursorScreenPos();
-        ImVec2  barSize(7.0f, slotSize.y);
-        float   fillH = barSize.y * frac;
-        dl->AddRectFilled(p, ImVec2(p.x + barSize.x, p.y + barSize.y), IM_COL32(28, 28, 28, 220), 2.0f);
-        dl->AddRectFilled(ImVec2(p.x, p.y + barSize.y - fillH),
-            ImVec2(p.x + barSize.x, p.y + barSize.y),
-            IM_COL32(255, 165, 30, 230), 2.0f);
-        dl->AddRect(p, ImVec2(p.x + barSize.x, p.y + barSize.y), IM_COL32(160, 160, 160, 200), 2.0f);
-        ImGui::Dummy(barSize);
-    }
-
-    // Lives
-    ImGui::Text("LIVES:");
-    for (int i = 0; i < player->GetLives(); i++) {
-        ImGui::SameLine();
-        ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "[*]");
-    }
-
-    // Health bar — green / yellow / red
-    float hp = player->GetHealth() / 100.0f;
-    ImVec4 hpCol = hp > 0.6f ? ImVec4(0.0f, 1.0f, 0.0f, 1.0f)
-        : hp > 0.3f ? ImVec4(1.0f, 1.0f, 0.0f, 1.0f)
-        : ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
-    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, hpCol);
-    ImGui::ProgressBar(hp, ImVec2(-1.0f, 20.0f), "");
-    ImGui::PopStyleColor();
-
-    // Heat level bar — cyan
-    float heat = player->GetHeatLevel() / 100.0f;
-    ImVec4 heatCol = ImVec4(0.0f, 1.0f, 1.0f, 1.0f);
-    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, heatCol);
-    ImGui::ProgressBar(heat, ImVec2(-1.0f, 20.0f), "");
-    ImGui::PopStyleColor();
-
-    // Shield — three-chunk bar: red (critical) | orange (warning) | cyan (safe)
-    // Chunks match the three recharge penalty tiers locked in at deactivation.
-    {
-        float charge = player->GetShieldChargeFraction(); // 1=full, 0=empty
-
-        if (player->IsShieldActive()) {
-            ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "SHIELD ACTIVE  [E]");
-        }
-        else if (player->IsShieldRecharging()) {
-            ImGui::TextColored(ImVec4(0.75f, 0.75f, 0.75f, 1.0f), "SHIELD RECHARGING");
-        }
-        else {
-            ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "SHIELD READY  [E]");
-        }
-
-        ImDrawList* dl = ImGui::GetWindowDrawList();
-        ImVec2      pos = ImGui::GetCursorScreenPos();
-        float       barW = ImGui::GetContentRegionAvail().x;
-        const float barH = 12.0f;
-        const float gap = 3.0f;
-
-        // Chunk widths — proportional to their charge range
-        float wRed = barW * 0.10f;
-        float wOrg = barW * 0.10f;
-        float wCyan = barW * 0.80f - gap * 2.0f;
-
-        float xRed = pos.x;
-        float xOrg = xRed + wRed + gap;
-        float xCyan = xOrg + wOrg + gap;
-        float y0 = pos.y;
-        float y1 = pos.y + barH;
-
-        // Fill fractions — each chunk fills independently for its tier
-        float fRed = charge <= 0.10f ? charge / 0.10f : 1.0f;
-        float fOrg = charge <= 0.10f ? 0.0f : charge <= 0.20f ? (charge - 0.10f) / 0.10f : 1.0f;
-        float fCyan = charge <= 0.20f ? 0.0f : (charge - 0.20f) / 0.80f;
-
-        const ImU32 bgCol = IM_COL32(25, 25, 45, 210);
-        const ImU32 redCol = IM_COL32(220, 35, 35, 255);
-        const ImU32 orgCol = IM_COL32(255, 140, 0, 255);
-        const ImU32 cyanCol = IM_COL32(0, 185, 255, 255);
-        const ImU32 rimCol = IM_COL32(255, 255, 255, 35);
-        const float r = 2.0f;
-
-        // Red chunk
-        dl->AddRectFilled(ImVec2(xRed, y0), ImVec2(xRed + wRed, y1), bgCol, r);
-        if (fRed > 0.0f) dl->AddRectFilled(ImVec2(xRed, y0), ImVec2(xRed + wRed * fRed, y1), redCol, r);
-        dl->AddRect(ImVec2(xRed, y0), ImVec2(xRed + wRed, y1), rimCol, r);
-
-        // Orange chunk
-        dl->AddRectFilled(ImVec2(xOrg, y0), ImVec2(xOrg + wOrg, y1), bgCol, r);
-        if (fOrg > 0.0f) dl->AddRectFilled(ImVec2(xOrg, y0), ImVec2(xOrg + wOrg * fOrg, y1), orgCol, r);
-        dl->AddRect(ImVec2(xOrg, y0), ImVec2(xOrg + wOrg, y1), rimCol, r);
-
-        // Cyan chunk
-        dl->AddRectFilled(ImVec2(xCyan, y0), ImVec2(xCyan + wCyan, y1), bgCol, r);
-        if (fCyan > 0.0f) dl->AddRectFilled(ImVec2(xCyan, y0), ImVec2(xCyan + wCyan * fCyan, y1), cyanCol, r);
-        dl->AddRect(ImVec2(xCyan, y0), ImVec2(xCyan + wCyan, y1), rimCol, r);
-
-        ImGui::Dummy(ImVec2(barW, barH));
-    }
-
-    // Lost shard beacon status
-    if (beaconTriggerTime > 0.0f && !shardBeacon->IsActive()) {
-        float timeLeft = beaconTriggerTime - levelDirector->GetTime();
-        ImGui::TextColored(ImVec4(1.0f, 0.70f, 0.10f, 0.85f),
-            "BEACON IN %.0fs  [%d shards]",
-            timeLeft, SaveData::current.lostShardCount);
-    }
-    else if (shardBeacon->IsActive()) {
-        ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.05f, 1.0f),
-            ">> RECOVER %d LOST SHARDS", shardBeacon->GetCount());
-    }
-
-    // Warp Drive charge — always visible in HUD
-    ImGui::Separator();
-    {
-        bool  charging = f11Held && !environment->IsWarpActive();
-        float progress = charging ? (f11HoldTimer / 3.0f) : 0.0f;
-        float t = (float)ImGui::GetTime();
-
-        // Label left, hint right-aligned to avoid border clipping
-        ImVec4 labelCol = charging
-            ? ImVec4(0.4f + progress * 0.6f, 0.7f + progress * 0.3f, 1.0f, 1.0f)
-            : ImVec4(0.55f, 0.80f, 1.0f, 0.95f);
-        ImGui::TextColored(labelCol, "WARP DRIVE");
-        const char* hint = charging ? "release to cancel" : "HOLD Q";
-        float hintW = ImGui::CalcTextSize(hint).x;
-        ImGui::SameLine(0, 0);
-        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - hintW - ImGui::GetStyle().WindowPadding.x);
-        ImGui::TextDisabled("%s", hint);
-
-        // Full-width bar
-        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.04f, 0.04f, 0.12f, 0.95f));
-        if (charging) {
-            // Charging: dark-blue → bright cyan fill
-            ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
-                ImVec4(progress * 0.15f, 0.35f + progress * 0.65f, 1.0f, 1.0f));
-            ImGui::ProgressBar(progress, ImVec2(-1.0f, 16.0f), "");
-            ImGui::PopStyleColor(2);
-        }
-        else {
-            // Idle: full bar with animated electric-blue → violet gradient
-            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.05f, 0.08f, 0.18f, 1.0f));
-            ImGui::ProgressBar(1.0f, ImVec2(-1.0f, 16.0f), "");
-            ImGui::PopStyleColor(2);
-            float  pulse = 0.70f + 0.30f * sinf(t * 1.4f);
-            int    a = (int)(248 * pulse);
-            ImVec2 bMin = ImGui::GetItemRectMin();
-            ImVec2 bMax = ImGui::GetItemRectMax();
-            ImGui::GetWindowDrawList()->AddRectFilledMultiColor(
-                bMin, bMax,
-                IM_COL32(0, 195, 255, a),   // electric blue (left)
-                IM_COL32(160, 35, 255, a),   // violet (right)
-                IM_COL32(160, 35, 255, a),
-                IM_COL32(0, 195, 255, a)
-            );
-        }
-    }
-
-    ImGui::TextDisabled("ESC  Pause");
-    ImGui::End();
-
-    // ── Level Timer — top, left of camera debug panel ────────────────────────
-    {
-        float levelSec = levelDirector->GetTime();
-        int   mm = (int)(levelSec / 60.0f);
-        int   ss = (int)(levelSec) % 60;
-        float t = (float)ImGui::GetTime();
-
-        ImGuiIO& io = ImGui::GetIO();
-        // Camera debug sits at cx ± 190 (380 px wide, centered).
-        // Pin the timer's right edge 10 px left of that panel's left edge.
-        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f - 200.0f, 20.0f),
-            ImGuiCond_Always, ImVec2(1.0f, 0.0f));
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.03f, 0.05f, 0.13f, 0.90f));
-        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.15f, 0.55f, 1.0f, 0.55f));
-        ImGui::Begin("##leveltimer", nullptr,
-            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize |
-            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
-            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav |
-            ImGuiWindowFlags_NoBringToFrontOnFocus);
-
-        // Small spaced header — body font (no scaling)
-        ImGui::TextDisabled("  L E V E L  ");
-
-        // Large MM:SS — dedicated 32 px raster, crisp at any resolution
-        ImGui::PushFont(Fonts::large);
-        float colonAlpha = 0.35f + 0.65f * sinf(t * GameConst::kPi);
-        ImGui::TextColored(ImVec4(0.15f, 0.88f, 1.0f, 1.0f), "%02d", mm);
-        ImGui::SameLine(0, 0);
-        ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, colonAlpha), ":");
-        ImGui::SameLine(0, 0);
-        ImGui::TextColored(ImVec4(0.65f, 0.25f, 1.0f, 1.0f), "%02d", ss);
-        ImGui::PopFont();
-
-        ImGui::End();
-        ImGui::PopStyleColor(2);
-    }
-
-    // ── Build Version — bottom-right ──────────────────────────────────────────
-    {
-        ImGuiIO& io = ImGui::GetIO();
-        ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 10.0f, io.DisplaySize.y - 10.0f),
-            ImGuiCond_Always, ImVec2(1.0f, 1.0f));
-        ImGui::SetNextWindowBgAlpha(0.0f);
-        ImGui::Begin("##buildver", nullptr,
-            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize |
-            ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
-            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav |
-            ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoInputs);
-
-        ImGui::TextDisabled("Alpha Engine  v%d.%d.%d  build %d",
-            AppVersion::kMajor, AppVersion::kMinor, AppVersion::kPatch, AppVersion::kBuild);
-
-        ImGui::End();
-    }
-}
-
-// ── Pause Menu ────────────────────────────────────────────────────────────────
-void SceneMain::DrawPauseMenu() {
-    if (!gamePaused) return;
-
-    ImGuiIO& io = ImGui::GetIO();
-    float    panW = 380.0f;
-    float    panH = pauseShowSettings ? 640.0f : 275.0f;
-    ImGui::SetNextWindowPos(
-        ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
-        ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(panW, panH), ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(0.92f);
-    ImGui::Begin("##pause", nullptr,
-        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar);
-
-    float innerW = ImGui::GetContentRegionAvail().x;
-    float btnW = innerW - 16.0f;
-    float btnX = 8.0f;
-
-    // "PAUSED" — large centred title, same style as title screen
-    ImGui::SetWindowFontScale(2.0f);
-    ImVec2 tSz = ImGui::CalcTextSize("PAUSED");
-    ImGui::SetCursorPosX((innerW - tSz.x) * 0.5f);
-    ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "PAUSED");
-    ImGui::SetWindowFontScale(1.0f);
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    ImGui::SetCursorPosX(btnX);
-    if (ImGui::Button("RESUME", ImVec2(btnW, 40.0f)))
-        gamePaused = false;
-    PlayHoverSound();
-
-    ImGui::Spacing();
-
-    ImGui::SetCursorPosX(btnX);
-    if (ImGui::Button(
-        pauseShowSettings ? "SETTINGS  [hide]" : "SETTINGS  [show]",
-        ImVec2(btnW, 32.0f))) {
-        if (!pauseShowSettings) {
-            pendingResIndex = SaveData::current.resolutionIndex;
-            pendingFullscreen = SaveData::current.fullscreen;
-            pendingVsync = SaveData::current.vsyncMode;
-            pendingTargetFPS = SaveData::current.targetFPS;
-        }
-        pauseShowSettings = !pauseShowSettings;
-    }
-    PlayHoverSound();
-
-    if (pauseShowSettings) {
-        // ── Audio ──────────────────────────────────────────────────────
-        ImGui::Spacing();
-        ImGui::SetCursorPosX(btnX);
-        ImGui::Text("Music Volume");
-        ImGui::SetCursorPosX(btnX);
-        ImGui::SetNextItemWidth(btnW);
-        if (ImGui::SliderFloat("##music", &musicVolume, 0.0f, 1.0f))
-            SDL_SetAudioStreamGain(bgmPlayer, musicVolume);
-
-        ImGui::SetCursorPosX(btnX);
-        ImGui::Text("SFX Volume");
-        ImGui::SetCursorPosX(btnX);
-        ImGui::SetNextItemWidth(btnW);
-        if (ImGui::SliderFloat("##sfx", &sfxVolume, 0.0f, 1.0f)) {
-            SDL_SetAudioStreamGain(sfxPlayer, sfxVolume);
-            SDL_SetAudioStreamGain(sfxLaserHitStream, sfxVolume * 2.0f);
-            if (hoverStream) SDL_SetAudioStreamGain(hoverStream, sfxVolume * GameConst::kHoverStreamGain);
-        }
-
-        ImGui::SetCursorPosX(btnX);
-        if (musicPaused) {
-            if (ImGui::Button("Play Music", ImVec2(btnW, 28.0f))) {
-                SDL_ResumeAudioStreamDevice(bgmPlayer);
-                musicPaused = false;
-            }
-        }
-        else {
-            if (ImGui::Button("Pause Music", ImVec2(btnW, 28.0f))) {
-                SDL_PauseAudioStreamDevice(bgmPlayer);
-                musicPaused = true;
-            }
-        }
-        PlayHoverSound();
-
-        // ── Video ──────────────────────────────────────────────────────
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-        ImGui::SetCursorPosX(btnX);
-        ImGui::TextColored(ImVec4(0.0f, 0.85f, 1.0f, 1.0f), "VIDEO");
-
-        ImGui::SetCursorPosX(btnX);
-        ImGui::Text("Resolution");
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(btnW - 100.0f);
-        ImGui::Combo("##res", &pendingResIndex,
-            SaveData::kResolutionLabels, SaveData::kResolutionCount);
-
-        ImGui::SetCursorPosX(btnX);
-        ImGui::Checkbox("Fullscreen", &pendingFullscreen);
-
-        ImGui::SetCursorPosX(btnX);
-        ImGui::Text("Sync");
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Adaptive##vs", pendingVsync == -1)) pendingVsync = -1;
-        ImGui::SameLine();
-        if (ImGui::RadioButton("VSync##vs", pendingVsync == 1)) pendingVsync = 1;
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Off##vs", pendingVsync == 0)) pendingVsync = 0;
-
-        // Frame Cap (only meaningful when Sync is Off)
-        ImGui::SetCursorPosX(btnX);
-        ImGui::Text("Frame Cap");
-        ImGui::SameLine();
-        {
-            static const char* capLabels[] = { "Uncapped", "240 FPS", "144 FPS", "120 FPS", "60 FPS" };
-            static const int   capValues[] = { 0, 240, 144, 120, 60 };
-            int capIdx = 0;
-            for (int ci = 0; ci < 5; ci++) if (capValues[ci] == pendingTargetFPS) { capIdx = ci; break; }
-            ImGui::SetNextItemWidth(btnW - 100.0f);
-            if (ImGui::Combo("##cap", &capIdx, capLabels, 5))
-                pendingTargetFPS = capValues[capIdx];
-        }
-
-        ImGui::Spacing();
-        ImGui::SetCursorPosX(btnX);
-        if (ImGui::Button("APPLY VIDEO", ImVec2(btnW, 30))) {
-            SaveData::current.resolutionIndex = pendingResIndex;
-            SaveData::current.fullscreen = pendingFullscreen;
-            SaveData::current.vsyncMode = pendingVsync;
-            SaveData::current.targetFPS = pendingTargetFPS;
-            int w = SaveData::kResolutionW[pendingResIndex];
-            int h = SaveData::kResolutionH[pendingResIndex];
-            SceneSwitcher::RequestVideo(pendingFullscreen, w, h, pendingVsync);
-        }
-        PlayHoverSound();
-    }
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    ImGui::SetCursorPosX(btnX);
-    if (ImGui::Button("BACK TO TITLE", ImVec2(btnW, 36.0f))) {
-        gamePaused = false;
-        SceneSwitcher::Request(GameScene::TITLE);
-    }
-    PlayHoverSound();
-
-    ImGui::Spacing();
-
-    ImGui::SetCursorPosX(btnX);
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.50f, 0.10f, 0.10f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.75f, 0.15f, 0.15f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1.00f, 0.20f, 0.20f, 1.0f));
-    if (ImGui::Button("QUIT GAME", ImVec2(btnW, 36.0f))) {
-        SDL_Event e{}; e.type = SDL_EVENT_QUIT;
-        SDL_PushEvent(&e);
-    }
-    PlayHoverSound();
-    ImGui::PopStyleColor(3);
-
-    ImGui::End();
-}
-
-// ── Game Over screen ──────────────────────────────────────────────────────────
-void SceneMain::DrawGameOver() {
-    if (!gameOver) return;
-
-    ImGuiIO& io = ImGui::GetIO();
-    ImGui::SetNextWindowPos(
-        ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
-        ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(400, 220), ImGuiCond_Always);
-    ImGui::Begin("##gameover", nullptr,
-        ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoTitleBar);
-
-    ImGui::SetWindowFontScale(2.0f);
-    ImVec2 goSz = ImGui::CalcTextSize("GAME OVER");
-    ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - goSz.x) * 0.5f);
-    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "GAME OVER");
-    ImGui::SetWindowFontScale(1.0f);
-
-    ImGui::Spacing();
-    ImGui::SetCursorPosX(100);
-    ImGui::Text("Final Score: %d", score);
-    ImGui::Spacing();
-    ImGui::Spacing();
-    ImGui::SetCursorPosX(50);
-    if (ImGui::Button("Try Again", ImVec2(120, 40))) {
-        gameOver = false;
-        score = 0;
-        shardCount = 0;
-        shards.clear();
-        autoSaveTimer = 0.0f;
-        currentPhase = 1;
-        player->Reset();
-        asteroid->Reset();
-        bot01->Reset();
-        bot02->Reset();
-        levelDirector->Reset();
-        prevLives = player->GetLives();
-        SaveData::current.lives = 3;
-        SaveData::current.health = 100.0f;
-        SaveData::current.score = 0;
-        SaveData::current.posX = 0.0f;
-        SaveData::current.posY = 0.0f;
-        SaveData::current.waveTime = 0.0f;
-        SaveData::current.shardCount = 0;
-        SaveData::current.Save();
-    }
-    PlayHoverSound();
-    ImGui::SameLine();
-    if (ImGui::Button("Title", ImVec2(70, 40)))
-        SceneSwitcher::Request(GameScene::TITLE);
-    PlayHoverSound();
-    ImGui::SameLine();
-    if (ImGui::Button("Exit", ImVec2(70, 40))) {
-        SDL_Event e{}; e.type = SDL_EVENT_QUIT;
-        SDL_PushEvent(&e);
-    }
-    PlayHoverSound();
-    ImGui::End();
+    FMOD_manager->setMasterPitch(HitPitchLevel);
+    hitPitchTimeRemain = HitPitchDuration + HitPitchRecovyTime;
 }

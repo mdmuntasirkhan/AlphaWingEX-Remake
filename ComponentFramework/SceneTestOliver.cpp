@@ -456,6 +456,14 @@ void SceneTestOliver::HandleEvents(const SDL_Event& sdlEvent) {
                 player->SetHealth(player->GetHealth() + 50);
             }
             break;
+        case SDL_SCANCODE_3:
+            if (shardCount >= 5 * upgradeHealthRegenCount) // upgrade Health Regen
+            {
+                shardCount -= 5 * upgradeHealthRegenCount;
+                upgradeHealthRegenCount++;
+                player->SetHealthRegen(player->GetHealthRegen() + 0.005f);
+            }
+            break;
         default:
             player->HandleEvents(sdlEvent);
             break;
@@ -572,6 +580,10 @@ void SceneTestOliver::SpawnShards(const Vec3& pos, int count) {
 // Update
 void SceneTestOliver::Update(const float deltaTime) {
     debugOverlay->Update(deltaTime);
+
+    float currentPlayerHP = player->GetHealth();
+    float currentPlayerHPRegen = player->GetHealthRegen();
+    player->SetHealth(currentPlayerHP + currentPlayerHPRegen);
 
     if (gamePaused) return;
 
@@ -926,6 +938,8 @@ void SceneTestOliver::Update(const float deltaTime) {
                 if (asteroid->DamageAsteroid(a, 999)) {
                     SpawnShards(pos, 3);
                     score += 10;
+                    float shield_t = player->GetShieldTimer();
+                    player->SetShieldTimer(shield_t + 2.0f);
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
                         explosionCooldownTimer = explosionCooldown;
@@ -942,6 +956,8 @@ void SceneTestOliver::Update(const float deltaTime) {
                 if (asteroid->DamageSmallAsteroid(a, 999)) {
                     SpawnShards(pos, 2);
                     score += 5;
+                    float shield_t = player->GetShieldTimer();
+                    player->SetShieldTimer(shield_t+1.0f);
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
                         explosionCooldownTimer = explosionCooldown;
@@ -958,6 +974,8 @@ void SceneTestOliver::Update(const float deltaTime) {
                 if (bot01->DamageBot01(e, 999)) {
                     SpawnShards(pos, 5);
                     score += 50;
+                    float shield_t = player->GetShieldTimer();
+                    player->SetShieldTimer(shield_t + 4.0f);
                     if (explosionCooldownTimer <= 0.0f) {
                         sfxExplosion->Play(sfxPlayer);
                         explosionCooldownTimer = explosionCooldown;
@@ -1237,7 +1255,7 @@ void SceneTestOliver::Update(const float deltaTime) {
                 Vec3 vel = bot02->GetBulletVelocities()[b];
                 float vlen = sqrtf(vel.x * vel.x + vel.y * vel.y);
                 if (vlen > 0.001f)
-                    player->ApplyImpulse(Vec3(vel.x / vlen * -5.0f, vel.y / vlen * -5.0f, 0.0f));
+                    player->ApplyImpulse(Vec3(vel.x / vlen * 5.0f, vel.y / vlen * 5.0f, 0.0f));
                 bot02->RemoveBullet(b);
                 player->TakeDamage(25.0f);
                 if (explosionCooldownTimer <= 0.0f) {
@@ -1358,6 +1376,8 @@ void SceneTestOliver::Render() const {
 
     // Stars — ImGui draws these on top of 3D (fine; they're small background dots)
     environment->Render();
+
+
 }
 
 // Plays a quiet click when the cursor first moves onto a new ImGui widget.
@@ -1453,6 +1473,7 @@ void SceneTestOliver::DrawHUD() {
         "PILOT: %s", SaveData::current.profileName.c_str());
     ImGui::Text("SCORE: %-8d   HI: %d", score, SaveData::current.highScore);
     ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.1f, 1.0f), "SHARDS: %d", shardCount);
+
     // Missile slots — solid colored bars (green=ready, dark=spent) + vertical reload bar
     ImGui::Text("MISSILES");
     const ImVec2 slotSize(14.0f, 22.0f);
